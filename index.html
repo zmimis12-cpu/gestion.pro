@@ -415,25 +415,26 @@
   .pay-method.credit-btn.selected { background: rgba(255,209,102,0.1); }
 
   /* ── FORMS ── */
-  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-  .form-group { display: flex; flex-direction: column; gap: 7px; }
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .form-group { display: flex; flex-direction: column; gap: 5px; }
   .form-group.full { grid-column: 1 / -1; }
+  .form-group label { font-size: 11px; font-weight: 600; color: var(--text2); text-transform: uppercase; letter-spacing: 0.5px; }
   label { font-size: 12px; font-weight: 600; color: var(--text2); text-transform: uppercase; letter-spacing: 0.5px; }
   input[type=text], input[type=number], input[type=email], input[type=tel], textarea, select {
     background: var(--surface2);
     border: 1.5px solid var(--border);
     border-radius: var(--radius-sm);
-    padding: 10px 14px;
+    padding: 7px 11px;
     color: var(--text);
     font-family: 'Outfit', sans-serif;
-    font-size: 13.5px;
+    font-size: 13px;
     outline: none;
     transition: border-color 0.15s;
     width: 100%;
   }
   input:focus, textarea:focus, select:focus { border-color: var(--accent); }
   select option { background: var(--surface2); }
-  textarea { resize: vertical; min-height: 80px; }
+  textarea { resize: vertical; min-height: 60px; }
 
   /* ── MODAL ── */
   .modal-overlay {
@@ -447,23 +448,27 @@
     opacity: 0;
     pointer-events: none;
     transition: opacity 0.2s;
+    padding: 16px;
   }
   .modal-overlay.open { opacity: 1; pointer-events: all; }
   .modal {
     background: var(--surface);
     border: 1px solid var(--border);
     border-radius: 18px;
-    padding: 28px;
-    width: 90%;
+    padding: 20px 22px;
+    width: 100%;
     max-width: 520px;
-    max-height: 90vh;
+    max-height: calc(100vh - 32px);
     overflow-y: auto;
+    overflow-x: hidden;
     transform: translateY(16px);
     transition: transform 0.2s;
+    display: flex;
+    flex-direction: column;
   }
   .modal-overlay.open .modal { transform: translateY(0); }
-  .modal-title { font-size: 18px; font-weight: 800; margin-bottom: 20px; }
-  .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 24px; }
+  .modal-title { font-size: 16px; font-weight: 800; margin-bottom: 14px; flex-shrink: 0; }
+  .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 16px; flex-shrink: 0; padding-top: 8px; border-top: 1px solid var(--border); }
 
   /* ── RECEIPT MODAL ── */
   /* ── RECEIPT ── */
@@ -868,7 +873,7 @@
   </div>
 
   <!-- SIDEBAR + APP -->
-  <div id="app-wrapper" style="display:none;width:100%;height:100%;position:relative;">
+  <div id="app-wrapper" style="display:none;width:100%;height:100%;">
   <!-- SIDEBAR -->
   <aside class="sidebar">
     <div class="logo">
@@ -948,11 +953,24 @@
     <div class="topbar">
       <div class="topbar-title" id="page-title">Tableau de bord</div>
       <div class="topbar-date" id="topbar-date"></div>
+      <!-- Sélecteur local actif pour Super Admin -->
+      <div id="sa-local-switcher" style="display:none;align-items:center;gap:8px;">
+        <span style="font-size:11px;color:var(--text2);white-space:nowrap;">🏪 Local actif :</span>
+        <select id="sa-active-local" onchange="onSALocalSwitch()" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:5px 10px;color:var(--text);font-family:'Outfit',sans-serif;font-size:12px;font-weight:600;max-width:160px;">
+          <option value="">— Accès global —</option>
+        </select>
+      </div>
       <button class="btn btn-primary" id="topbar-action" onclick="topbarAction()" style="display:none;">
         <span id="topbar-action-icon">➕</span>
         <span id="topbar-action-text">Nouvelle vente</span>
       </button>
+      <!-- Indicateur sync -->
+      <div style="display:flex;align-items:center;gap:6px;margin-left:8px;" title="Synchronisation">
+        <div id="sync-dot" style="width:8px;height:8px;border-radius:50%;background:var(--text2);transition:.3s;flex-shrink:0;"></div>
+      </div>
     </div>
+    <!-- Toast sync discret -->
+    <div id="sync-toast" style="position:fixed;bottom:18px;right:18px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px 14px;font-size:12px;color:var(--text2);opacity:0;transition:opacity .4s;z-index:9999;pointer-events:none;"></div>
 
     <!-- CONTENT -->
     <div class="content">
@@ -1114,6 +1132,14 @@
             <option value="bas">🟡 Stock bas</option>
             <option value="rupture">🔴 Rupture</option>
           </select>
+          <select id="stock-sort" onchange="renderStockTable()" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px 10px;color:var(--text);font-family:'Outfit',sans-serif;font-size:13px;">
+            <option value="recent">🆕 Plus récent</option>
+            <option value="name">🔤 Nom A→Z</option>
+            <option value="stock_asc">📦 Stock ↑</option>
+            <option value="stock_desc">📦 Stock ↓</option>
+            <option value="price_desc">💰 Prix ↓</option>
+          </select>
+          <button class="btn btn-secondary" onclick="openRestockModal()" style="border-color:rgba(0,212,170,0.5);color:var(--accent);" title="Réapprovisionner un produit existant">➕📦 Réappro</button>
           <button class="btn btn-primary" onclick="openModal('modal-add-product')" id="btn-new-product">➕ Nouveau</button>
           <button class="btn btn-secondary" onclick="openTransfertModal()" id="btn-transfert-stock" style="border-color:rgba(108,99,255,0.4);color:var(--accent3);">🔄 Transfert</button>
           <label class="btn btn-secondary" style="cursor:pointer;" title="Import CSV (sans photos)">
@@ -1271,6 +1297,14 @@
       </div>
       <!-- ═══════════ FONDS DE CAISSE ═══════════ -->
       <div class="page" id="page-fonds">
+        <!-- Sélecteur local -->
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap;">
+          <span style="font-size:13px;font-weight:600;color:var(--text2);">🏪 Local :</span>
+          <select id="fonds-local-filter" onchange="renderFonds()" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:6px 12px;color:var(--text);font-family:'Outfit',sans-serif;font-size:13px;font-weight:600;">
+            <option value="">🌐 Tous les locaux</option>
+          </select>
+          <span id="fonds-local-solde-badge" style="display:none;background:rgba(0,212,170,0.1);border:1px solid rgba(0,212,170,0.3);color:var(--accent);padding:4px 12px;border-radius:20px;font-size:12px;font-weight:700;"></span>
+        </div>
         <!-- Summary cards -->
         <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:22px;" id="fonds-stats"></div>
 
@@ -1493,6 +1527,9 @@
 
         <!-- TAB : DASHBOARD SA -->
         <div id="sa-panel-dash">
+          <div style="display:flex;justify-content:flex-end;margin-bottom:14px;">
+            <button class="btn btn-danger" onclick="saResetAllData()" style="font-size:12px;padding:6px 14px;">🗑️ Supprimer toutes les données (reset test)</button>
+          </div>
           <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:22px;" id="sa-stats-grid"></div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;" id="sa-locaux-cards"></div>
         </div>
@@ -1720,6 +1757,7 @@
 
 <!-- ═══════════════════════════ MODALS ═══════════════════════════ -->
 <!-- ═══ MODAL SA — LOCAL ═══ -->
+</div><!-- end app-wrapper -->
 <div class="modal-overlay" id="modal-sa-local">
   <div class="modal" style="max-width:520px;">
     <div class="modal-title" id="modal-sa-local-title">🏪 Nouveau Local</div>
@@ -1837,6 +1875,109 @@
     <div class="modal-actions">
       <button class="btn btn-secondary" onclick="closeModal('modal-employe')">Annuler</button>
       <button class="btn btn-primary" onclick="saveEmploye()">✅ Enregistrer</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ MODAL RÉAPPRO ═══ -->
+<div class="modal-overlay" id="modal-reappro">
+  <div class="modal" style="max-width:480px;">
+    <div class="modal-title">➕📦 Réapprovisionnement</div>
+    <div class="form-group" style="margin-bottom:12px;">
+      <label>Rechercher le produit</label>
+      <input type="text" id="reappro-search" placeholder="Tapez le nom ou code..." oninput="filterRestockList()" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--text);font-family:'Outfit',sans-serif;width:100%;">
+    </div>
+    <div id="reappro-list" style="max-height:280px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;margin-bottom:14px;"></div>
+    <div id="reappro-selected" style="display:none;background:rgba(0,212,170,0.07);border:1px solid rgba(0,212,170,0.3);border-radius:10px;padding:14px;margin-bottom:14px;">
+      <div style="font-weight:700;font-size:14px;margin-bottom:10px;" id="reappro-prod-name">—</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+        <div>
+          <label style="font-size:12px;color:var(--text2);">Stock actuel</label>
+          <div style="font-family:'JetBrains Mono',monospace;font-size:20px;font-weight:800;color:var(--accent);" id="reappro-stock-cur">0</div>
+        </div>
+        <div id="reappro-qty-container">
+          <label style="font-size:12px;color:var(--text2);">Quantité à ajouter *</label>
+          <input type="number" id="reappro-qty" min="1" placeholder="Ex: 50" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--text);font-family:'JetBrains Mono',monospace;font-size:16px;width:100%;font-weight:700;">
+        </div>
+      </div>
+      <!-- Tailles : visible seulement si produit type=tailles -->
+      <div id="reappro-sizes-section" style="display:none;margin-top:10px;">
+        <label style="font-size:12px;color:var(--text2);display:block;margin-bottom:6px;">Quantités par taille *</label>
+        <div id="reappro-sizes-grid" style="display:flex;flex-wrap:wrap;gap:8px;"></div>
+      </div>
+      <div style="margin-top:10px;">
+        <label style="font-size:12px;color:var(--text2);">Note (optionnel)</label>
+        <input type="text" id="reappro-note" placeholder="Fournisseur, lot, référence..." style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--text);font-family:'Outfit',sans-serif;width:100%;margin-top:4px;">
+      </div>
+    </div>
+    <input type="hidden" id="reappro-prod-id">
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeModal('modal-reappro')">Annuler</button>
+      <button class="btn btn-primary" id="reappro-btn-confirm" onclick="confirmRestock()" style="display:none;">✅ Ajouter au stock</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ MODAL CONTRAT DE TRAVAIL ═══ -->
+<div class="modal-overlay" id="modal-contrat">
+  <div class="modal" style="max-width:640px;">
+    <div class="modal-title">📄 Contrat de Travail</div>
+    <div class="form-grid">
+      <div class="form-group">
+        <label>Employé *</label>
+        <select id="ct-emp" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--text);font-family:'Outfit',sans-serif;width:100%;" onchange="updateContratFields()">
+          <option value="">— Sélectionner —</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Type de contrat *</label>
+        <select id="ct-type" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--text);font-family:'Outfit',sans-serif;width:100%;" onchange="toggleContratFields()">
+          <option value="CDI">CDI — Contrat à Durée Indéterminée</option>
+          <option value="CDD">CDD — Contrat à Durée Déterminée</option>
+          <option value="Stage">Contrat de Stage</option>
+          <option value="Apprentissage">Contrat d'Apprentissage</option>
+          <option value="Interim">Contrat d'Intérim</option>
+          <option value="ANAPEC">Contrat ANAPEC</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Date début *</label>
+        <input type="date" id="ct-date-debut" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--text);font-family:'Outfit',sans-serif;width:100%;">
+      </div>
+      <div class="form-group" id="ct-date-fin-group">
+        <label>Date fin <span id="ct-fin-label" style="color:var(--text2);font-size:11px;">(CDD/Stage)</span></label>
+        <input type="date" id="ct-date-fin" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--text);font-family:'Outfit',sans-serif;width:100%;">
+      </div>
+      <div class="form-group">
+        <label>Salaire de base brut (MAD/mois)</label>
+        <input type="number" id="ct-salaire-brut" placeholder="Ex: 4000" step="0.01" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--text);font-family:'Outfit',sans-serif;width:100%;">
+      </div>
+      <div class="form-group">
+        <label>Période d'essai</label>
+        <select id="ct-essai" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--text);font-family:'Outfit',sans-serif;width:100%;">
+          <option value="">Sans période d'essai</option>
+          <option value="15 jours">15 jours (ouvrier)</option>
+          <option value="1 mois">1 mois (employé)</option>
+          <option value="3 mois">3 mois (cadre)</option>
+          <option value="6 mois">6 mois (cadre supérieur)</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Horaire de travail</label>
+        <input type="text" id="ct-horaire" placeholder="Ex: 44h/semaine, Lu-Ve 9h-18h" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--text);font-family:'Outfit',sans-serif;width:100%;">
+      </div>
+      <div class="form-group">
+        <label>Lieu de travail</label>
+        <input type="text" id="ct-lieu" placeholder="Adresse du site de travail" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--text);font-family:'Outfit',sans-serif;width:100%;">
+      </div>
+      <div class="form-group full">
+        <label>Avantages / Clauses spéciales</label>
+        <textarea id="ct-avantages" rows="2" placeholder="Indemnités transport, logement, panier repas, clause de non-concurrence..." style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--text);font-family:'Outfit',sans-serif;width:100%;resize:vertical;"></textarea>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeModal('modal-contrat')">Annuler</button>
+      <button class="btn btn-primary" onclick="genererContrat()">📄 Générer le contrat</button>
     </div>
   </div>
 </div>
@@ -2452,7 +2593,7 @@
     </div>
   </div>
 </div>
-</div><!-- end app-wrapper -->
+
 
 <div class="toast-container" id="toast-container"></div>
 
@@ -3557,27 +3698,94 @@ function applyLang() {
 
 
 
-function saveSettings() {
-  const lid = getLocalId();
-  if (!lid) {
-    // Super Admin : pas de FK dans gp_settings pour 'SA'
-    localStorage.setItem('gp_sa_settings', JSON.stringify(settings));
-    return;
-  }
-  sb.from('gp_settings').upsert({ local_id: lid, data: settings, updated_at: new Date().toISOString() }, { onConflict: 'local_id' })
-    .then(({error}) => { if(error) console.warn('[SB] saveSettings:', error.message); });
-}
+
 
 let _saveTimer = null;
 function save(immediate) {
+  _lastSaveTime = Date.now();
+  // Mémoriser les IDs actuels pour ignorer nos propres events Realtime (3s)
+  _lastSaveIds = new Set([...products, ...sales, ...clients, ...employes, ...caisseOps].map(x=>x?.id).filter(Boolean));
+  setTimeout(() => { _lastSaveIds.clear(); }, 3000);
   if (immediate) { _doSave(); return; }
   clearTimeout(_saveTimer);
   _saveTimer = setTimeout(_doSave, 400);
 }
 
 // ─── SAUVEGARDE SUPABASE ─────────────────────────────────────
+// Local actif pour le Super Admin (null = accès global)
+let SA_ACTIVE_LOCAL = null;
+
 function getLocalId() {
-  return isSuperAdmin() ? null : (GP_USER?.local_id || null);
+  if (isSuperAdmin()) return SA_ACTIVE_LOCAL; // null = global, ou l'ID du local sélectionné
+  return GP_USER?.local_id || null;
+}
+
+// Retourne le local_id pour sauvegarder — bloque si SA en accès global
+function getRequiredLocalId() {
+  // Retourne le local_id de l'user, ou null si SA en accès global (autorisé)
+  return getLocalId();
+}
+
+function _showLocalPickerToast() {
+  // Supprimer l'ancien picker si existe
+  document.getElementById('_local-picker-toast')?.remove();
+  const opts = GP_LOCAUX_ALL.filter(l => l.actif !== false)
+    .map(l => `<button onclick="_pickLocalAndRetry('${l.id}')" style="display:block;width:100%;text-align:left;padding:8px 12px;background:var(--surface2);border:none;border-radius:6px;color:var(--text);cursor:pointer;font-size:13px;margin-bottom:4px;" onmouseover="this.style.background='var(--accent)';this.style.color='#0a0f1e'" onmouseout="this.style.background='var(--surface2)';this.style.color='var(--text)'">${l.nom}</button>`).join('');
+  const div = document.createElement('div');
+  div.id = '_local-picker-toast';
+  div.style.cssText = 'position:fixed;top:70px;left:50%;transform:translateX(-50%);background:var(--surface);border:1px solid var(--accent);border-radius:12px;padding:14px;z-index:9999;box-shadow:0 8px 32px rgba(0,0,0,0.5);min-width:220px;';
+  div.innerHTML = `<div style="font-size:13px;font-weight:700;color:var(--accent);margin-bottom:8px;">🏪 Choisir un local actif</div>${opts}<button onclick="this.closest('#_local-picker-toast').remove()" style="width:100%;padding:6px;background:transparent;border:1px solid var(--border);border-radius:6px;color:var(--text2);cursor:pointer;font-size:12px;margin-top:4px;">Annuler</button>`;
+  document.body.appendChild(div);
+  // Auto-fermer après 8s
+  setTimeout(() => div.remove(), 8000);
+}
+
+let _pendingAction = null;
+function _pickLocalAndRetry(localId) {
+  document.getElementById('_local-picker-toast')?.remove();
+  // Switcher le local SA
+  const sel = document.getElementById('sa-active-local');
+  if (sel) { sel.value = localId; onSALocalSwitch(); }
+  else { SA_ACTIVE_LOCAL = localId; }
+  toast(`🏪 Local actif : ${GP_LOCAUX_ALL.find(l=>l.id===localId)?.nom}`, 'success');
+}
+
+function onSALocalSwitch() {
+  const sel = document.getElementById('sa-active-local');
+  SA_ACTIVE_LOCAL = sel?.value || null;
+  // Recharger données + relancer Realtime sur le bon local
+  loadUserData().then(() => {
+    renderDashboard();
+    renderStockTable();
+    if (typeof renderVentes === 'function') renderVentes();
+    if (typeof renderClients === 'function') renderClients();
+    if (typeof renderEmployes === 'function') renderEmployes();
+    populateClientSelect();
+    updateAlertCount();
+    setupRealtime(); // relancer sur le nouveau local_id
+    const localName = SA_ACTIVE_LOCAL
+      ? (GP_LOCAUX_ALL.find(l => l.id === SA_ACTIVE_LOCAL)?.nom || SA_ACTIVE_LOCAL)
+      : 'Accès global';
+    toast(`🏪 Local actif : ${localName}`, 'success');
+  });
+}
+
+function updateSALocalSwitcher() {
+  const switcher = document.getElementById('sa-local-switcher');
+  const sel      = document.getElementById('sa-active-local');
+  if (!switcher || !sel) return;
+
+  if (isSuperAdmin()) {
+    switcher.style.display = 'flex';
+    const cur = sel.value;
+    sel.innerHTML = '<option value="">— Accès global —</option>' +
+      GP_LOCAUX_ALL.filter(l => l.actif !== false).map(l =>
+        `<option value="${l.id}" ${l.id === cur ? 'selected' : ''}>${l.nom}</option>`
+      ).join('');
+    if (SA_ACTIVE_LOCAL) sel.value = SA_ACTIVE_LOCAL;
+  } else {
+    switcher.style.display = 'none';
+  }
 }
 
 // Helper : upsert en masse avec gestion d'erreur silencieuse
@@ -3585,6 +3793,26 @@ async function sbUpsert(table, data, conflictCol = 'id') {
   if (!data || data.length === 0) return;
   const { error } = await sb.from(table).upsert(data, { onConflict: conflictCol });
   if (error) console.warn(`[SB] Upsert ${table}:`, error.message);
+}
+
+// Helper : synchronisation correcte multi-utilisateur
+// UPSERT uniquement — les suppressions se font via sbDelete() directement
+// sbSync ne supprime JAMAIS en masse pour ne pas écraser les données des autres users
+async function sbSync(table, data, localIdCol = 'local_id', lid) {
+  if (!data || data.length === 0) return;
+  try {
+    const { error } = await sb.from(table).upsert(data, { onConflict: 'id' });
+    if (error) {
+      console.error(`[SB] ❌ Sync ${table}:`, error.message, error.code, error.details);
+      // Afficher l'erreur visible pour debug
+      toast(`❌ Save ${table}: ${error.message}`, 'error');
+    } else {
+      console.log(`[SB] ✅ Sync ${table}: ${data.length} rows`);
+    }
+  } catch(e) {
+    console.error(`[SB] ❌ Sync ${table} exception:`, e.message);
+    toast(`❌ Save ${table}: ${e.message}`, 'error');
+  }
 }
 
 async function sbDelete(table, id) {
@@ -3596,7 +3824,7 @@ async function _doSave() {
   const lid = getLocalId();
   try {
     // ── Produits ──────────────────────────────────────────────
-    await sbUpsert('gp_products', products.map(p => ({
+    await sbSync('gp_products', products.map(p => ({
       id: p.id, local_id: lid || p.local_id,
       name: p.name, category: p.category, code: p.code || null,
       type: p.type || 'unite', price: p.price, cost: p.cost || 0,
@@ -3604,37 +3832,38 @@ async function _doSave() {
       unit: p.unit || 'Pièce', zone: p.zone || null,
       sizes: p.sizes || {}, photo_url: p.photo || null,
       updated_at: new Date().toISOString()
-    })));
+    })), 'local_id', lid);
 
     // ── Clients ───────────────────────────────────────────────
-    await sbUpsert('gp_clients', clients.map(c => ({
+    await sbSync('gp_clients', clients.map(c => ({
       id: c.id, local_id: lid || c.local_id,
       name: c.name, phone: c.phone || null, email: c.email || null,
       city: c.city || null, address: c.address || null,
       notes: c.notes || null,
       credit_limit: c.creditLimit || 0, credit_used: c.creditUsed || 0
-    })));
+    })), 'local_id', lid);
 
     // ── Ventes ────────────────────────────────────────────────
-    await sbUpsert('gp_sales', sales.map(s => ({
+    await sbSync('gp_sales', sales.map(s => ({
       id: s.id, local_id: lid || s.local_id,
       client_id: s.clientId || null, client_name: s.clientName || null,
       date: s.date, items: s.items || [],
       total: s.total, total_ht: s.totalHT || s.total,
       tva: s.tva || 0, tva_amount: s.tvaAmount || 0,
       payment: s.payment || 'especes'
-    })));
+    })), 'local_id', lid);
 
     // ── Caisse ────────────────────────────────────────────────
-    await sbUpsert('gp_caisse_ops', caisseOps.map(o => ({
+    await sbSync('gp_caisse_ops', caisseOps.map(o => ({
       id: o.id, local_id: lid || o.local_id,
       type: o.type, amount: o.amount,
       description: o.label || o.description || null,
-      date: o.date, session_date: (o.date||'').substring(0,10) || null
-    })));
+      payment: o.payment || null,
+      date: o.date
+    })), 'local_id', lid);
 
     // ── Conteneurs ────────────────────────────────────────────
-    await sbUpsert('gp_conteneurs', conteneurs.map(c => ({
+    await sbSync('gp_conteneurs', conteneurs.map(c => ({
       id: c.id, local_id: lid || c.local_id,
       numero: c.numero, fournisseur: c.fournisseur || null,
       pays: c.pays || null, type: c.type || null,
@@ -3649,20 +3878,20 @@ async function _doSave() {
       frais_retard_manuel: c.fraisRetardManuel || 0,
       methode_repartition: c.methodeRepartition || 'valeur',
       refs: c.refs || []
-    })));
+    })), 'local_id', lid);
 
     // ── Ordres ────────────────────────────────────────────────
-    await sbUpsert('gp_ordres', ordres.map(o => ({
+    await sbSync('gp_ordres', ordres.map(o => ({
       id: o.id, local_id: lid || o.local_id,
       conteneur_id: o.conteneurId || null,
       numero: o.numero || null, date: o.date || null,
       fournisseur: o.fournisseur || null,
       valeur: o.valeur || 0, statut: o.statut || 'en_attente',
       refs: o.refs || []
-    })));
+    })), 'local_id', lid);
 
     // ── Employés ──────────────────────────────────────────────
-    await sbUpsert('gp_employes', employes.map(e => ({
+    await sbSync('gp_employes', employes.map(e => ({
       id: e.id, local_id: lid || e.local_id,
       name: e.name, prenom: e.prenom || null,
       poste: e.poste || null, dept: e.dept || null,
@@ -3672,18 +3901,18 @@ async function _doSave() {
       contrat: e.contrat || 'CDI',
       local: e.local || null, statut: e.statut || 'actif',
       notes: e.notes || null
-    })));
+    })), 'local_id', lid);
 
     // ── Congés ────────────────────────────────────────────────
-    await sbUpsert('gp_conges', conges.map(c => ({
+    await sbSync('gp_conges', conges.map(c => ({
       id: c.id, local_id: lid || c.local_id,
       emp_id: c.empId || null, type: c.type || 'conge_annuel',
       debut: c.debut, fin: c.fin, jours: c.jours || 1,
       motif: c.motif || null, statut: c.statut || 'pending'
-    })));
+    })), 'local_id', lid);
 
     // ── Livraisons ────────────────────────────────────────────
-    await sbUpsert('gp_livraisons', livraisons.map(l => ({
+    await sbSync('gp_livraisons', livraisons.map(l => ({
       id: l.id, local_id: lid || l.local_id,
       numero: l.numero || null, date: l.date || null,
       client: l.client || null, tel: l.tel || null,
@@ -3691,14 +3920,14 @@ async function _doSave() {
       vehicule: l.vehicule || null, statut: l.statut || 'en_cours',
       notes: l.notes || null, articles: l.articles || [],
       valeur: l.valeur || 0
-    })));
+    })), 'local_id', lid);
 
     // ── Docs RH ───────────────────────────────────────────────
-    await sbUpsert('gp_docs_rh', docsRHHistory.map(d => ({
+    await sbSync('gp_docs_rh', docsRHHistory.map(d => ({
       id: d.id, local_id: lid || d.local_id,
       emp_id: d.empId || null, emp_name: d.empName || null,
       type: d.type || null, contenu: d.contenu || {}
-    })));
+    })), 'local_id', lid);
 
   } catch(e) {
     console.warn('[SB] Save error:', e);
@@ -3840,26 +4069,61 @@ function populateEditProductLocalSelects(curValue = '') {
 
 // ─── TRANSFERT STOCK ────────────────────────────────────────────────────────
 
+function openTransfertFromProduct(productId, destLid) {
+  // Ouvrir le modal transfert pré-rempli avec le produit et la destination
+  openTransfertModal();
+  setTimeout(() => {
+    const trProd = document.getElementById('tr-produit');
+    const trTo   = document.getElementById('tr-to');
+    // Chercher un variant avec du stock disponible
+    const variants = products.filter(p => {
+      const key = (products.find(x=>x.id===productId)?.code||'').toLowerCase() || products.find(x=>x.id===productId)?.name?.toLowerCase();
+      const myKey = (p.code||'').toLowerCase() || p.name?.toLowerCase();
+      return myKey === key && p.local_id !== destLid && p.stock > 0;
+    });
+    if (variants.length > 0 && trProd) {
+      // Sélectionner le variant avec le plus de stock
+      const best = variants.sort((a,b) => b.stock - a.stock)[0];
+      trProd.value = best.id;
+      document.getElementById('tr-from').value = best.local_id;
+      if (trTo) trTo.value = destLid;
+      updateTransfertQtyMax();
+    }
+  }, 100);
+}
+
 function openTransfertModal() {
   if (!isSuperAdmin() && !hasPermission('stock','update')) { toast('⛔ Permission refusée', 'error'); return; }
 
   const trProd = document.getElementById('tr-produit');
   if (trProd) {
+    // Grouper par code/nom → 1 option par produit unique avec stock total
+    const prodGroups = new Map();
+    products.filter(p => p.stock > 0).forEach(p => {
+      const key = (p.code&&p.code.trim()) ? p.code.trim().toLowerCase() : `${p.name.trim().toLowerCase()}||${(p.category||'').toLowerCase()}`;
+      if (!prodGroups.has(key)) prodGroups.set(key, { ...p, _totalStock: p.stock, _variants: [p] });
+      else { const g = prodGroups.get(key); g._totalStock += p.stock; g._variants.push(p); }
+    });
     trProd.innerHTML = '<option value="">— Sélectionner un produit —</option>' +
-      products
-        .filter(p => p.zone && p.stock > 0)
+      [...prodGroups.values()]
         .sort((a,b) => a.name.localeCompare(b.name))
-        .map(p => `<option value="${p.id}" data-zone="${p.zone}">${p.name} (${p.zone} — stock: ${p.stock})</option>`)
+        .map(g => {
+          // Stocker l'id du premier variant avec du stock comme référence
+          const stockInfo = g._variants.length > 1
+            ? `stock total: ${g._totalStock} · ${g._variants.length} locaux`
+            : (() => { const lNom = GP_LOCAUX_ALL.find(l=>l.id===g.local_id)?.nom||g.zone||'?'; return `${lNom} — stock: ${g._totalStock}`; })();
+          return `<option value="${g.id}" data-key="${(g.code&&g.code.trim())?g.code.trim().toLowerCase():`${g.name.trim().toLowerCase()}||${(g.category||'').toLowerCase()}`}">${g.name} (${stockInfo})</option>`;
+        })
         .join('');
   }
 
   const trFrom = document.getElementById('tr-from');
   if (trFrom) trFrom.innerHTML = '<option value="">— Local source —</option>' +
-    GP_LOCAUX_ALL.map(l => `<option value="${l.nom}">${l.nom}</option>`).join('');
+    GP_LOCAUX_ALL.filter(l=>l.actif!==false).map(l => `<option value="${l.id}">${l.nom}</option>`).join('');
 
   const trTo = document.getElementById('tr-to');
   if (trTo) trTo.innerHTML = '<option value="">— Local destination —</option>' +
-    GP_LOCAUX_ALL.map(l => `<option value="${l.nom}">${l.nom}</option>`).join('');
+    GP_LOCAUX_ALL.filter(l=>l.actif!==false).map(l => `<option value="${l.id}">${l.nom}</option>`).join('');
 
   const qEl = document.getElementById('tr-qty');
   const nEl = document.getElementById('tr-note');
@@ -3871,50 +4135,113 @@ function openTransfertModal() {
 }
 
 function updateTransfertQtyMax() {
-  const prodId   = document.getElementById('tr-produit')?.value;
-  const fromLocal= document.getElementById('tr-from')?.value;
+  const prodId  = document.getElementById('tr-produit')?.value;
+  const fromLid = document.getElementById('tr-from')?.value;
   if (!prodId) { const i = document.getElementById('tr-qty-info'); if (i) i.textContent=''; return; }
-  const p = products.find(x => x.id === prodId);
-  if (!p) return;
+  // Récupérer le produit de référence puis chercher le variant dans le local source
+  const refProd = products.find(x => x.id === prodId);
+  if (!refProd) return;
+  const key = (refProd.code&&refProd.code.trim()) ? refProd.code.trim().toLowerCase() : `${refProd.name.trim().toLowerCase()}||${(refProd.category||'').toLowerCase()}`;
+  const variants = products.filter(p => {
+    const pk = (p.code&&p.code.trim()) ? p.code.trim().toLowerCase() : `${p.name.trim().toLowerCase()}||${(p.category||'').toLowerCase()}`;
+    return pk === key;
+  });
+  // Auto-select local source : celui avec le plus de stock
   const trFrom = document.getElementById('tr-from');
-  if (p.zone && trFrom && !fromLocal) trFrom.value = p.zone;
+  if (!fromLid && trFrom) {
+    const best = variants.sort((a,b)=>b.stock-a.stock)[0];
+    if (best) trFrom.value = best.local_id;
+  }
+  const activeLid = document.getElementById('tr-from')?.value || refProd.local_id;
+  const srcVariant = variants.find(v => v.local_id === activeLid) || variants[0];
+  const localNom = GP_LOCAUX_ALL.find(l => l.id === activeLid)?.nom || srcVariant?.zone || '—';
   const info = document.getElementById('tr-qty-info');
-  if (info) info.textContent = `Stock disponible dans "${p.zone||'—'}": ${p.stock} ${p.unit||'unités'}`;
+  if (info) info.textContent = srcVariant ? `Stock dans "${localNom}": ${srcVariant.stock} ${srcVariant.unit||'unités'}` : '';
 }
 
 function executeTransfert() {
   const prodId  = document.getElementById('tr-produit')?.value;
   const qty     = parseFloat(document.getElementById('tr-qty')?.value);
-  const fromLoc = document.getElementById('tr-from')?.value;
-  const toLoc   = document.getElementById('tr-to')?.value;
+  const fromLid = document.getElementById('tr-from')?.value;   // local_id source
+  const toLid   = document.getElementById('tr-to')?.value;     // local_id destination
   const note    = document.getElementById('tr-note')?.value?.trim() || '';
 
   if (!prodId) { toast('Sélectionnez un produit', 'error'); return; }
   if (!qty || qty <= 0) { toast('Quantité invalide', 'error'); return; }
-  if (!fromLoc || !toLoc) { toast('Sélectionnez les locaux source et destination', 'error'); return; }
-  if (fromLoc === toLoc) { toast('Source et destination identiques', 'error'); return; }
+  if (!fromLid || !toLid) { toast('Sélectionnez les locaux source et destination', 'error'); return; }
+  if (fromLid === toLid) { toast('Source et destination identiques', 'error'); return; }
 
-  const p = products.find(x => x.id === prodId);
+  const fromNom = GP_LOCAUX_ALL.find(l => l.id === fromLid)?.nom || fromLid;
+  const toNom   = GP_LOCAUX_ALL.find(l => l.id === toLid)?.nom   || toLid;
+
+  // Produit source
+  // Retrouver tous les variants de ce produit
+  const refProd = products.find(x => x.id === prodId);
+  if (!refProd) return;
+  const prodKey = (refProd.code&&refProd.code.trim()) ? refProd.code.trim().toLowerCase() : `${refProd.name.trim().toLowerCase()}||${(refProd.category||'').toLowerCase()}`;
+  // Variant source = celui dans fromLid
+  const p = products.find(x => {
+    const xk = (x.code&&x.code.trim()) ? x.code.trim().toLowerCase() : `${x.name.trim().toLowerCase()}||${(x.category||'').toLowerCase()}`;
+    return xk === prodKey && x.local_id === fromLid;
+  }) || refProd;
   if (!p) return;
-  if (p.stock < qty) { toast(`Stock insuffisant (disponible: ${p.stock})`, 'error'); return; }
+  if (p.stock < qty) { toast(`Stock insuffisant dans "${fromNom}" (disponible: ${p.stock})`, 'error'); return; }
 
+  // Déduire du source
   p.stock -= qty;
-  p.zone   = fromLoc;
 
-  const destProd = products.find(x => x.code === p.code && x.zone === toLoc && x.id !== p.id);
+  // Chercher produit existant dans le local destination (même nom + même code)
+  const destProd = products.find(x =>
+    x.id !== p.id &&
+    x.local_id === toLid &&
+    (x.code && p.code ? x.code === p.code : x.name === p.name)
+  );
+
   if (destProd) {
+    // Produit existe déjà dans la destination → juste augmenter le stock
     destProd.stock += qty;
+    // Sauvegarder directement dans Supabase les 2 produits modifiés
+    sbSync('gp_products', [
+      { id: p.id, local_id: p.local_id || fromLid, name: p.name, category: p.category,
+        code: p.code||null, type: p.type||'unite', price: p.price, cost: p.cost||0,
+        stock: p.stock, min_stock: p.minStock||5, unit: p.unit||'Pièce',
+        zone: p.zone||null, sizes: p.sizes||{}, photo_url: p.photo||null,
+        updated_at: new Date().toISOString() },
+      { id: destProd.id, local_id: destProd.local_id || toLid, name: destProd.name, category: destProd.category,
+        code: destProd.code||null, type: destProd.type||'unite', price: destProd.price, cost: destProd.cost||0,
+        stock: destProd.stock, min_stock: destProd.minStock||5, unit: destProd.unit||'Pièce',
+        zone: destProd.zone||null, sizes: destProd.sizes||{}, photo_url: destProd.photo||null,
+        updated_at: new Date().toISOString() }
+    ]);
   } else {
-    const newP = { ...JSON.parse(JSON.stringify(p)), id: uid(), stock: qty, zone: toLoc, createdAt: new Date().toISOString() };
-    delete newP.photo;
-    if (p.photo) newP.photo = p.photo;
+    // Créer une copie dans le local destination avec le bon local_id
+    const newP = {
+      ...JSON.parse(JSON.stringify(p)),
+      id: uid(),
+      local_id: toLid,
+      stock: qty,
+      zone: toNom,
+      createdAt: new Date().toISOString()
+    };
     products.push(newP);
+    // Sauvegarder les 2 dans Supabase
+    sbSync('gp_products', [
+      { id: p.id, local_id: p.local_id || fromLid, name: p.name, category: p.category,
+        code: p.code||null, type: p.type||'unite', price: p.price, cost: p.cost||0,
+        stock: p.stock, min_stock: p.minStock||5, unit: p.unit||'Pièce',
+        zone: p.zone||null, sizes: p.sizes||{}, photo_url: p.photo||null,
+        updated_at: new Date().toISOString() },
+      { id: newP.id, local_id: toLid, name: newP.name, category: newP.category,
+        code: newP.code||null, type: newP.type||'unite', price: newP.price, cost: newP.cost||0,
+        stock: newP.stock, min_stock: newP.minStock||5, unit: newP.unit||'Pièce',
+        zone: toNom, sizes: newP.sizes||{}, photo_url: newP.photo||null,
+        updated_at: new Date().toISOString() }
+    ]);
   }
 
-  save();
   renderStockTable();
   closeModal('modal-transfert');
-  toast(`✅ ${qty} × "${p.name}" transféré de "${fromLoc}" → "${toLoc}"${note ? ` (${note})` : ''}`, 'success');
+  toast(`✅ ${qty} × "${p.name}" transféré : ${fromNom} → ${toNom}${note ? ` (${note})` : ''}`, 'success');
 }
 
 // ─── MODALS ───
@@ -4059,6 +4386,7 @@ function getSizesFromGrid(gridId) {
 }
 
 function saveProduct() {
+  const lid = getLocalId(); // null si SA accès global — autorisé
   const name = document.getElementById('prod-name').value.trim();
   const price = parseFloat(document.getElementById('prod-price').value);
   const type = document.getElementById('prod-type').value;
@@ -4075,6 +4403,7 @@ function saveProduct() {
 
   const product = {
     id: uid(),
+    local_id: lid,
     name,
     category: document.getElementById('prod-cat').value.trim() || 'Général',
     price,
@@ -4085,7 +4414,7 @@ function saveProduct() {
     code: document.getElementById('prod-code').value.trim(),
     zone: document.getElementById('prod-zone').value.trim() || '',
     photo: newProductPhoto || null,
-    type: type,   // 'unite' | 'kg' | 'tailles'
+    type: type,
     sizes: type === 'tailles' ? sizes : {},
     createdAt: new Date().toISOString()
   };
@@ -4192,7 +4521,8 @@ function updateProduct() {
 function deleteProduct(id) {
   if (!confirm('Supprimer ce produit ?')) return;
   products = products.filter(x => x.id !== id);
-  save(); renderStockTable(); updateAlertCount();
+  sbDelete('gp_products', id);
+  renderStockTable(); updateAlertCount();
   toast(t('toast_product_deleted'), 'warn');
 }
 
@@ -4200,27 +4530,9 @@ const debouncedRenderStock = debounce(renderStockTable);
 
 function populateStockFilters() {
   // ─── Filtre par local ───────────────────────────────────────
+  // Filtre local supprimé — tous voient tout, la colonne ZONE indique où est le stock
   const localSel = document.getElementById('stock-filter-local');
-  if (localSel) {
-    const cur = localSel.value;
-    if (isSuperAdmin()) {
-      // Super Admin : voir tous les locaux
-      localSel.innerHTML = '<option value="">🏪 Tous les locaux</option>' +
-        GP_LOCAUX_ALL.map(l => `<option value="${l.nom}"${l.nom===cur?' selected':''}>${l.nom}</option>`).join('') +
-        '<option value="__sans__"${cur==="__sans__"?" selected":""}>— Sans local</option>';
-      localSel.style.display = '';
-    } else {
-      // Utilisateur : forcer son local, pas de choix
-      const userLocal = getUserLocalName();
-      if (userLocal) {
-        localSel.innerHTML = `<option value="${userLocal}" selected>🏪 ${userLocal}</option>`;
-        localSel.style.display = 'none'; // caché, filtré automatiquement
-      } else {
-        localSel.innerHTML = '<option value="">🏪 Tous les locaux</option>';
-        localSel.style.display = 'none';
-      }
-    }
-  }
+  if (localSel) localSel.style.display = 'none';
 
   const catSel = document.getElementById('stock-filter-cat');
   if (catSel) {
@@ -4253,10 +4565,7 @@ function renderStockTable(resetPage) {
   const statutF = document.getElementById('stock-filter-statut')?.value || '';
   const zoneF   = document.getElementById('stock-filter-zone')?.value || '';
 
-  // Filtre local : forcer le local de l'utilisateur s'il n'est pas super admin
-  const localF = isSuperAdmin()
-    ? (document.getElementById('stock-filter-local')?.value || '')
-    : getUserLocalName();
+  const localF = ''; // Pas de filtre par local — tous les produits visibles
 
   let contRefs = null;
   if (contF) {
@@ -4264,27 +4573,52 @@ function renderStockTable(resetPage) {
     if (cont) contRefs = new Set(cont.refs.map(r => r.refCode));
   }
 
-  const filtered = products.filter(p => {
-    if (q && !p.name.toLowerCase().includes(q) && !(p.code||'').toLowerCase().includes(q) && !(p.category||'').toLowerCase().includes(q) && !(p.zone||'').toLowerCase().includes(q)) return false;
-    if (catF && p.category !== catF) return false;
-    if (contRefs && !contRefs.has(p.code)) return false;
-    if (zoneF && p.zone !== zoneF) return false;
-    // Filtre local : les produits sans local = visibles par tout le monde, avec local = seulement le bon local
-    if (localF === '__sans__') { if (p.zone) return false; }
-    else if (localF) { if (p.zone !== localF) return false; }
-    else if (!isSuperAdmin()) {
-      // Utilisateur sans local assigné : voir tous les produits sans local
-      const ul = getUserLocalName();
-      if (ul && p.zone && p.zone !== ul) return false;
+  // ── GROUPER les produits identiques (même code ou même nom) ──────────────────
+  // 1 groupe = même produit présent dans plusieurs locaux → 1 seule ligne avec détail
+  const groupMap = new Map();
+  products.forEach(p => {
+    const key = (p.code && p.code.trim()) ? p.code.trim().toLowerCase() : `${p.name.trim().toLowerCase()}||${(p.category||'').toLowerCase()}`;
+    if (!groupMap.has(key)) {
+      const g = { ...p, _variants: [p], _totalStock: p.stock };
+      if (p.type === 'tailles' && p.sizes) g.sizes = { ...p.sizes };
+      groupMap.set(key, g);
+    } else {
+      const g = groupMap.get(key);
+      g._variants.push(p);
+      g._totalStock += p.stock;
+      if (p.type === 'tailles' && p.sizes) {
+        Object.entries(p.sizes).forEach(([s, v]) => { g.sizes[s] = (g.sizes[s]||0) + v; });
+      }
     }
-    if (statutF === 'ok'      && !(p.stock > 0 && p.stock >= p.minStock)) return false;
-    if (statutF === 'bas'     && !(p.stock > 0 && p.stock < p.minStock))  return false;
-    if (statutF === 'rupture' && p.stock !== 0) return false;
+  });
+
+  // Filtres appliqués sur les groupes
+  let filtered = [...groupMap.values()].filter(g => {
+    if (q && !g.name.toLowerCase().includes(q) && !(g.code||'').toLowerCase().includes(q) && !(g.category||'').toLowerCase().includes(q)) return false;
+    if (catF && g.category !== catF) return false;
+    if (contRefs && !contRefs.has(g.code)) return false;
+    if (localF === '__sans__') { if (g._variants.some(v => v.local_id)) return false; }
+    else if (localF) { if (!g._variants.some(v => v.local_id === localF)) return false; }
+    // Statut basé sur le stock total du groupe
+    const ts = g._totalStock;
+    if (statutF === 'ok'      && !(ts > 0 && ts >= g.minStock)) return false;
+    if (statutF === 'bas'     && !(ts > 0 && ts < g.minStock))  return false;
+    if (statutF === 'rupture' && ts !== 0) return false;
     return true;
   });
 
   document.getElementById('stock-count').textContent =
     `${filtered.length} produit${filtered.length !== 1 ? 's' : ''}${contF ? ' · conteneur filtré' : ''}`;
+
+  // ── TRI
+  const sortV = document.getElementById('stock-sort')?.value || 'recent';
+  filtered.sort((a, b) => {
+    if (sortV === 'name')       return (a.name||'').localeCompare(b.name||'');
+    if (sortV === 'stock_asc')  return a._totalStock - b._totalStock;
+    if (sortV === 'stock_desc') return b._totalStock - a._totalStock;
+    if (sortV === 'price_desc') return (b.price||0) - (a.price||0);
+    return new Date(b.createdAt||0) - new Date(a.createdAt||0);
+  });
 
   const tbody = document.getElementById('stock-table-body');
   if (!filtered.length) {
@@ -4296,40 +4630,77 @@ function renderStockTable(resetPage) {
   const page  = getPage('stock');
   const start = (page - 1) * PAGE_SIZE;
   const pageData = filtered.slice(start, start + PAGE_SIZE);
+  tbody.innerHTML = pageData.map(g => {
+    const variants   = g._variants;
+    const totalStock = g._totalStock;
 
-  tbody.innerHTML = pageData.map(p => {
-    const statusClass = p.stock === 0 ? 'chip-red' : p.stock < p.minStock ? 'chip-orange' : 'chip-green';
-    const statusText  = p.stock === 0 ? `🔴 ${t('stat_rupture')}` : p.stock < p.minStock ? `🟡 ${t('stat_bas')}` : `🟢 ${t('stat_ok')}`;
-    const photo = p.photo
-      ? `<img src="${p.photo}" onclick="openLightbox('${p.photo}','${p.name.replace(/'/g,"\\'")}');event.stopPropagation();" style="width:38px;height:38px;object-fit:cover;border-radius:7px;cursor:zoom-in;" alt="">`
+    // Afficher le stock total (toutes zones)
+    const displayStock = totalStock;
+
+    // Statut basé sur stock total
+    const statusClass = totalStock === 0 ? 'chip-red' : totalStock < g.minStock ? 'chip-orange' : 'chip-green';
+    const statusText  = totalStock === 0 ? `🔴 ${t('stat_rupture')}` : totalStock < g.minStock ? `🟡 ${t('stat_bas')}` : `🟢 ${t('stat_ok')}`;
+
+    const refPhoto = g.photo;
+    const photo = refPhoto
+      ? `<img src="${refPhoto}" onclick="openLightbox('${refPhoto}','${g.name.replace(/'/g,"\'")}');event.stopPropagation();" style="width:38px;height:38px;object-fit:cover;border-radius:7px;cursor:zoom-in;" alt="">`
       : `<div style="width:38px;height:38px;border-radius:7px;background:var(--surface2);display:flex;align-items:center;justify-content:center;font-size:18px;">📦</div>`;
-    const cost        = p.cost || 0;
-    const profit      = p.price - cost;
-    const margin      = cost > 0 ? ((profit / cost) * 100) : (p.price > 0 ? 100 : 0);
+
+    const cost        = g.cost || 0;
+    const profit      = g.price - cost;
+    const margin      = cost > 0 ? (profit / cost * 100) : (g.price > 0 ? 100 : 0);
     const profitColor = profit > 0 ? 'var(--accent)' : profit < 0 ? 'var(--red)' : 'var(--text2)';
-    const contSrc     = conteneurs.find(c => c.refs?.some(r => r.refCode === p.code));
+    const contSrc     = conteneurs.find(c => c.refs?.some(r => r.refCode === g.code));
+
+    // ── Affichage stock avec détail par local ──
+    let stockHtml = `<span style="font-family:'JetBrains Mono',monospace;font-weight:700;font-size:14px;">${displayStock}${g.type==='kg'?' kg':''}</span> <span style="font-size:11px;color:var(--text2);">${g.type!=='kg'?g.unit:''}</span>`;
+    if (variants.length > 1) {
+      const badges = variants.map(v => {
+        const lName = GP_LOCAUX_ALL.find(l => l.id === v.local_id)?.nom || v.zone || '?';
+        const col = v.stock === 0 ? 'var(--red)' : v.stock < v.minStock ? '#f59e0b' : 'var(--accent)';
+        return `<span style="display:inline-flex;align-items:center;gap:2px;border:1px solid ${col};color:${col};padding:1px 5px;border-radius:10px;font-size:10px;font-weight:600;margin:1px;background:rgba(0,0,0,0.15);">🏪 ${lName}: <b>${v.stock}</b></span>`;
+      }).join('');
+      stockHtml += `<div style="margin-top:3px;">${badges}</div>`;
+    }
+    if (g.type==='tailles' && g.sizes) {
+      stockHtml += `<div style="font-size:10px;color:var(--text2);margin-top:2px;">${Object.entries(g.sizes).filter(([,v])=>v>0).map(([k,v])=>`<span style="background:rgba(108,99,255,0.12);color:var(--accent3);border-radius:4px;padding:1px 4px;margin:1px;">${k}:${v}</span>`).join('')}</div>`;
+    }
+    if (g.type==='kg') stockHtml += `<div style="font-size:10px;color:var(--accent);margin-top:2px;">⚖️ Vente au poids</div>`;
+
+    // ── Zones affichées ──
+    const zonesHtml = variants.length === 1
+      ? (g.zone ? `<span style="background:rgba(108,99,255,0.15);color:var(--accent3);padding:3px 8px;border-radius:12px;font-weight:600;">${g.zone}</span>` : '<span style="color:var(--text2);">—</span>')
+      : variants.map(v => {
+          const lName = GP_LOCAUX_ALL.find(l => l.id === v.local_id)?.nom || v.zone || '?';
+          return `<span style="background:rgba(108,99,255,0.12);color:var(--accent3);padding:2px 6px;border-radius:10px;font-size:11px;margin:1px;display:inline-block;">${lName}</span>`;
+        }).join('');
+
+    const transferBtn = ''; // Bouton demande transfert supprimé
+
+    const editId = variants[0].id;
+
     return `<tr>
       <td>${photo}</td>
       <td>
-        <div style="font-weight:600;font-size:13px;">${p.name}</div>
-        <div style="font-size:11px;color:var(--text2);">${p.code||'—'}${contSrc?` · <span style="color:var(--accent3);cursor:pointer;" onclick="document.getElementById('stock-filter-cont').value='${contSrc.id}';renderStockTable()">📦${contSrc.numero}</span>`:''}
+        <div style="font-weight:600;font-size:13px;">${g.name}</div>
+        <div style="font-size:11px;color:var(--text2);">${g.code||'—'}${contSrc?` · <span style="color:var(--accent3);cursor:pointer;" onclick="document.getElementById('stock-filter-cont').value='${contSrc.id}';renderStockTable()">📦${contSrc.numero}</span>`:''}
         </div>
       </td>
-      <td><span class="chip chip-purple" style="font-size:11px;">${p.category}</span></td>
-      <td><span style="font-family:'JetBrains Mono',monospace;font-weight:700;">${p.stock}${p.type==='kg'?' kg':''}</span> <span style="font-size:11px;color:var(--text2);">${p.type!=='kg'?p.unit:''}</span>
-        ${p.type==='tailles' && p.sizes ? `<div style="font-size:10px;color:var(--text2);margin-top:2px;">${Object.entries(p.sizes).filter(([,v])=>v>0).map(([k,v])=>`<span style="background:rgba(108,99,255,0.12);color:var(--accent3);border-radius:4px;padding:1px 4px;margin:1px;">${k}:${v}</span>`).join('')}</div>` : ''}
-        ${p.type==='kg' ? `<div style="font-size:10px;color:var(--accent);margin-top:2px;">⚖️ Vente au poids</div>` : ''}
-      </td>
-      <td style="color:var(--text2);font-size:12px;">${p.minStock}</td>
-      <td style="font-family:'JetBrains Mono',monospace;font-weight:600;font-size:12px;">${p.price.toFixed(2)}</td>
-      <td style="font-size:11px;">${p.zone ? `<span style="background:rgba(108,99,255,0.15);color:var(--accent3);padding:3px 8px;border-radius:12px;font-weight:600;">${p.zone}</span>` : '<span style="color:var(--text2);">—</span>'}</td>
+      <td><span class="chip chip-purple" style="font-size:11px;">${g.category}</span></td>
+      <td>${stockHtml}</td>
+      <td style="color:var(--text2);font-size:12px;">${g.minStock}</td>
+      <td style="font-family:'JetBrains Mono',monospace;font-weight:600;font-size:12px;">${g.price.toFixed(2)}</td>
+      <td style="font-size:11px;">${zonesHtml}</td>
       <td style="font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--text2);">${cost > 0 ? cost.toFixed(2) : '—'}</td>
       <td style="font-family:'JetBrains Mono',monospace;font-weight:700;font-size:12px;color:${profitColor};">${cost > 0 ? (profit>=0?'+':'')+profit.toFixed(2) : '—'}</td>
       <td style="font-size:12px;font-weight:700;color:${profitColor};">${cost > 0 ? margin.toFixed(1)+'%' : '—'}</td>
-      <td><span class="chip ${statusClass}">${statusText}</span></td>
+      <td>
+        <span class="chip ${statusClass}">${statusText}</span>
+        ${transferBtn}
+      </td>
       <td style="white-space:nowrap;">
-        ${(isSuperAdmin()||hasPermission('stock','update')) ? `<button class="btn btn-secondary btn-sm" onclick="editProduct('${p.id}')">✏️</button>` : ''}
-        ${(isSuperAdmin()||hasPermission('stock','delete')) ? `<button class="btn btn-danger btn-sm" onclick="deleteProduct('${p.id}')">🗑️</button>` : ''}
+        ${(isSuperAdmin()||hasPermission('stock','update')) ? `<button class="btn btn-secondary btn-sm" onclick="editProduct('${editId}')">✏️</button>` : ''}
+        ${(isSuperAdmin()||hasPermission('stock','delete')) ? `<button class="btn btn-danger btn-sm" onclick="deleteProduct('${editId}')">🗑️</button>` : ''}
       </td>
     </tr>`;
   }).join('');
@@ -4425,10 +4796,21 @@ function renderProductGrid(resetPage) {
   if (resetPage !== false) _pages['caisse'] = 1;
   const q = (document.getElementById('product-search')?.value || '').toLowerCase();
   const grid = document.getElementById('products-grid');
-  const filtered = products.filter(p => {
+  // Grouper les produits identiques — 1 carte par produit unique
+  const caisseGroups = new Map();
+  products.filter(p => {
     const matchQ = !q || p.name.toLowerCase().includes(q) || (p.code||'').toLowerCase().includes(q) || p.category.toLowerCase().includes(q);
     const matchCat = selectedCategory === 'Tous' || p.category === selectedCategory;
     return matchQ && matchCat;
+  }).forEach(p => {
+    const key = (p.code&&p.code.trim()) ? p.code.trim().toLowerCase() : `${p.name.trim().toLowerCase()}||${(p.category||'').toLowerCase()}`;
+    if (!caisseGroups.has(key)) caisseGroups.set(key, { ...p, _totalStock: p.stock, _variants: [p] });
+    else { const g=caisseGroups.get(key); g._totalStock+=p.stock; g._variants.push(p); }
+  });
+  // Produit à utiliser pour la vente = variant avec le plus de stock
+  const filtered = [...caisseGroups.values()].map(g => {
+    const bestV = [...g._variants].sort((a,b)=>b.stock-a.stock)[0];
+    return { ...bestV, _totalStock: g._totalStock, _variants: g._variants };
   });
   if (!filtered.length) {
     grid.innerHTML = `<div class="empty-state"><div class="emoji">📦</div><p>${products.length ? t('no_products') : t('cart_empty_stock')}</p></div>`;
@@ -4934,10 +5316,12 @@ function checkout(docType) {
   }
 
   // Record sale
+  const lid = getLocalId();
   const tvaAmt = settings.showTva ? total * (settings.tva/100) : 0;
   const totalTTC = total + tvaAmt;
   const sale = {
     id: uid(),
+    local_id: lid,
     date: new Date().toISOString(),
     items: [...cart],
     total: totalTTC,
@@ -4951,7 +5335,7 @@ function checkout(docType) {
   sales.unshift(sale);
   // Log to caisse
   caisseOps.unshift({
-    id: uid(), type: 'vente',
+    id: uid(), local_id: lid, type: 'vente',
     amount: sale.total,
     label: `Vente (${sale.items.length} article${sale.items.length>1?'s':''}) — ${sale.clientName}`,
     date: sale.date,
@@ -5249,10 +5633,13 @@ function printReceipt() { printInvoice(); }
 
 // ─── CLIENTS ───
 function saveClient() {
+  const lid = getRequiredLocalId();
+  if (lid === null && isSuperAdmin()) return;
   const name = document.getElementById('cli-name').value.trim();
   if (!name) { toast(t('toast_name_required'), 'error'); return; }
   const client = {
     id: uid(),
+    local_id: lid,
     name,
     phone: document.getElementById('cli-phone').value.trim(),
     city: document.getElementById('cli-city').value.trim(),
@@ -5437,7 +5824,14 @@ function saveCreditLimit() {
 
 
 function getAlerts() {
-  return products.filter(p => p.stock <= p.minStock);
+  // Alertes sur produits uniques (stock total toutes zones)
+  const groupMap = new Map();
+  products.forEach(p => {
+    const key = (p.code&&p.code.trim()) ? p.code.trim().toLowerCase() : p.name.trim().toLowerCase();
+    if (!groupMap.has(key)) groupMap.set(key, { ...p, _total: p.stock });
+    else groupMap.get(key)._total += p.stock;
+  });
+  return [...groupMap.values()].filter(g => g._total <= g.minStock);
 }
 
 function updateAlertCount() {
@@ -5482,7 +5876,9 @@ function renderDashboard() {
 
   document.getElementById('stat-today').textContent = fmt(todayTotal);
   document.getElementById('stat-today-count').textContent = `${todaySales.length} ${t('dash_transactions')}`;
-  document.getElementById('stat-products').textContent = products.length;
+  // Compter les produits uniques (groupés par code ou nom)
+  const uniqueProds = new Set(products.map(p => (p.code&&p.code.trim()) ? p.code.trim().toLowerCase() : p.name.trim().toLowerCase())).size;
+  document.getElementById('stat-products').textContent = uniqueProds;
   document.getElementById('stat-low-stock').textContent = `${getAlerts().length} ${t('dash_alerts')}`;
   document.getElementById('stat-clients').textContent = clients.length;
   document.getElementById('stat-vip').textContent = `${clients.filter(c => sales.filter(s => s.clientId === c.id).reduce((sum, s) => sum + s.total, 0) >= 2000).length} ${t('vip')}`;
@@ -5849,6 +6245,12 @@ function saveAllSettings() {
 }
 
 // ─── FONDS DE CAISSE ───
+function getFondsLocalId() {
+  // Local actif pour les opérations caisse = filtre sélectionné ou local de l'user
+  const sel = document.getElementById('fonds-local-filter');
+  return (sel?.value) || getLocalId() || null;
+}
+
 function addCaisseOp(type) {
   const label = document.getElementById('op-label').value.trim();
   const amount = parseFloat(document.getElementById('op-amount').value);
@@ -5857,7 +6259,7 @@ function addCaisseOp(type) {
 
   const typeLabels = { depot: t('fonds_depots'), retrait: t('fonds_retraits'), charge: t('fonds_charges') };
   caisseOps.unshift({
-    id: uid(),
+    id: uid(), local_id: getFondsLocalId(),
     type,
     amount,
     label: label || typeLabels[type],
@@ -6082,6 +6484,7 @@ function saveConteneur() {
 
   const cont = {
     id: currentConteneurId || uid(),
+    local_id: getLocalId(),
     numero, fournisseur: v('c-fournisseur'), pays: v('c-pays'),
     type: v('c-type'),
     dateArrivee: v('c-date-arrivee'), dateLimite: v('c-date-limite'),
@@ -6121,6 +6524,7 @@ function saveConteneur() {
 
 function buildOrdreFromConteneur(cont) {
   return {
+    local_id: getLocalId(),
     id: uid(),
     conteneurId: cont.id,
     numero: 'ORD-' + String(ordres.length + 1).padStart(4, '0'),
@@ -6155,9 +6559,13 @@ function editConteneur(id) {
 
 function deleteConteneur(id) {
   if (!confirm('Supprimer ce conteneur ?')) return;
+  // Supprimer les ordres liés aussi
+  const ordresLies = ordres.filter(o => o.conteneurId === id);
+  ordresLies.forEach(o => sbDelete('gp_ordres', o.id));
   conteneurs = conteneurs.filter(c => c.id !== id);
   ordres = ordres.filter(o => o.conteneurId !== id);
-  save(); renderConteneurs();
+  sbDelete('gp_conteneurs', id);
+  renderConteneurs();
   toast(t('toast_cont_deleted'), 'warn');
 }
 
@@ -6538,12 +6946,16 @@ function showOrdrePDF(ordreId) {
 
 function printOrdre() {
   const content = document.getElementById('ordre-pdf-content').innerHTML;
-  const win = window.open('', '_blank');
-  win.document.write(`<html><head><title>Ordre Importation</title>
+  const htmlStr = `<html><head><title>Ordre Importation</title>
     <style>@page{size:A4;margin:0}body{margin:0;font-family:Arial,sans-serif}*{-webkit-print-color-adjust:exact;print-color-adjust:exact}</style>
-  </head><body>${content}</body></html>`);
-  win.document.close();
-  setTimeout(() => { win.print(); win.close(); }, 300);
+  </head><body>${content}</body></html>`;
+  const blob = new Blob([htmlStr], {type:'text/html;charset=utf-8'});
+  const url  = URL.createObjectURL(blob);
+  const win  = window.open(url, '_blank');
+  if (win) {
+    win.addEventListener('load', () => { win.print(); });
+    setTimeout(() => URL.revokeObjectURL(url), 15000);
+  }
 }
 
 function renderOrdres(resetPage) {
@@ -6693,17 +7105,20 @@ function showSaleDoc(saleId, docType) {
 
 function printRapport() {
   const content = document.getElementById('rapport-content').innerHTML;
-  const win = window.open('', '_blank');
-  win.document.write(`<html><head><title>Rapport Clôture</title>
+  const htmlStr = `<html><head><title>Rapport Clôture</title>
     <style>
       @page { size: A4; margin: 20mm; }
       body { font-family: Arial, sans-serif; }
       * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
     </style>
-  </head><body>${content}</body></html>`);
-  win.document.close();
-  win.print();
-  win.close();
+  </head><body>${content}</body></html>`;
+  const blob = new Blob([htmlStr], {type:'text/html;charset=utf-8'});
+  const url  = URL.createObjectURL(blob);
+  const win  = window.open(url, '_blank');
+  if (win) {
+    win.addEventListener('load', () => { win.print(); });
+    setTimeout(() => URL.revokeObjectURL(url), 15000);
+  }
 }
 
 function ouvrirCaisse() {
@@ -6712,7 +7127,7 @@ function ouvrirCaisse() {
   const val = parseFloat(montant);
   if (isNaN(val) || val < 0) { toast(t('toast_invalid_amount'), 'error'); return; }
   caisseOps.unshift({
-    id: uid(), type: 'depot',
+    id: uid(), local_id: getFondsLocalId(), type: 'depot',
     amount: val,
     label: `🔓 Ouverture de caisse — ${new Date().toLocaleDateString('fr-FR')}`,
     date: new Date().toISOString(),
@@ -6802,7 +7217,7 @@ function cloturerCaisse() {
 
   // Save cloture entry
   caisseOps.unshift({
-    id: uid(), type: 'cloture',
+    id: uid(), local_id: getFondsLocalId(), type: 'cloture',
     amount: soldeFinal,
     label: `Clôture du ${new Date().toLocaleDateString('fr-FR')} — Solde: ${soldeFinal.toFixed(2)} MAD`,
     date: new Date().toISOString(),
@@ -6815,7 +7230,8 @@ function cloturerCaisse() {
 function deleteCaisseOp(id) {
   if (!confirm('Supprimer cette opération ?')) return;
   caisseOps = caisseOps.filter(o => o.id !== id);
-  save(); renderFonds();
+  sbDelete('gp_caisse_ops', id);
+  renderFonds();
   toast('Opération supprimée', 'warn');
 }
 
@@ -6832,7 +7248,21 @@ const LOCAL_COLORS = {
 };
 
 function getLocalProducts(localNom) {
+  // Chercher par local_id en priorité, fallback sur zone (nom)
+  const localId = GP_LOCAUX_ALL.find(l => l.nom === localNom)?.id;
+  if (localId) return products.filter(p => p.local_id === localId);
   return products.filter(p => (p.zone || '').trim() === localNom.trim());
+}
+
+function getUniqueLocalProducts(localNom) {
+  // Produits uniques (dédupliqués) dans ce local
+  const prods = getLocalProducts(localNom);
+  const seen = new Set();
+  return prods.filter(p => {
+    const key = (p.code&&p.code.trim()) ? p.code.trim().toLowerCase() : p.name.trim().toLowerCase();
+    if (seen.has(key)) return false;
+    seen.add(key); return true;
+  });
 }
 
 function openNewLocal() {
@@ -6896,13 +7326,22 @@ function deleteLocal(id) {
   if (prods.length > 0) {
     if (!confirm(`Ce local contient ${prods.length} produit(s). Supprimer quand même ? (les produits restent mais sans zone assignée)`)) return;
     prods.forEach(p => { p.zone = ''; });
+    // Mettre à jour les produits sans zone dans Supabase
+    sbUpsert('gp_products', prods.map(p => ({
+      id: p.id, local_id: getLocalId() || p.local_id,
+      name: p.name, category: p.category, code: p.code || null,
+      type: p.type || 'unite', price: p.price, cost: p.cost || 0,
+      stock: p.stock, min_stock: p.minStock || 5,
+      unit: p.unit || 'Pièce', zone: null,
+      sizes: p.sizes || {}, photo_url: p.photo || null,
+      updated_at: new Date().toISOString()
+    })));
   } else {
     if (!confirm(`Supprimer le local "${l.nom}" ?`)) return;
   }
   GP_LOCAUX_ALL = GP_LOCAUX_ALL.filter(x => x.id !== id);
   locaux = GP_LOCAUX_ALL;
-  saveGPLocaux();
-  save();
+  sbDelete('gp_locaux', id);
   renderLocaux();
   toast(t('toast_local_deleted'), 'warn');
 }
@@ -7079,7 +7518,7 @@ function renderLocaux() {
           ${l.responsable?`<div style="font-size:11px;color:var(--text2);">👤 ${l.responsable}</div>`:''}
         </div>
         <div style="text-align:right;">
-          <div style="font-size:28px;font-weight:900;color:${col.text};">${prods.length}</div>
+          <div style="font-size:28px;font-weight:900;color:${col.text};">${getUniqueLocalProducts(l.nom).length}</div>
           <div style="font-size:11px;color:var(--text2);">références</div>
         </div>
       </div>
@@ -7142,11 +7581,30 @@ function renderFonds() {
   const filter = document.getElementById('fonds-filter')?.value || 'all';
   const today = new Date().toDateString();
 
-  // Compute running balance (oldest first)
-  const sorted = [...caisseOps].reverse();
+  // ── Peupler le sélecteur de local ──
+  const localSel = document.getElementById('fonds-local-filter');
+  if (localSel) {
+    const cur = localSel.value;
+    localSel.innerHTML = '<option value="">🌐 Tous les locaux</option>' +
+      GP_LOCAUX_ALL.map(l => `<option value="${l.id}"${l.id===cur?' selected':''}>${l.nom}</option>`).join('');
+    if (cur) localSel.value = cur;
+    // Si user a un local assigné, filtrer dessus par défaut
+    if (!cur && GP_USER?.local_id) localSel.value = GP_USER.local_id;
+  }
+  const selectedLocal = localSel?.value || '';
+
+  // ── Filtrer les ops par local ──
+  const allOps = selectedLocal
+    ? caisseOps.filter(o => o.local_id === selectedLocal)
+    : caisseOps;
+
+  // Compute running balance (oldest first) — basé sur les ops filtrées
+  // Seules les ventes EN ESPÈCES entrent dans le solde physique de la caisse
+  const sorted = [...allOps].reverse();
   let running = 0;
   const withBalance = sorted.map(op => {
-    if (op.type === 'vente' || op.type === 'depot') running += op.amount;
+    if (op.type === 'depot') running += op.amount;
+    else if (op.type === 'vente' && (op.payment === 'Espèces' || !op.payment)) running += op.amount;
     else if (op.type === 'retrait' || op.type === 'charge') running -= op.amount;
     else if (op.type === 'cloture') running = op.amount;
     return { ...op, balance: running };
@@ -7156,12 +7614,15 @@ function renderFonds() {
   const soldeTotal = withBalance.length > 0 ? withBalance[0].balance : 0;
 
   // Today stats
-  const todayOps = caisseOps.filter(o => new Date(o.date).toDateString() === today);
+  const todayOps = allOps.filter(o => new Date(o.date).toDateString() === today);
   const todayVentes = todayOps.filter(o => o.type==='vente').reduce((s,o)=>s+o.amount,0);
   const todayVentesEsp = todayOps.filter(o => o.type==='vente' && o.payment==='Espèces').reduce((s,o)=>s+o.amount,0);
   const todayCharges = todayOps.filter(o => o.type==='charge').reduce((s,o)=>s+o.amount,0);
   const todayRetraits = todayOps.filter(o => o.type==='retrait').reduce((s,o)=>s+o.amount,0);
   const todayDepots = todayOps.filter(o => o.type==='depot').reduce((s,o)=>s+o.amount,0);
+  const todayVentesCarte = todayOps.filter(o => o.type==='vente' && o.payment==='Carte').reduce((s,o)=>s+o.amount,0);
+  const todayVentesCredit = todayOps.filter(o => o.type==='vente' && o.payment==='Crédit').reduce((s,o)=>s+o.amount,0);
+  const todayVentesTotal = todayOps.filter(o => o.type==='vente').reduce((s,o)=>s+o.amount,0);
 
   // Stats cards
   const statsEl = document.getElementById('fonds-stats');
@@ -7176,20 +7637,20 @@ function renderFonds() {
       <div class="stat-card orange">
         <div class="stat-icon">🧾</div>
         <div class="stat-value" style="font-size:20px;">${todayVentesEsp.toFixed(2)}</div>
-        <div class="stat-label">Encaissé aujourd'hui</div>
-        <div class="stat-sub">${todayOps.filter(o=>o.type==='vente').length} ventes</div>
+        <div class="stat-label">Ventes Espèces</div>
+        <div class="stat-sub">${todayOps.filter(o=>o.type==='vente'&&o.payment==='Espèces').length} ventes</div>
+      </div>
+      <div class="stat-card purple">
+        <div class="stat-icon">💳</div>
+        <div class="stat-value" style="font-size:20px;">${todayVentesCarte.toFixed(2)}</div>
+        <div class="stat-label">Ventes Carte</div>
+        <div class="stat-sub">${todayOps.filter(o=>o.type==='vente'&&o.payment==='Carte').length} ventes</div>
       </div>
       <div class="stat-card gold">
         <div class="stat-icon">📋</div>
-        <div class="stat-value" style="font-size:20px;">${todayCharges.toFixed(2)}</div>
-        <div class="stat-label">Charges du jour</div>
-        <div class="stat-sub">${todayOps.filter(o=>o.type==='charge').length} opération(s)</div>
-      </div>
-      <div class="stat-card purple">
-        <div class="stat-icon">💸</div>
-        <div class="stat-value" style="font-size:20px;">${todayRetraits.toFixed(2)}</div>
-        <div class="stat-label">${t('fonds_retraits')}</div>
-        <div class="stat-sub">${todayOps.filter(o=>o.type==='retrait').length}</div>
+        <div class="stat-value" style="font-size:20px;">${todayVentesCredit.toFixed(2)}</div>
+        <div class="stat-label">Ventes Crédit</div>
+        <div class="stat-sub">${todayOps.filter(o=>o.type==='vente'&&o.payment==='Crédit').length} ventes · à encaisser</div>
       </div>
     `;
   }
@@ -7198,11 +7659,13 @@ function renderFonds() {
   const todaySummary = document.getElementById('fonds-today-summary');
   if (todaySummary) {
     const rows = [
-      [`🧾 ${t('pay_cash')}`, todayVentesEsp, 'green'],
-      ['🔄 Ventes autres', todayVentes - todayVentesEsp, 'purple'],
+      [`💵 Espèces`, todayVentesEsp, 'green'],
+      [`💳 Carte`, todayVentesCarte, 'purple'],
+      [`📋 Crédit`, todayVentesCredit, 'gold'],
       [`➕ ${t('fonds_depots')}`, todayDepots, 'green'],
       [`💸 ${t('fonds_retraits')}`, -todayRetraits, 'red'],
       [`📋 ${t('fonds_charges')}`, -todayCharges, 'red'],
+      [`📊 Total ventes`, todayVentesTotal, 'accent'],
     ];
     todaySummary.innerHTML = rows.map(([lbl, val, color]) => `
       <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border);font-size:13px;">
@@ -7223,6 +7686,17 @@ function renderFonds() {
 
   // Table
   const filtered = filter === 'all' ? withBalance : withBalance.filter(o => o.type === filter);
+
+  // Badge solde par local si filtre actif
+  const badge = document.getElementById('fonds-local-solde-badge');
+  if (badge) {
+    if (selectedLocal) {
+      badge.textContent = `💵 Solde: ${soldeTotal.toFixed(2)} MAD`;
+      badge.style.display = '';
+    } else {
+      badge.style.display = 'none';
+    }
+  }
   const tbody = document.getElementById('fonds-table');
   if (!tbody) return;
 
@@ -7242,13 +7716,35 @@ function renderFonds() {
   tbody.innerHTML = filtered.map(op => {
     const cfg = typeConfig[op.type] || { label: op.type, chip: 'chip-purple', icon: '•', entree: null };
     const dateStr = new Date(op.date).toLocaleString('fr-FR', {day:'2-digit',month:'2-digit',year:'2-digit',hour:'2-digit',minute:'2-digit'});
-    const entree = cfg.entree === true ? `<span style="color:var(--accent);font-family:'JetBrains Mono',monospace;font-weight:700;">+${op.amount.toFixed(2)}</span>` : '—';
-    const sortie = cfg.entree === false ? `<span style="color:var(--red);font-family:'JetBrains Mono',monospace;font-weight:700;">-${op.amount.toFixed(2)}</span>` : (cfg.entree === null ? `<span style="font-family:'JetBrains Mono',monospace;">${op.amount.toFixed(2)}</span>` : '—');
+
+    // Pour les ventes : seules espèces = entrée caisse. Carte/Crédit = info seulement (pas dans solde)
+    let entree = '—', sortie = '—';
+    if (op.type === 'vente') {
+      const isCash = op.payment === 'Espèces' || !op.payment;
+      if (isCash) {
+        entree = `<span style="color:var(--accent);font-family:'JetBrains Mono',monospace;font-weight:700;">+${op.amount.toFixed(2)}</span>`;
+      } else {
+        // Carte ou Crédit : montrer en gris informatif, pas dans le solde espèces
+        const col = op.payment === 'Carte' ? 'var(--accent3)' : 'var(--gold)';
+        entree = `<span style="color:${col};font-family:'JetBrains Mono',monospace;font-size:11px;opacity:0.7;">${op.amount.toFixed(2)} ℹ</span>`;
+      }
+    } else if (cfg.entree === true) {
+      entree = `<span style="color:var(--accent);font-family:'JetBrains Mono',monospace;font-weight:700;">+${op.amount.toFixed(2)}</span>`;
+    } else if (cfg.entree === false) {
+      sortie = `<span style="color:var(--red);font-family:'JetBrains Mono',monospace;font-weight:700;">-${op.amount.toFixed(2)}</span>`;
+    } else if (cfg.entree === null) {
+      sortie = `<span style="font-family:'JetBrains Mono',monospace;">${op.amount.toFixed(2)}</span>`;
+    }
+
     const balColor = op.balance >= 0 ? 'var(--accent)' : 'var(--red)';
+    // Chip paiement pour les ventes
+    const payBadge = op.type === 'vente' && op.payment
+      ? ` <span class="chip ${op.payment==='Espèces'?'chip-green':op.payment==='Carte'?'chip-purple':'chip-gold'}" style="font-size:10px;padding:1px 6px;">${op.payment}</span>`
+      : '';
     return `<tr>
       <td style="font-size:12px;color:var(--text2);">${dateStr}</td>
-      <td><span class="chip ${cfg.chip}">${cfg.icon} ${cfg.label}</span></td>
-      <td style="font-size:13px;max-width:220px;">${op.label}${op.payment ? ` <span style="font-size:10px;color:var(--text2);">(${op.payment})</span>` : ''}</td>
+      <td><span class="chip ${cfg.chip}">${cfg.icon} ${cfg.label}</span>${payBadge}</td>
+      <td style="font-size:13px;max-width:220px;">${op.label}</td>
       <td style="text-align:right;">${entree}</td>
       <td style="text-align:right;">${sortie}</td>
       <td style="text-align:right;font-family:'JetBrains Mono',monospace;font-weight:700;color:${balColor};">${op.balance.toFixed(2)}</td>
@@ -7267,16 +7763,7 @@ let docsRHHistory = [];
 
 // loadUserData et _doSave → version Supabase définie plus bas
 
-function saveSettings() {
-  const lid = getLocalId();
-  if (!lid) {
-    // Super Admin : pas de FK dans gp_settings pour 'SA'
-    localStorage.setItem('gp_sa_settings', JSON.stringify(settings));
-    return;
-  }
-  sb.from('gp_settings').upsert({ local_id: lid, data: settings, updated_at: new Date().toISOString() }, { onConflict: 'local_id' })
-    .then(({error}) => { if(error) console.warn('[SB] saveSettings:', error.message); });
-}
+
 
 // ── EMPLOYÉS ──────────────────────────────────────────────
 function renderEmployes() {
@@ -7304,6 +7791,7 @@ function renderEmployes() {
     <td>${statutBadge[e.statut]||e.statut||'—'}</td>
     <td style="white-space:nowrap;">
       ${(isSuperAdmin()||hasPermission('employes','update')) ? `<button class="btn btn-secondary btn-sm" onclick="openEmployeModal('${e.id}')">✏️</button>` : ''}
+      <button class="btn btn-secondary btn-sm" onclick="openContratModal('${e.id}')" title="Générer contrat de travail" style="border-color:rgba(108,99,255,0.4);color:var(--accent3);">📄</button>
       <button class="btn btn-secondary btn-sm" onclick="voirEmploye('${e.id}')" title="Documents">📋</button>
       ${(isSuperAdmin()||hasPermission('employes','delete')) ? `<button class="btn btn-danger btn-sm" onclick="deleteEmploye('${e.id}')">🗑️</button>` : ''}
     </td>
@@ -7337,6 +7825,8 @@ function saveEmploye() {
   const name = document.getElementById('emp-name').value.trim();
   if (!name) { toast('Nom requis', 'error'); return; }
   const id = document.getElementById('emp-editing-id').value;
+  const lid = getRequiredLocalId();
+  if (!id && lid === null && isSuperAdmin()) return; // bloquer création SA global
   const data = {
     name, prenom: document.getElementById('emp-prenom').value.trim(),
     poste: document.getElementById('emp-poste').value.trim(),
@@ -7356,7 +7846,7 @@ function saveEmploye() {
     if (idx >= 0) employes[idx] = { ...employes[idx], ...data };
     toast('Employé mis à jour');
   } else {
-    employes.push({ id: uid(), ...data, createdAt: new Date().toISOString() });
+    employes.push({ id: uid(), local_id: lid, ...data, createdAt: new Date().toISOString() });
     toast('Employé ajouté ✅');
   }
   save(); closeModal('modal-employe'); renderEmployes();
@@ -7367,7 +7857,8 @@ function saveEmploye() {
 function deleteEmploye(id) {
   if (!confirm('Supprimer cet employé ?')) return;
   employes = employes.filter(x => x.id !== id);
-  save(); renderEmployes(); toast('Employé supprimé', 'warn');
+  sbDelete('gp_employes', id);
+  renderEmployes(); toast('Employé supprimé', 'warn');
 }
 
 function voirEmploye(id) {
@@ -7498,7 +7989,7 @@ function saveConge() {
     if(idx >= 0) conges[idx] = { ...conges[idx], ...data };
     toast('Congé mis à jour');
   } else {
-    conges.push({ id: uid(), ...data, createdAt: new Date().toISOString() });
+    conges.push({ id: uid(), local_id: getLocalId(), ...data, createdAt: new Date().toISOString() });
     toast('Demande de congé enregistrée ✅');
   }
   save(); closeModal('modal-conge'); renderConges();
@@ -7512,7 +8003,8 @@ function updateCongeStatut(id, statut) {
 function deleteConge(id) {
   if (!confirm('Supprimer cette demande ?')) return;
   conges = conges.filter(x => x.id !== id);
-  save(); renderConges();
+  sbDelete('gp_conges', id);
+  renderConges();
 }
 
 // ── BONS DE LIVRAISON ─────────────────────────────────────
@@ -7651,7 +8143,7 @@ function saveBL() {
     if(idx>=0) livraisons[idx] = {...livraisons[idx],...data};
     toast('Bon de livraison mis à jour');
   } else {
-    livraisons.push({id:uid(),...data,createdAt:new Date().toISOString()});
+    livraisons.push({id:uid(), local_id: getLocalId(), ...data, createdAt:new Date().toISOString()});
     toast('Bon de livraison créé ✅');
   }
   save(); closeModal('modal-bl'); renderLivraisons();
@@ -7660,7 +8152,8 @@ function saveBL() {
 function deleteBL(id) {
   if (!confirm('Supprimer ce bon de livraison ?')) return;
   livraisons = livraisons.filter(x=>x.id!==id);
-  save(); renderLivraisons();
+  sbDelete('gp_livraisons', id);
+  renderLivraisons();
 }
 
 function printBL(id) {
@@ -7699,9 +8192,10 @@ function printBL(id) {
   ${bl.notes?`<div style="background:#f8f8f8;padding:12px;border-radius:8px;font-size:13px;margin-bottom:20px;"><strong>Notes:</strong> ${bl.notes}</div>`:''}
   <div class="sig-area"><div class="sig-box">Signature expéditeur :<br><br><br></div><div class="sig-box">Signature destinataire :<br><br><br></div></div>
   <script>window.print();<\/script></body></html>`;
-  const win = window.open('','_blank');
-  win.document.write(html);
-  win.document.close();
+  const _blob = new Blob([html], {type:'text/html;charset=utf-8'});
+  const _url = URL.createObjectURL(_blob);
+  const win = window.open(_url, '_blank');
+  if (win) setTimeout(() => URL.revokeObjectURL(_url), 10000);
 }
 
 // ── DOCUMENTS RH ──────────────────────────────────────────
@@ -7746,7 +8240,7 @@ function genererDocRH() {
   const emp = employes.find(e=>e.id===empId);
   if (!emp) return;
   const dest = document.getElementById('doc-dest')?.value || 'À qui de droit';
-  const entry = { id: uid(), empId, type, dest, date: new Date().toISOString() };
+  const entry = { id: uid(), local_id: getLocalId(), empId, type, dest, date: new Date().toISOString() };
   docsRHHistory.push(entry);
   save();
   imprimerDocRH(entry, emp);
@@ -7826,9 +8320,10 @@ function imprimerDocRH(doc, emp) {
     <div class="sig-box"><div>${store}</div><div style="color:#555;margin-top:4px;">Le Directeur / La Direction</div><div class="sig-line">Signature et cachet</div></div>
   </div>
   <script>window.print();<\/script></body></html>`;
-  const win = window.open('','_blank');
-  win.document.write(html);
-  win.document.close();
+  const _blob = new Blob([html], {type:'text/html;charset=utf-8'});
+  const _url = URL.createObjectURL(_blob);
+  const win = window.open(_url, '_blank');
+  if (win) setTimeout(() => URL.revokeObjectURL(_url), 10000);
 }
 
 // ── DOCUMENTS ADMINISTRATIFS ──────────────────────────────
@@ -7926,9 +8421,20 @@ function genererDocAdmin() {
   ${corps}
   <div class="sig-area"><div></div><div class="sig-box"><div>${store}</div><div style="color:#555;margin-top:4px;">La Direction</div><div class="sig-line">Signature et cachet</div></div></div>
   <script>window.print();<\/script></body></html>`;
-  const win = window.open('','_blank');
-  win.document.write(html);
-  win.document.close();
+  const _blob = new Blob([html], {type:'text/html;charset=utf-8'});
+  const _url = URL.createObjectURL(_blob);
+  const win = window.open(_url, '_blank');
+  if (win) setTimeout(() => URL.revokeObjectURL(_url), 10000);
+  // Sauvegarder dans l'historique docs RH
+  const entryAdmin = {
+    id: uid(), local_id: getLocalId(),
+    empId: null, empName: null,
+    type: 'doc_admin_' + type,
+    contenu: { title, type },
+    date: new Date().toISOString()
+  };
+  docsRHHistory.push(entryAdmin);
+  save();
   closeModal('modal-doc-admin');
 }
 
@@ -8289,6 +8795,7 @@ async function startApp() {
   try {
     loadRoles();
     await loadSAData();
+    updateSALocalSwitcher(); // populate dropdown with loaded locaux
     await loadUserData();
   } catch(e) {
     console.warn('[SB] startApp load error:', e);
@@ -8305,10 +8812,14 @@ async function startApp() {
   updateCartTvaUI();
   applyLang();
   updateEmployeSelects();
+  updateSALocalSwitcher();
   const pending = (conges||[]).filter(c=>c.statut==='pending').length;
   const badge = document.getElementById('badge-conges');
   if(badge){ badge.textContent=pending; badge.style.display=pending>0?'':'none'; }
   navigate(firstPage || 'dashboard');
+
+  // Activer la synchronisation temps réel
+  setupRealtime();
 }
 
 // ─── RBAC UI : masquer/afficher selon permissions ──────────────
@@ -8450,11 +8961,13 @@ function applyRBACUI() {
 // ─── DONNÉES SCOPÉES PAR LOCAL ─────────────────────────────────
 async function loadUserData() {
   const lid = getLocalId();
+  // Produits : charger TOUS les locaux (pour visibilité cross-local et transferts)
+  // Autres tables : filtrées par local
   const filter = (q) => lid ? q.eq('local_id', lid) : q;
 
   try {
-    // ── Produits ──────────────────────────────────────────────
-    const { data: prods } = await filter(sb.from('gp_products').select('*').order('name'));
+    // ── Produits — TOUS les locaux visibles ───────────────────
+    const { data: prods } = await sb.from('gp_products').select('*').order('name');
     products = (prods || []).map(p => ({
       id: p.id, local_id: p.local_id,
       name: p.name, category: p.category || 'Général',
@@ -8492,7 +9005,9 @@ async function loadUserData() {
     caisseOps = (ops || []).map(o => ({
       id: o.id, local_id: o.local_id,
       type: o.type, amount: o.amount,
-      label: o.description || '', date: o.date
+      label: o.label || o.description || '',
+      date: o.date,
+      payment: o.payment || null
     }));
 
     // ── Conteneurs ────────────────────────────────────────────
@@ -8567,16 +9082,11 @@ async function loadUserData() {
       date: d.created_at
     }));
 
-    // ── Settings ──────────────────────────────────────────────
-    const settKey = lid;
-    if (settKey) {
-      const { data: sett } = await sb.from('gp_settings').select('data').eq('local_id', settKey).single();
-      if (sett?.data) settings = { ...settings, ...sett.data };
-    } else {
-      // Super Admin: localStorage
-      const saSettings = localStorage.getItem('gp_sa_settings');
-      if (saSettings) { try { settings = { ...settings, ...JSON.parse(saSettings) }; } catch(e) {} }
-    }
+    // ── Settings GLOBAUX — localStorage uniquement (pas de table dédiée) ──
+    try {
+      const localSett = localStorage.getItem('gp_settings_global');
+      if (localSett) settings = { ...settings, ...JSON.parse(localSett) };
+    } catch(e) {}
 
   } catch(e) {
     console.warn('[SB] loadUserData error:', e);
@@ -8587,14 +9097,734 @@ async function loadUserData() {
 // _doSave → version Supabase définie plus haut
 
 function saveSettings() {
-  const lid = getLocalId();
-  if (!lid) {
-    // Super Admin : pas de FK dans gp_settings pour 'SA'
-    localStorage.setItem('gp_sa_settings', JSON.stringify(settings));
+  // Settings stockés en localStorage — pas de sync Supabase (évite erreurs FK/colonnes)
+  try { localStorage.setItem('gp_settings_global', JSON.stringify(settings)); } catch(e) {}
+}
+
+// ╔══════════════════════════════════════════════════════════════╗
+// ║              RÉAPPROVISIONNEMENT RAPIDE                       ║
+// ╚══════════════════════════════════════════════════════════════╝
+
+function openRestockModal() {
+  if (!isSuperAdmin() && !hasPermission('stock','update')) { toast('⛔ Permission refusée', 'error'); return; }
+  document.getElementById('reappro-search').value = '';
+  document.getElementById('reappro-prod-id').value = '';
+  document.getElementById('reappro-qty').value = '';
+  document.getElementById('reappro-note').value = '';
+  document.getElementById('reappro-selected').style.display = 'none';
+  document.getElementById('reappro-btn-confirm').style.display = 'none';
+  filterRestockList();
+  openModal('modal-reappro');
+  setTimeout(() => document.getElementById('reappro-search').focus(), 100);
+}
+
+function filterRestockList() {
+  const q = document.getElementById('reappro-search').value.toLowerCase().trim();
+  const list = document.getElementById('reappro-list');
+  // Grouper les produits identiques — 1 ligne par produit unique
+  const groupMap = new Map();
+  products
+    .filter(p => !q || p.name.toLowerCase().includes(q) || (p.code||'').toLowerCase().includes(q))
+    .forEach(p => {
+      const key = (p.code&&p.code.trim()) ? p.code.trim().toLowerCase() : `${p.name.trim().toLowerCase()}||${(p.category||'').toLowerCase()}`;
+      if (!groupMap.has(key)) groupMap.set(key, { ...p, _total: p.stock, _variants: [p] });
+      else { const g=groupMap.get(key); g._total+=p.stock; g._variants.push(p); }
+    });
+
+  const filtered = [...groupMap.values()].sort((a,b) => a.name.localeCompare(b.name)).slice(0,30);
+
+  if (!filtered.length) {
+    list.innerHTML = `<div style="padding:20px;text-align:center;color:var(--text2);font-size:13px;">Aucun produit trouvé</div>`;
     return;
   }
-  sb.from('gp_settings').upsert({ local_id: lid, data: settings, updated_at: new Date().toISOString() }, { onConflict: 'local_id' })
-    .then(({error}) => { if(error) console.warn('[SB] saveSettings:', error.message); });
+
+  list.innerHTML = filtered.map(g => {
+    const displayStock = g._total;
+    const totalLabel = g._variants.length > 1 ? ` (total: ${g._total})` : '';
+    const localInfo = g._variants.length > 1
+      ? g._variants.map(v => { const n=GP_LOCAUX_ALL.find(l=>l.id===v.local_id)?.nom||v.zone||'?'; return `${n}:${v.stock}`; }).join(' · ')
+      : (g.zone||'');
+    const statusColor = displayStock === 0 ? 'var(--red)' : displayStock < g.minStock ? 'var(--gold)' : 'var(--accent)';
+    // Pour le restock, utiliser le variant de mon local (ou le premier)
+    const targetId = g._variants[0].id;
+    return `<div onclick="selectRestockProduct('${targetId}')" style="display:flex;align-items:center;gap:12px;padding:10px 14px;cursor:pointer;border-bottom:1px solid var(--border);transition:.1s;" onmouseover="this.style.background='var(--surface2)'" onmouseout="this.style.background=''">
+      <div style="flex:1;">
+        <div style="font-weight:600;font-size:13px;">${g.name}</div>
+        <div style="font-size:11px;color:var(--text2);">${g.code||''} ${localInfo ? '· '+localInfo : ''} · ${g.category||''}</div>
+      </div>
+      <div style="text-align:right;">
+        <div style="font-family:'JetBrains Mono',monospace;font-weight:800;font-size:15px;color:${statusColor};">${displayStock}</div>
+        <div style="font-size:10px;color:var(--text2);">en stock${totalLabel}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function selectRestockProduct(id) {
+  const p = products.find(x => x.id === id);
+  if (!p) return;
+  document.getElementById('reappro-prod-id').value = id;
+  const localNom = GP_LOCAUX_ALL.find(l => l.id === p.local_id)?.nom || p.zone || '';
+  document.getElementById('reappro-prod-name').textContent = `📦 ${p.name}${p.code ? ' · ' + p.code : ''}${localNom ? ' · ' + localNom : ''}`;
+  document.getElementById('reappro-selected').style.display = '';
+  document.getElementById('reappro-btn-confirm').style.display = '';
+  document.getElementById('reappro-list').innerHTML = '';
+  document.getElementById('reappro-search').value = p.name;
+
+  if (p.type === 'tailles' && p.sizes) {
+    // Afficher les inputs par taille, cacher l'input quantité globale
+    document.getElementById('reappro-qty-container').style.display = 'none';
+    document.getElementById('reappro-qty').value = '0';
+    document.getElementById('reappro-sizes-section').style.display = '';
+    const sizesGrid = document.getElementById('reappro-sizes-grid');
+    const allSizes = ['XS','S','M','L','XL','XXL','XXXL','34','36','38','40','42','44','46'];
+    const existingSizes = Object.keys(p.sizes || {});
+    const sizesToShow = existingSizes.length > 0 ? existingSizes : allSizes.slice(0,6);
+    sizesGrid.innerHTML = sizesToShow.map(sz => `
+      <div style="text-align:center;">
+        <div style="font-size:11px;font-weight:700;color:var(--text2);margin-bottom:3px;">${sz}</div>
+        <div style="font-size:10px;color:var(--accent);margin-bottom:3px;">actuel: ${p.sizes[sz]||0}</div>
+        <input type="number" min="0" placeholder="0" id="reappro-sz-${sz}"
+          style="width:56px;padding:5px;text-align:center;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700;">
+      </div>`).join('');
+    // Stock actuel = total de toutes les tailles
+    const totalSizes = Object.values(p.sizes||{}).reduce((a,b)=>a+b,0);
+    document.getElementById('reappro-stock-cur').textContent = `${totalSizes} ${p.unit||'pièces'}`;
+    // Focus premier input taille
+    setTimeout(() => { sizesGrid.querySelector('input')?.focus(); }, 100);
+  } else {
+    // Produit normal
+    document.getElementById('reappro-qty-container').style.display = '';
+    document.getElementById('reappro-sizes-section').style.display = 'none';
+    document.getElementById('reappro-stock-cur').textContent = `${p.stock} ${p.unit||'unités'}`;
+    document.getElementById('reappro-qty').value = '';
+    document.getElementById('reappro-qty').focus();
+  }
+}
+
+async function confirmRestock() {
+  const id = document.getElementById('reappro-prod-id').value;
+  if (!id) { toast('Sélectionnez un produit', 'error'); return; }
+
+  const p = products.find(x => x.id === id);
+  if (!p) return;
+
+  if (p.type === 'tailles' && p.sizes) {
+    // Récupérer les quantités par taille
+    const sizesGrid = document.getElementById('reappro-sizes-grid');
+    const inputs = sizesGrid.querySelectorAll('input[id^="reappro-sz-"]');
+    let totalAdded = 0;
+    inputs.forEach(inp => {
+      const sz = inp.id.replace('reappro-sz-', '');
+      const qty = parseInt(inp.value) || 0;
+      if (qty > 0) {
+        p.sizes[sz] = (p.sizes[sz] || 0) + qty;
+        totalAdded += qty;
+      }
+    });
+    if (totalAdded === 0) { toast('Entrez au moins une quantité', 'error'); return; }
+    // Recalculer le stock total
+    p.stock = Object.values(p.sizes).reduce((a,b) => a+b, 0);
+    p.lastRestock = new Date().toISOString();
+    save();
+    closeModal('modal-reappro');
+    renderStockTable(); updateAlertCount();
+    toast(`✅ +${totalAdded} pièces (tailles) ajoutées à "${p.name}" → stock total: ${p.stock}`, 'success');
+  } else {
+    const qty = parseFloat(document.getElementById('reappro-qty').value);
+    if (!qty || qty <= 0) { toast('Quantité invalide', 'error'); return; }
+    p.stock += qty;
+    p.lastRestock = new Date().toISOString();
+    save();
+    closeModal('modal-reappro');
+    renderStockTable(); updateAlertCount();
+    toast(`✅ +${qty} ${p.unit||'unités'} ajouté à "${p.name}" → stock: ${p.stock}`, 'success');
+  }
+}
+
+// ╔══════════════════════════════════════════════════════════════╗
+// ║              CONTRAT DE TRAVAIL — DROIT MAROCAIN             ║
+// ╚══════════════════════════════════════════════════════════════╝
+
+function openContratModal(empId) {
+  // Peupler la liste des employés
+  const sel = document.getElementById('ct-emp');
+  sel.innerHTML = '<option value="">— Sélectionner —</option>' +
+    employes.map(e => `<option value="${e.id}" ${e.id===empId?'selected':''}>${e.name}${e.prenom?' '+e.prenom:''} — ${e.poste||'N/A'}</option>`).join('');
+
+  // Pré-remplir depuis les données employé
+  if (empId) {
+    const e = employes.find(x => x.id === empId);
+    if (e) {
+      document.getElementById('ct-type').value        = e.contrat || 'CDI';
+      document.getElementById('ct-date-debut').value  = e.dateEmbauche || '';
+      document.getElementById('ct-salaire-brut').value= e.salaire ? Math.round(e.salaire * 1.2) : ''; // net → brut approx
+      document.getElementById('ct-lieu').value        = e.local || settings.storeAddress || '';
+    }
+  }
+  document.getElementById('ct-date-fin').value = '';
+  document.getElementById('ct-avantages').value = '';
+  document.getElementById('ct-horaire').value  = '44 heures / semaine';
+  document.getElementById('ct-essai').value    = '';
+  toggleContratFields();
+  openModal('modal-contrat');
+}
+
+function toggleContratFields() {
+  const type = document.getElementById('ct-type').value;
+  const finGroup = document.getElementById('ct-date-fin-group');
+  const finLabel = document.getElementById('ct-fin-label');
+  const needsEndDate = ['CDD','Stage','Apprentissage','Interim'].includes(type);
+  finGroup.style.opacity = needsEndDate ? '1' : '0.4';
+  finLabel.textContent = needsEndDate ? '(obligatoire)' : '(CDI : indéterminée)';
+}
+
+function updateContratFields() {
+  const empId = document.getElementById('ct-emp').value;
+  if (!empId) return;
+  const e = employes.find(x => x.id === empId);
+  if (!e) return;
+  if (e.contrat) document.getElementById('ct-type').value = e.contrat;
+  if (e.dateEmbauche) document.getElementById('ct-date-debut').value = e.dateEmbauche;
+  if (e.salaire) document.getElementById('ct-salaire-brut').value = Math.round(e.salaire * 1.2);
+  if (e.local) document.getElementById('ct-lieu').value = e.local;
+  toggleContratFields();
+}
+
+function genererContrat() {
+  const empId     = document.getElementById('ct-emp').value;
+  const type      = document.getElementById('ct-type').value;
+  const dateDebut = document.getElementById('ct-date-debut').value;
+  const dateFin   = document.getElementById('ct-date-fin').value;
+  const salBrut   = parseFloat(document.getElementById('ct-salaire-brut').value) || 0;
+  const essai     = document.getElementById('ct-essai').value;
+  const horaire   = document.getElementById('ct-horaire').value || '44 heures / semaine';
+  const lieu      = document.getElementById('ct-lieu').value;
+  const avantages = document.getElementById('ct-avantages').value;
+
+  if (!empId) { toast('Sélectionnez un employé', 'error'); return; }
+  if (!dateDebut) { toast('Date de début obligatoire', 'error'); return; }
+  if (['CDD','Stage','Interim'].includes(type) && !dateFin) { toast('Date de fin obligatoire pour ce type de contrat', 'error'); return; }
+
+  const emp  = employes.find(x => x.id === empId);
+  if (!emp) return;
+
+  const store    = settings.storeName || 'GestionPro';
+  const logo     = settings.storeLogo ? `<img src="${settings.storeLogo}" style="height:60px;object-fit:contain;">` : `<div style="font-size:22px;font-weight:900;color:#00d4aa;">${store}</div>`;
+  const today    = new Date().toLocaleDateString('fr-FR',{day:'2-digit',month:'long',year:'numeric'});
+  const fmtDate  = d => d ? new Date(d).toLocaleDateString('fr-FR',{day:'2-digit',month:'long',year:'numeric'}) : '—';
+
+  // Calculs légaux marocains
+  const smig      = 2828.71; // SMIG 2024 (MAD/mois)
+  const cnssEmp   = (salBrut * 0.0448).toFixed(2);   // CNSS salarié 4.48%
+  const cnssPatr  = (salBrut * 0.2097).toFixed(2);   // CNSS patronal 20.97%
+  const amoEmp    = (salBrut * 0.0226).toFixed(2);   // AMO salarié 2.26%
+  const amoPatr   = (salBrut * 0.0198).toFixed(2);   // AMO patronal 1.98%
+  const ipp       = calcIGR(salBrut);                 // IR/IGR simplifié
+  const salNet    = (salBrut - parseFloat(cnssEmp) - parseFloat(amoEmp) - ipp).toFixed(2);
+
+  const typeLabels = {
+    CDI:'Contrat à Durée Indéterminée (CDI)',
+    CDD:'Contrat à Durée Déterminée (CDD)',
+    Stage:'Contrat de Stage',
+    Apprentissage:"Contrat d'Apprentissage",
+    Interim:"Contrat d'Intérim",
+    ANAPEC:'Contrat ANAPEC'
+  };
+
+  // Clauses légales selon type
+  const clausesDuree = type === 'CDI'
+    ? `<p>Le présent contrat est conclu pour une <strong>durée indéterminée</strong> conformément aux dispositions de l'article 16 du Code du Travail marocain (Loi 65-99).</p>`
+    : type === 'CDD'
+    ? `<p>Le présent contrat est conclu pour une <strong>durée déterminée</strong> allant du <strong>${fmtDate(dateDebut)}</strong> au <strong>${fmtDate(dateFin)}</strong>, conformément à l'article 16 du Code du Travail. Le renouvellement ne peut s'effectuer plus d'une fois, la durée totale ne pouvant dépasser 2 ans.</p>`
+    : type === 'Stage'
+    ? `<p>Le présent contrat de stage est conclu pour la période du <strong>${fmtDate(dateDebut)}</strong> au <strong>${fmtDate(dateFin)}</strong>. Il n'ouvre pas droit aux indemnités de licenciement ni aux allocations chômage.</p>`
+    : `<p>Contrat du <strong>${fmtDate(dateDebut)}</strong> au <strong>${fmtDate(dateFin)}</strong>.</p>`;
+
+  const clauseEssai = essai
+    ? `<p>Le présent contrat est soumis à une <strong>période d'essai de ${essai}</strong>, renouvelable une fois, conformément à l'article 13 du Code du Travail.</p>`
+    : '';
+
+  const clauseConges = `<p>Le salarié bénéficie d'un congé annuel payé de <strong>18 jours ouvrables</strong> par an (1,5 jour par mois de service effectif), conformément aux articles 231 à 251 du Code du Travail. Ce droit est augmenté de 1,5 jour par période de 5 ans d'ancienneté.</p>`;
+
+  const clauseHoraire = `<p>La durée normale du travail est fixée à <strong>${horaire}</strong>, conformément aux articles 184 et suivants du Code du Travail. Toute heure supplémentaire sera rémunérée avec une majoration de 25% (jours ouvrables) ou 50% (jours fériés/nuit).</p>`;
+
+  const clauseResiliation = type === 'CDI'
+    ? `<p><strong>Résiliation :</strong> En cas de rupture du contrat, un préavis doit être respecté : 8 jours (moins de 1 an d'ancienneté), 1 mois (1 à 5 ans), 2 mois (5 à 10 ans), 3 mois (plus de 10 ans), conformément à l'article 43 du Code du Travail.</p>`
+    : `<p><strong>Fin de contrat :</strong> À l'échéance du terme, le contrat prend fin de plein droit. Une indemnité de fin de contrat de 5% du salaire brut perçu sera versée, sauf cas de faute grave.</p>`;
+
+  const avantagesHtml = avantages
+    ? `<div class="section"><h3>ARTICLE 7 — AVANTAGES ET CLAUSES SPÉCIALES</h3><p>${avantages.replace(/\n/g,'<br>')}</p></div>`
+    : '';
+
+  const html = `<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<title>Contrat de Travail — ${emp.name}</title>
+<style>
+  * { box-sizing: border-box; }
+  body { font-family: 'Times New Roman', serif; max-width: 750px; margin: 0 auto; padding: 30px; color: #1a1a1a; font-size: 13px; line-height: 1.7; }
+  .header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 3px double #00d4aa; padding-bottom: 16px; margin-bottom: 20px; }
+  .doc-title { text-align: center; font-size: 20px; font-weight: 900; text-transform: uppercase; letter-spacing: 2px; padding: 14px 0; border-top: 2px solid #1a1a1a; border-bottom: 2px solid #1a1a1a; margin: 20px 0; }
+  .parties { background: #f0fdf8; border: 1px solid #00d4aa; border-radius: 6px; padding: 16px; margin: 16px 0; display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .partie-box { font-size: 12px; }
+  .partie-box strong { display: block; font-size: 13px; border-bottom: 1px solid #ccc; padding-bottom: 4px; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 1px; }
+  .section { margin: 18px 0; }
+  .section h3 { font-size: 12px; font-weight: 900; text-transform: uppercase; letter-spacing: 1px; color: #00557a; border-bottom: 1px solid #ccc; padding-bottom: 4px; margin-bottom: 8px; }
+  .table-sal { width: 100%; border-collapse: collapse; font-size: 12px; margin: 10px 0; }
+  .table-sal th { background: #00d4aa; color: #fff; padding: 6px 10px; text-align: left; }
+  .table-sal td { padding: 6px 10px; border-bottom: 1px solid #eee; }
+  .table-sal tr:last-child td { font-weight: 700; background: #f7fdf9; }
+  .sig-area { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; margin-top: 50px; }
+  .sig-box { text-align: center; font-size: 11px; }
+  .sig-line { border-top: 1px solid #999; margin-top: 50px; padding-top: 6px; }
+  .legal-note { background: #fffbec; border-left: 3px solid #f59e0b; padding: 8px 12px; font-size: 11px; color: #555; margin: 12px 0; }
+  @media print { body { padding: 15px; } .no-print { display: none; } }
+</style>
+</head>
+<body>
+
+<div class="header">
+  ${logo}
+  <div style="text-align:right;font-size:11px;color:#666;">
+    <div>${store}</div>
+    <div>${settings.storeAddress||''}</div>
+    <div>${settings.storePhone||''}</div>
+    ${settings.storeIce ? `<div>ICE : ${settings.storeIce}</div>` : ''}
+    <div style="margin-top:6px;"><strong>Fait à :</strong> ${lieu||settings.storeAddress||'—'}</div>
+    <div><strong>Le :</strong> ${today}</div>
+  </div>
+</div>
+
+<div class="doc-title">${typeLabels[type]}</div>
+
+<div class="legal-note">
+  📋 Établi conformément au <strong>Code du Travail marocain (Loi n° 65-99)</strong> et ses textes d'application.
+</div>
+
+<div class="section">
+  <h3>ENTRE LES SOUSSIGNÉS</h3>
+  <div class="parties">
+    <div class="partie-box">
+      <strong>L'Employeur</strong>
+      <div><strong>Dénomination :</strong> ${store}</div>
+      <div><strong>Adresse :</strong> ${settings.storeAddress||'—'}</div>
+      <div><strong>Téléphone :</strong> ${settings.storePhone||'—'}</div>
+      <div><strong>ICE :</strong> ${settings.storeIce||'—'}</div>
+      <div>Ci-après désigné <strong>« L'Employeur »</strong></div>
+    </div>
+    <div class="partie-box">
+      <strong>Le Salarié</strong>
+      <div><strong>Nom & Prénom :</strong> ${emp.name} ${emp.prenom||''}</div>
+      <div><strong>CIN :</strong> ${emp.cin||'—'}</div>
+      <div><strong>Tél :</strong> ${emp.tel||'—'}</div>
+      <div><strong>Email :</strong> ${emp.email||'—'}</div>
+      <div>Ci-après désigné <strong>« Le Salarié »</strong></div>
+    </div>
+  </div>
+  <p style="font-size:12px;"><strong>Il a été convenu et arrêté ce qui suit :</strong></p>
+</div>
+
+<div class="section">
+  <h3>ARTICLE 1 — ENGAGEMENT ET DURÉE</h3>
+  ${clausesDuree}
+  ${clauseEssai}
+</div>
+
+<div class="section">
+  <h3>ARTICLE 2 — POSTE ET LIEU DE TRAVAIL</h3>
+  <p>Le Salarié est engagé en qualité de <strong>${emp.poste||'—'}</strong>${emp.dept ? `, département <strong>${emp.dept}</strong>` : ''}, à exercer ses fonctions au <strong>${lieu||'siège social'}</strong> de l'Employeur.</p>
+  <p>L'Employeur se réserve le droit de modifier le lieu de travail en cas de nécessité, dans le respect des dispositions légales.</p>
+</div>
+
+<div class="section">
+  <h3>ARTICLE 3 — DURÉE ET HORAIRES DU TRAVAIL</h3>
+  ${clauseHoraire}
+</div>
+
+<div class="section">
+  <h3>ARTICLE 4 — RÉMUNÉRATION</h3>
+  ${salBrut > 0 ? `
+  <table class="table-sal">
+    <thead><tr><th>Élément</th><th>Montant (MAD)</th><th>Base légale</th></tr></thead>
+    <tbody>
+      <tr><td>Salaire brut mensuel</td><td>${salBrut.toLocaleString('fr-MA')} MAD</td><td>—</td></tr>
+      <tr><td>Cotisation CNSS (salarié 4.48%)</td><td>- ${cnssEmp} MAD</td><td>Dahir n° 1-72-184</td></tr>
+      <tr><td>Cotisation AMO (salarié 2.26%)</td><td>- ${amoEmp} MAD</td><td>Loi 65-00</td></tr>
+      <tr><td>IR / IGR (estimé)</td><td>- ${ipp.toFixed(2)} MAD</td><td>Art. 57 CGI</td></tr>
+      <tr><td><strong>Salaire NET estimé</strong></td><td><strong>${salNet} MAD</strong></td><td></td></tr>
+    </tbody>
+  </table>
+  <p style="font-size:11px;color:#666;">* L'IR est estimatif. Charges patronales CNSS (20.97%) et AMO (1.98%) à la charge de l'Employeur.</p>
+  <p>Le salaire sera versé <strong>mensuellement</strong>, au plus tard le dernier jour ouvrable du mois, par virement ou espèces contre reçu signé.</p>
+  <p>Note : Le SMIG national en vigueur est de <strong>${smig.toLocaleString('fr-MA')} MAD/mois</strong>. La rémunération ne peut en aucun cas être inférieure à ce montant.</p>
+  ` : `<p>La rémunération sera fixée d'un commun accord et ne pourra être inférieure au SMIG en vigueur (${smig.toLocaleString('fr-MA')} MAD/mois).</p>`}
+</div>
+
+<div class="section">
+  <h3>ARTICLE 5 — CONGÉS ANNUELS</h3>
+  ${clauseConges}
+</div>
+
+<div class="section">
+  <h3>ARTICLE 6 — RÉSILIATION ET PRÉAVIS</h3>
+  ${clauseResiliation}
+  <p>En cas de licenciement abusif, le Salarié a droit à des dommages et intérêts conformément à l'article 41 du Code du Travail.</p>
+</div>
+
+${avantagesHtml}
+
+<div class="section">
+  <h3>ARTICLE ${avantages ? '8' : '7'} — RÈGLEMENT INTÉRIEUR ET OBLIGATIONS</h3>
+  <p>Le Salarié s'engage à respecter le règlement intérieur de l'Entreprise, à observer la confidentialité sur les informations dont il aurait connaissance dans l'exercice de ses fonctions, et à ne pas exercer d'activité concurrente pendant la durée du présent contrat.</p>
+</div>
+
+<div class="section">
+  <h3>ARTICLE ${avantages ? '9' : '8'} — LITIGES</h3>
+  <p>Tout litige relatif à l'exécution ou à la résiliation du présent contrat sera soumis, à défaut d'accord amiable, à la compétence des <strong>juridictions marocaines compétentes</strong>, conformément aux dispositions du Code du Travail et du Code de Procédure Civile.</p>
+</div>
+
+<p style="margin-top:20px;font-size:12px;"><strong>Fait en deux exemplaires originaux</strong>, dont un remis à chaque partie.</p>
+
+<div class="sig-area">
+  <div class="sig-box">
+    <div style="font-weight:700;">L'EMPLOYEUR</div>
+    <div style="color:#555;font-size:11px;">${store}</div>
+    <div class="sig-line">Signature et cachet</div>
+  </div>
+  <div class="sig-box">
+    <div style="font-weight:700;">LE SALARIÉ</div>
+    <div style="color:#555;font-size:11px;">${emp.name} ${emp.prenom||''}</div>
+    <div style="font-size:10px;color:#888;margin-top:4px;">(Précédé de la mention manuscrite « Lu et approuvé »)</div>
+    <div class="sig-line">Signature</div>
+  </div>
+</div>
+
+<script>window.print();<\/script>
+</body></html>`;
+
+  closeModal('modal-contrat');
+  // Générer via Blob URL — beaucoup plus rapide que document.write
+  const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+  const url  = URL.createObjectURL(blob);
+  const win  = window.open(url, '_blank');
+  if (!win) { toast('⚠️ Popup bloqué — autorisez les popups pour ce site', 'warn'); URL.revokeObjectURL(url); return; }
+  // Libérer la mémoire après ouverture
+  setTimeout(() => URL.revokeObjectURL(url), 10000);
+  toast('📄 Contrat généré !', 'success');
+}
+
+// Calcul IR/IGR simplifié Maroc (barème annuel → mensuel)
+function calcIGR(salBrut) {
+  const cnss = salBrut * 0.0448;
+  const amo  = salBrut * 0.0226;
+  const base = salBrut - cnss - amo;
+  const ann  = base * 12;
+  let ir = 0;
+  if      (ann <= 30000)  ir = 0;
+  else if (ann <= 50000)  ir = (ann - 30000) * 0.10;
+  else if (ann <= 60000)  ir = 2000 + (ann - 50000) * 0.20;
+  else if (ann <= 80000)  ir = 4000 + (ann - 60000) * 0.30;
+  else if (ann <= 180000) ir = 10000 + (ann - 80000) * 0.34;
+  else                    ir = 44000 + (ann - 180000) * 0.38;
+  // Déduction forfaitaire frais professionnels 20% plafonnée
+  const deduct = Math.min(base * 0.20 * 12, 30000);
+  ir = Math.max(0, ir - deduct * (ir / ann || 0));
+  return ir / 12;
+}
+
+// ╔══════════════════════════════════════════════════════════════╗
+// ║              SYNCHRONISATION TEMPS RÉEL (SUPABASE)           ║
+// ╚══════════════════════════════════════════════════════════════╝
+
+// ╔══════════════════════════════════════════════════════════════╗
+// ║              SYNCHRONISATION POLLING (30s)                    ║
+// ╚══════════════════════════════════════════════════════════════╝
+
+let _pollInterval   = null;
+let _pollActive     = false;
+let _lastSaveTime   = 0;    // timestamp du dernier save() local
+let _sessionId      = 'S' + Date.now() + Math.random().toString(36).slice(2,6);
+let _lastSaveIds    = new Set(); // IDs sauvegardés récemment (pour ignorer nos propres events Realtime)
+
+// ── SUPABASE REALTIME ─────────────────────────────────────────
+let _rtChannels = [];
+
+function setupRealtime() {
+  // Nettoyer les anciens channels
+  _rtChannels.forEach(ch => { try { sb.removeChannel(ch); } catch(e){} });
+  _rtChannels = [];
+  if (_pollInterval) { clearInterval(_pollInterval); _pollInterval = null; }
+
+  const lid = getLocalId();
+  showSyncIndicator(false);
+
+  // Un seul channel pour toutes les tables — sans filtre serveur
+  // (le filtre côté client est plus fiable que le filtre Supabase qui nécessite REPLICA IDENTITY)
+  const tables = ['gp_products', 'gp_sales', 'gp_clients', 'gp_employes', 'gp_caisse_ops',
+                  'gp_livraisons', 'gp_conges', 'gp_conteneurs', 'gp_ordres', 'gp_docs_rh', 'gp_locaux'];
+  let ch = sb.channel('gp_realtime_all');
+
+  tables.forEach(tbl => {
+    ch = ch.on('postgres_changes', {
+      event: '*',
+      schema: 'public',
+      table: tbl
+    }, (payload) => {
+      // Ignorer nos propres events Realtime (même ID + sauvegardé il y a moins de 3s)
+      const rowId = (payload.new || payload.old || {}).id;
+      if (rowId && _lastSaveIds.has(rowId) && Date.now() - _lastSaveTime < 3000) return;
+
+      // Filtre côté client :
+      // - gp_settings, gp_locaux, gp_products : globaux — tous les users voient tout
+      // - Autres tables : filtrées par local
+      const row = payload.new || payload.old || {};
+      const currentLid = getLocalId();
+      const isGlobalTable = tbl === 'gp_locaux' || tbl === 'gp_products';
+      if (!isGlobalTable && currentLid && row.local_id && row.local_id !== currentLid) return;
+
+      console.log('[Realtime]', tbl, payload.eventType, row.local_id || '(global)');
+      _handleRealtimeEvent(tbl, payload);
+    });
+  });
+
+  ch.subscribe((status, err) => {
+    console.log('[Realtime] status:', status, err || '');
+    if (status === 'SUBSCRIBED') {
+      showSyncIndicator(true);
+      console.log('[Sync] ✅ Realtime actif sur', tables.length, 'tables');
+      // Annuler le polling si actif
+      if (_pollInterval) { clearInterval(_pollInterval); _pollInterval = null; }
+    } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+      showSyncIndicator(false);
+      console.warn('[Sync] Realtime', status, '— fallback polling 10s');
+      if (!_pollInterval) {
+        _pollInterval = setInterval(_pollSync, 10000);
+      }
+    }
+  });
+
+  _rtChannels.push(ch);
+
+  // Timeout sécurité → fallback si pas connecté en 10s
+  setTimeout(() => {
+    const dot = document.getElementById('sync-dot');
+    const isGreen = dot?.style.background?.includes('accent') || dot?.style.background?.includes('00d4');
+    if (!isGreen && !_pollInterval) {
+      console.warn('[Sync] Timeout Realtime → polling 10s');
+      _pollInterval = setInterval(_pollSync, 10000);
+      showSyncIndicator(true);
+    }
+  }, 10000);
+}
+
+async function _handleRealtimeEvent(tbl, payload) {
+  const { eventType, new: newRow, old: oldRow } = payload;
+  const lid = getLocalId();
+
+  if (tbl === 'gp_products') {
+    if (eventType === 'DELETE') {
+      products = products.filter(p => p.id !== oldRow.id);
+    } else if (eventType === 'INSERT') {
+      const p = { ...newRow, minStock: newRow.min_stock, photo: newRow.photo_url, createdAt: newRow.created_at };
+      if (!products.find(x => x.id === p.id)) products.unshift(p);
+    } else if (eventType === 'UPDATE') {
+      const idx = products.findIndex(p => p.id === newRow.id);
+      const p = { ...newRow, minStock: newRow.min_stock, photo: newRow.photo_url, createdAt: newRow.created_at };
+      if (idx >= 0) products[idx] = p; else products.unshift(p);
+    }
+    renderStockTable(false); updateAlertCount();
+    _showSyncToast('Stock mis à jour');
+
+  } else if (tbl === 'gp_sales') {
+    if (eventType === 'DELETE') {
+      sales = sales.filter(s => s.id !== oldRow.id);
+    } else if (eventType === 'INSERT') {
+      const s = { ...newRow, clientId: newRow.client_id, totalHT: newRow.total_ht, tvaAmount: newRow.tva_amount };
+      if (!sales.find(x => x.id === s.id)) sales.unshift(s);
+    } else if (eventType === 'UPDATE') {
+      const idx = sales.findIndex(s => s.id === newRow.id);
+      const s = { ...newRow, clientId: newRow.client_id, totalHT: newRow.total_ht, tvaAmount: newRow.tva_amount };
+      if (idx >= 0) sales[idx] = s; else sales.unshift(s);
+    }
+    if (typeof renderVentes === 'function') renderVentes();
+    renderDashboard();
+    _showSyncToast('Ventes mises à jour');
+
+  } else if (tbl === 'gp_clients') {
+    if (eventType === 'DELETE') {
+      clients = clients.filter(c => c.id !== oldRow.id);
+    } else if (eventType === 'INSERT') {
+      const c = { ...newRow, creditLimit: newRow.credit_limit, creditUsed: newRow.credit_used };
+      if (!clients.find(x => x.id === c.id)) clients.push(c);
+    } else if (eventType === 'UPDATE') {
+      const idx = clients.findIndex(c => c.id === newRow.id);
+      const c = { ...newRow, creditLimit: newRow.credit_limit, creditUsed: newRow.credit_used };
+      if (idx >= 0) clients[idx] = c; else clients.push(c);
+    }
+    if (typeof renderClients === 'function') renderClients();
+    populateClientSelect();
+    _showSyncToast('Clients mis à jour');
+
+  } else if (tbl === 'gp_employes') {
+    if (eventType === 'DELETE') {
+      employes = employes.filter(e => e.id !== oldRow.id);
+    } else if (eventType === 'INSERT') {
+      const e = { ...newRow, dateEmbauche: newRow.date_embauche };
+      if (!employes.find(x => x.id === e.id)) employes.push(e);
+    } else if (eventType === 'UPDATE') {
+      const idx = employes.findIndex(e => e.id === newRow.id);
+      const e = { ...newRow, dateEmbauche: newRow.date_embauche };
+      if (idx >= 0) employes[idx] = e; else employes.push(e);
+    }
+    renderEmployes(); updateEmployeSelects();
+    _showSyncToast('Employés mis à jour');
+
+  } else if (tbl === 'gp_caisse_ops') {
+    const normOp = r => ({ ...r, label: r.label || r.description || '', payment: r.payment || null });
+    if (eventType === 'DELETE') {
+      caisseOps = caisseOps.filter(o => o.id !== oldRow.id);
+    } else if (eventType === 'INSERT') {
+      if (!caisseOps.find(x => x.id === newRow.id)) caisseOps.unshift(normOp(newRow));
+    } else if (eventType === 'UPDATE') {
+      const idx = caisseOps.findIndex(o => o.id === newRow.id);
+      if (idx >= 0) caisseOps[idx] = normOp(newRow); else caisseOps.unshift(normOp(newRow));
+    }
+    if (typeof renderFonds === 'function') renderFonds();
+    _showSyncToast('Caisse mise à jour');
+
+  } else if (tbl === 'gp_livraisons') {
+    if (eventType === 'DELETE') {
+      livraisons = livraisons.filter(l => l.id !== oldRow.id);
+    } else if (eventType === 'INSERT') {
+      const l = { ...newRow, articles: newRow.articles || [] };
+      if (!livraisons.find(x => x.id === l.id)) livraisons.unshift(l);
+    } else if (eventType === 'UPDATE') {
+      const idx = livraisons.findIndex(l => l.id === newRow.id);
+      const l = { ...newRow, articles: newRow.articles || [] };
+      if (idx >= 0) livraisons[idx] = l; else livraisons.unshift(l);
+    }
+    if (typeof renderLivraisons === 'function') renderLivraisons();
+    _showSyncToast('Livraisons mises à jour');
+
+  } else if (tbl === 'gp_conges') {
+    if (eventType === 'DELETE') {
+      conges = conges.filter(c => c.id !== oldRow.id);
+    } else if (eventType === 'INSERT') {
+      const c = { ...newRow, empId: newRow.emp_id };
+      if (!conges.find(x => x.id === c.id)) conges.unshift(c);
+    } else if (eventType === 'UPDATE') {
+      const idx = conges.findIndex(c => c.id === newRow.id);
+      const c = { ...newRow, empId: newRow.emp_id };
+      if (idx >= 0) conges[idx] = c; else conges.unshift(c);
+    }
+    if (typeof renderConges === 'function') renderConges();
+    // Badge congés en attente
+    const pending = conges.filter(c=>c.statut==='pending').length;
+    const badge = document.getElementById('badge-conges');
+    if (badge) { badge.textContent=pending; badge.style.display=pending>0?'':'none'; }
+    _showSyncToast('Congés mis à jour');
+
+  } else if (tbl === 'gp_conteneurs') {
+    if (eventType === 'DELETE') {
+      conteneurs = conteneurs.filter(c => c.id !== oldRow.id);
+    } else if (eventType === 'INSERT') {
+      const c = { ...newRow, dateArrivee: newRow.date_arrivee, dateLimite: newRow.date_limite,
+        poidsTotal: newRow.poids_total, volumeCBM: newRow.volume_cbm, nbCartons: newRow.nb_cartons,
+        fraisDouane: newRow.frais_douane, fraisPort: newRow.frais_port, fraisTransit: newRow.frais_transit,
+        fraisAutres: newRow.frais_autres, methodeRepartition: newRow.methode_repartition, refs: newRow.refs||[] };
+      if (!conteneurs.find(x => x.id === c.id)) conteneurs.unshift(c);
+    } else if (eventType === 'UPDATE') {
+      const idx = conteneurs.findIndex(c => c.id === newRow.id);
+      const c = { ...newRow, dateArrivee: newRow.date_arrivee, dateLimite: newRow.date_limite,
+        poidsTotal: newRow.poids_total, volumeCBM: newRow.volume_cbm, nbCartons: newRow.nb_cartons,
+        fraisDouane: newRow.frais_douane, fraisPort: newRow.frais_port, fraisTransit: newRow.frais_transit,
+        fraisAutres: newRow.frais_autres, methodeRepartition: newRow.methode_repartition, refs: newRow.refs||[] };
+      if (idx >= 0) conteneurs[idx] = c; else conteneurs.unshift(c);
+    }
+    if (typeof renderConteneurs === 'function') renderConteneurs();
+    _showSyncToast('Conteneurs mis à jour');
+
+  } else if (tbl === 'gp_ordres') {
+    if (eventType === 'DELETE') {
+      ordres = ordres.filter(o => o.id !== oldRow.id);
+    } else if (eventType === 'INSERT') {
+      const o = { ...newRow, conteneurId: newRow.conteneur_id, refs: newRow.refs||[] };
+      if (!ordres.find(x => x.id === o.id)) ordres.unshift(o);
+    } else if (eventType === 'UPDATE') {
+      const idx = ordres.findIndex(o => o.id === newRow.id);
+      const o = { ...newRow, conteneurId: newRow.conteneur_id, refs: newRow.refs||[] };
+      if (idx >= 0) ordres[idx] = o; else ordres.unshift(o);
+    }
+    if (typeof renderConteneurs === 'function') renderConteneurs();
+    _showSyncToast('Ordres mis à jour');
+
+  } else if (tbl === 'gp_docs_rh') {
+    if (eventType === 'DELETE') {
+      docsRHHistory = docsRHHistory.filter(d => d.id !== oldRow.id);
+    } else if (eventType === 'INSERT') {
+      const d = { ...newRow, empId: newRow.emp_id, empName: newRow.emp_name, date: newRow.created_at };
+      if (!docsRHHistory.find(x => x.id === d.id)) docsRHHistory.unshift(d);
+    } else if (eventType === 'UPDATE') {
+      const idx = docsRHHistory.findIndex(d => d.id === newRow.id);
+      const d = { ...newRow, empId: newRow.emp_id, empName: newRow.emp_name, date: newRow.created_at };
+      if (idx >= 0) docsRHHistory[idx] = d; else docsRHHistory.unshift(d);
+    }
+    if (typeof renderDocsRH === 'function') renderDocsRH();
+    if (typeof renderDocsRH === 'function') renderDocsRH();
+    _showSyncToast('Documents RH mis à jour');
+
+  } else if (tbl === 'gp_locaux') {
+    // Reload locaux depuis Supabase pour avoir la liste à jour
+    try {
+      const { data } = await sb.from('gp_locaux').select('*').order('nom');
+      if (data) {
+        GP_LOCAUX_ALL = data.map(l => ({ ...l, desc: l.description }));
+        locaux = GP_LOCAUX_ALL;
+        if (typeof renderLocaux === 'function') renderLocaux();
+        updateSALocalSwitcher();
+        _showSyncToast('Locaux mis à jour');
+      }
+    } catch(e) { console.debug('[Realtime] gp_locaux reload:', e); }
+  }
+
+} // end _handleRealtimeEvent
+
+// Fallback polling (si Realtime non disponible)
+async function _pollSync() {
+  if (Date.now() - _lastSaveTime < 8000) return;
+  const lid = getLocalId();
+  if (!lid) return;
+  try {
+    await _realtimeSyncTable('gp_products');
+    await _realtimeSyncTable('gp_sales');
+    await _realtimeSyncTable('gp_clients');
+    await _realtimeSyncTable('gp_employes');
+    await _realtimeSyncTable('gp_caisse_ops');
+    await _realtimeSyncTable('gp_livraisons');
+    await _realtimeSyncTable('gp_conges');
+    await _realtimeSyncTable('gp_conteneurs');
+  } catch(e) {
+    console.debug('[Sync] poll skipped:', e.message);
+  }
+}
+
+let _syncToastTimer = null;
+function _showSyncToast(msg) {
+  clearTimeout(_syncToastTimer);
+  const el = document.getElementById('sync-toast');
+  if (!el) return;
+  el.textContent = '🔄 ' + msg;
+  el.style.opacity = '1';
+  _syncToastTimer = setTimeout(() => { el.style.opacity = '0'; }, 2500);
+}
+
+function showSyncIndicator(online) {
+  const dot = document.getElementById('sync-dot');
+  if (!dot) return;
+  dot.style.background = online ? 'var(--accent)' : 'var(--red)';
+  dot.title = online ? 'Synchronisation temps réel active' : 'Déconnecté';
 }
 
 // ╔══════════════════════════════════════════════════════════════╗
@@ -8801,7 +10031,7 @@ async function renderSADash() {
     </div></div>
   `;
 
-  // Cards par local (stats en temps réel depuis Supabase via renderSAVue)
+  // Cards par local
   document.getElementById('sa-locaux-cards').innerHTML = allLocaux.map(loc => {
     const lUsers = allUsers.filter(u => u.local_id === loc.id);
     return `
@@ -8814,9 +10044,107 @@ async function renderSADash() {
           <div><div style="font-size:22px;font-weight:800;color:var(--accent);">${lUsers.length}</div><div style="font-size:10px;color:var(--text2);">Utilisateurs</div></div>
           <div><div style="font-size:22px;font-weight:800;">${loc.responsable||'—'}</div><div style="font-size:10px;color:var(--text2);">Responsable</div></div>
         </div>
-        <div style="padding:0 16px 12px;font-size:11px;color:var(--text2);">📍 ${loc.adresse||'—'}</div>
+        <div style="padding:0 16px 8px;font-size:11px;color:var(--text2);">📍 ${loc.adresse||'—'}</div>
+        <div style="padding:0 16px 12px;">
+          <button class="btn btn-secondary" style="font-size:11px;padding:4px 10px;" onclick="saSelectLocal('${loc.id}')">🏪 Travailler dans ce local</button>
+        </div>
       </div>`;
-  }).join('') || '<div style="color:var(--text2);padding:20px;">Aucun local créé. <button class="btn btn-primary btn-sm" onclick="saTab(\'locaux\')">Créer un local</button></div>';
+  }).join('') || '<div style="color:var(--text2);padding:20px;">Aucun local créé.</div>';
+
+  // Détection données orphelines (sans local_id)
+  try {
+    const tables = ['gp_products','gp_sales','gp_clients','gp_employes','gp_caisse_ops'];
+    let orphanCounts = {};
+    for (const t of tables) {
+      const { count } = await sb.from(t).select('*',{count:'exact',head:true}).is('local_id',null);
+      if (count > 0) orphanCounts[t] = count;
+    }
+    const totalOrphans = Object.values(orphanCounts).reduce((a,b)=>a+b,0);
+    if (totalOrphans > 0) {
+      const saStats = document.getElementById('sa-stats-grid');
+      const warning = document.createElement('div');
+      warning.style.cssText = 'grid-column:1/-1;background:rgba(255,71,87,.1);border:1px solid rgba(255,71,87,.3);border-radius:10px;padding:14px 16px;margin-top:12px;';
+      warning.innerHTML = `
+        <div style="color:var(--red);font-weight:700;margin-bottom:6px;">⚠️ ${totalOrphans} enregistrement(s) sans local assigné</div>
+        <div style="font-size:12px;color:var(--text2);margin-bottom:8px;">${Object.entries(orphanCounts).map(([t,c])=>t.replace('gp_','')+': '+c).join(' • ')}</div>
+        <div style="font-size:12px;color:var(--text2);margin-bottom:10px;">Ces données ne sont visibles par aucun utilisateur. Assignez-les à un local :</div>
+        <select id="orphan-target-local" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:6px 10px;color:var(--text);font-size:12px;margin-right:8px;">
+          <option value="">Choisir un local...</option>
+          ${GP_LOCAUX_ALL.filter(l=>l.actif!==false).map(l=>'<option value="'+l.id+'">'+l.nom+'</option>').join('')}
+        </select>
+        <button class="btn btn-danger" style="font-size:12px;padding:6px 14px;" onclick="fixOrphanData()">🔧 Assigner</button>`;
+      saStats.appendChild(warning);
+    }
+  } catch(e) { console.debug('[SA] orphan check:', e); }
+}
+
+async function fixOrphanData() {
+  const lid = document.getElementById('orphan-target-local')?.value;
+  if (!lid) { toast('Sélectionnez un local cible', 'error'); return; }
+  const locName = GP_LOCAUX_ALL.find(l=>l.id===lid)?.nom || lid;
+  if (!confirm('Assigner toutes les données orphelines au local "'+locName+'" ?')) return;
+  const tables = ['gp_products','gp_sales','gp_clients','gp_employes','gp_caisse_ops','gp_livraisons','gp_conges'];
+  let fixed = 0;
+  for (const t of tables) {
+    const { data } = await sb.from(t).select('id').is('local_id', null);
+    if (data && data.length > 0) {
+      const { error } = await sb.from(t).update({local_id: lid}).in('id', data.map(r=>r.id));
+      if (!error) fixed += data.length;
+    }
+  }
+  toast('✅ '+fixed+' enregistrements assignés à "'+locName+'"', 'success');
+  renderSADash();
+}
+
+function saSelectLocal(lid) {
+  SA_ACTIVE_LOCAL = lid;
+  const sel = document.getElementById('sa-active-local');
+  if (sel) { sel.value = lid; }
+  onSALocalSwitch();
+}
+
+async function saResetAllData() {
+  const confirm1 = confirm('⚠️ ATTENTION — Supprimer TOUTES les données (produits, ventes, clients, employés, caisse, livraisons, congés) ?\n\nCette action est IRRÉVERSIBLE.');
+  if (!confirm1) return;
+  const confirm2 = prompt('Tapez "RESET" pour confirmer la suppression complète :');
+  if (confirm2 !== 'RESET') { toast('Reset annulé', 'warn'); return; }
+
+  toast('🗑️ Suppression en cours...', 'warn');
+  const tables = [
+    'gp_products', 'gp_sales', 'gp_clients', 'gp_employes',
+    'gp_caisse_ops', 'gp_livraisons', 'gp_conges', 'gp_docs_rh',
+    'gp_conteneurs', 'gp_ordres'
+  ];
+  let errors = 0;
+  for (const t of tables) {
+    // Supprimer toutes les lignes — utiliser une condition always-true
+    const { error } = await sb.from(t).delete().not('id', 'is', null);
+    if (error) {
+      // Fallback : supprimer par id existants
+      const { data } = await sb.from(t).select('id');
+      if (data && data.length > 0) {
+        const { error: e2 } = await sb.from(t).delete().in('id', data.map(r=>r.id));
+        if (e2) { console.warn('[Reset]', t, e2.message); errors++; }
+      }
+    }
+  }
+
+  // Reset local state
+  products = []; sales = []; clients = []; employes = [];
+  caisseOps = []; livraisons = []; conges = []; docsRHHistory = [];
+  conteneurs = []; ordres = []; settings = {tva:20,showTva:false,storeName:'GestionPro',storeAddress:'',storePhone:'',storeEmail:'',storeWebsite:'',invoicePrefix:'FAC',storeIce:'',storeLogo:null,bankName:'',bankIban:'',bankSwift:'',invoiceNotes:'',invoicePaymentTerms:'30 jours',invoiceCounter:1};
+
+  // Re-render
+  renderDashboard();
+  renderStockTable();
+  if (typeof renderVentes === 'function') renderVentes();
+  if (typeof renderClients === 'function') renderClients();
+  if (typeof renderEmployes === 'function') renderEmployes();
+  renderSADash();
+  updateAlertCount();
+
+  if (errors === 0) toast('✅ Toutes les données supprimées — base vide', 'success');
+  else toast(`⚠️ Reset partiel — ${errors} table(s) en erreur`, 'warn');
 }
 
 // ── GESTION LOCAUX ─────────────────────────────────────────────
