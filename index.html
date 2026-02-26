@@ -2374,12 +2374,24 @@
     <!-- Stock par tailles -->
     <div id="prod-sizes-section" style="display:none;margin-top:14px;border:1px solid var(--border);border-radius:10px;padding:14px;">
       <div style="font-size:13px;font-weight:700;margin-bottom:10px;color:var(--accent);">👕 Stock par tailles</div>
-      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(100px,1fr));gap:8px;" id="prod-sizes-grid">
-        <!-- généré dynamiquement -->
-      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(100px,1fr));gap:8px;" id="prod-sizes-grid"></div>
       <div style="display:flex;gap:6px;margin-top:10px;align-items:center;">
         <input type="text" id="new-size-input" placeholder="Nouvelle taille (ex: XXL, 42)" style="flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:7px 10px;color:var(--text);font-size:12px;">
         <button class="btn btn-secondary btn-sm" onclick="addCustomSize('prod')">+ Ajouter</button>
+      </div>
+    </div>
+    <!-- Couleurs optionnelles (tous types) -->
+    <div style="margin-top:14px;border:1px solid var(--border);border-radius:10px;padding:12px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;" onclick="toggleColorSection('prod')">
+        <span style="font-size:13px;font-weight:700;color:var(--text2);">🎨 Variantes de couleurs <span style="font-size:11px;font-weight:400;">(optionnel)</span></span>
+        <span id="prod-color-toggle-icon" style="font-size:12px;color:var(--accent);">▼ Ajouter</span>
+      </div>
+      <div id="prod-colors-section" style="display:none;margin-top:10px;">
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:8px;" id="prod-colors-grid"></div>
+        <div style="display:flex;gap:6px;margin-top:8px;align-items:center;">
+          <input type="text" id="new-color-input" placeholder="Ex: Rouge, Bleu, Noir…" style="flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:7px 10px;color:var(--text);font-size:12px;">
+          <button class="btn btn-secondary btn-sm" onclick="addCustomColor('prod')">+ Ajouter</button>
+        </div>
       </div>
     </div>
     <div class="modal-actions">
@@ -2457,6 +2469,20 @@
       <div style="display:flex;gap:6px;margin-top:10px;align-items:center;">
         <input type="text" id="edit-new-size-input" placeholder="Nouvelle taille (ex: XXL, 42)" style="flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:7px 10px;color:var(--text);font-size:12px;">
         <button class="btn btn-secondary btn-sm" onclick="addCustomSize('edit')">+ Ajouter</button>
+      </div>
+    </div>
+    <!-- Couleurs optionnelles edit -->
+    <div style="margin-top:14px;border:1px solid var(--border);border-radius:10px;padding:12px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;" onclick="toggleColorSection('edit-prod')">
+        <span style="font-size:13px;font-weight:700;color:var(--text2);">🎨 Variantes de couleurs <span style="font-size:11px;font-weight:400;">(optionnel)</span></span>
+        <span id="edit-prod-color-toggle-icon" style="font-size:12px;color:var(--accent);">▼ Ajouter</span>
+      </div>
+      <div id="edit-prod-colors-section" style="display:none;margin-top:10px;">
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:8px;" id="edit-prod-colors-grid"></div>
+        <div style="display:flex;gap:6px;margin-top:8px;align-items:center;">
+          <input type="text" id="edit-new-color-input" placeholder="Ex: Rouge, Bleu, Noir…" style="flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:7px 10px;color:var(--text);font-size:12px;">
+          <button class="btn btn-secondary btn-sm" onclick="addCustomColor('edit-prod')">+ Ajouter</button>
+        </div>
       </div>
     </div>
     <input type="hidden" id="edit-prod-id">
@@ -4319,27 +4345,83 @@ function handleEditPhotoUpload(e) {
 
 // ─── PRODUCTS ───
 function toggleSizesSection(prefix) {
-  const type = document.getElementById(prefix === 'prod' ? 'prod-type' : 'edit-prod-type').value;
-  const sizeSec = document.getElementById(prefix === 'prod' ? 'prod-sizes-section' : 'edit-prod-sizes-section');
-  const stockNormal = document.getElementById(prefix === 'prod' ? 'prod-stock-normal' : 'edit-prod-stock-normal');
-  const gridId = prefix === 'prod' ? 'prod-sizes-grid' : 'edit-prod-sizes-grid';
-  const grid = document.getElementById(gridId);
+  const isProd = prefix === 'prod';
+  const type = document.getElementById(isProd ? 'prod-type' : 'edit-prod-type').value;
+  const sizeSec   = document.getElementById(isProd ? 'prod-sizes-section'   : 'edit-prod-sizes-section');
+  const colorSec  = document.getElementById(isProd ? 'prod-colors-section'  : 'edit-prod-colors-section');
+  const stockNormal = document.getElementById(isProd ? 'prod-stock-normal'  : 'edit-prod-stock-normal');
+  const sizesGridId  = isProd ? 'prod-sizes-grid'  : 'edit-prod-sizes-grid';
+  const colorsGridId = isProd ? 'prod-colors-grid' : 'edit-prod-colors-grid';
 
+  // Tailles
   if (type === 'tailles') {
     sizeSec.style.display = 'block';
+    if (colorSec) colorSec.style.display = 'none';
     if (stockNormal) stockNormal.style.display = 'none';
-    // Init default sizes seulement si la grille est vide
+    const grid = document.getElementById(sizesGridId);
     if (grid && grid.querySelectorAll('div[data-size]').length === 0) {
-      ['XS','S','M','L','XL','XXL'].forEach(sz => addSizeInput(gridId, sz));
+      ['XS','S','M','L','XL','XXL'].forEach(sz => addSizeInput(sizesGridId, sz));
     }
   } else {
-    sizeSec.style.display = 'none';
+    if (sizeSec) sizeSec.style.display = 'none';
+    if (colorSec) colorSec.style.display = 'none';
     if (stockNormal) stockNormal.style.display = '';
     if (type === 'kg') {
-      const unitEl = document.getElementById(prefix === 'prod' ? 'prod-unit' : 'edit-prod-unit');
+      const unitEl = document.getElementById(isProd ? 'prod-unit' : 'edit-prod-unit');
       if (unitEl) unitEl.value = 'Kg';
     }
   }
+}
+
+// ── Couleurs helpers ──
+function addColorInput(gridId, colorName) {
+  const grid = document.getElementById(gridId);
+  if (!grid || grid.querySelector(`[data-color="${colorName}"]`)) return;
+  const div = document.createElement('div');
+  div.style.cssText = 'display:flex;flex-direction:column;gap:4px;';
+  div.dataset.color = colorName;
+  div.innerHTML = `
+    <div style="font-size:11px;font-weight:700;color:var(--accent);">${colorName}</div>
+    <input type="number" min="0" step="1" placeholder="0"
+      style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:6px 8px;color:var(--text);font-family:'JetBrains Mono',monospace;font-size:13px;width:100%;"
+      data-color="${colorName}">
+    <button onclick="this.parentElement.remove()" style="background:none;border:none;color:var(--text3);font-size:10px;cursor:pointer;text-align:left;">✕ suppr.</button>
+  `;
+  grid.appendChild(div);
+}
+
+function addCustomColor(prefix) {
+  const isProd = prefix === 'prod';
+  const inputId  = isProd ? 'new-color-input' : 'edit-new-color-input';
+  const gridId   = isProd ? 'prod-colors-grid' : 'edit-prod-colors-grid';
+  const inp = document.getElementById(inputId);
+  const val = inp?.value.trim();
+  if (!val) return;
+  addColorInput(gridId, val);
+  inp.value = '';
+}
+
+function toggleColorSection(prefix) {
+  const sec = document.getElementById(prefix + '-colors-section');
+  const icon = document.getElementById(prefix + '-color-toggle-icon');
+  if (!sec) return;
+  const open = sec.style.display === 'none' || !sec.style.display;
+  sec.style.display = open ? '' : 'none';
+  if (icon) icon.textContent = open ? '▲ Masquer' : '▼ Ajouter';
+}
+
+function getColorsFromGrid(gridId) {
+  const grid = document.getElementById(gridId);
+  if (!grid) return {};
+  const result = {};
+  grid.querySelectorAll('div[data-color]').forEach(div => {
+    const col = div.dataset.color;
+    if (!col) return;
+    const inp = div.querySelector('input[type="number"]');
+    const val = parseFloat(inp?.value);
+    result[col] = isNaN(val) ? 0 : val;
+  });
+  return result;
 }
 
 function addSizeInput(gridId, sizeName) {
@@ -4394,6 +4476,8 @@ function saveProduct() {
 
   let stock = 0;
   let sizes = {};
+  // Couleurs optionnelles — disponibles sur tous les types
+  const colors = getColorsFromGrid('prod-colors-grid');
   if (type === 'tailles') {
     sizes = getSizesFromGrid('prod-sizes-grid');
     stock = Object.values(sizes).reduce((s, v) => s + v, 0);
@@ -4416,6 +4500,7 @@ function saveProduct() {
     photo: newProductPhoto || null,
     type: type,
     sizes: type === 'tailles' ? sizes : {},
+    colors,
     createdAt: new Date().toISOString()
   };
 
@@ -4453,15 +4538,18 @@ function editProduct(id) {
   document.getElementById('edit-prod-id').value = id;
   document.getElementById('edit-prod-type').value = p.type || 'unite';
 
-  // Sizes
-  const sizeSec = document.getElementById('edit-prod-sizes-section');
+  // Sizes + Colors
+  const sizeSec   = document.getElementById('edit-prod-sizes-section');
+  const colorSec  = document.getElementById('edit-prod-colors-section');
   const stockNormal = document.getElementById('edit-prod-stock-normal');
   const grid = document.getElementById('edit-prod-sizes-grid');
-  grid.innerHTML = ''; grid.dataset.initialized = '';
+  const colorGrid = document.getElementById('edit-prod-colors-grid');
+  grid.innerHTML = ''; if (colorGrid) colorGrid.innerHTML = '';
+
   if (p.type === 'tailles') {
-    sizeSec.style.display = 'block';
-    if(stockNormal) stockNormal.style.display = 'none';
-    grid.dataset.initialized = 'yes';
+    if (sizeSec) sizeSec.style.display = 'block';
+    if (colorSec) colorSec.style.display = 'none';
+    if (stockNormal) stockNormal.style.display = 'none';
     const sizes = p.sizes || {};
     const allSizes = Object.keys(sizes).length > 0 ? Object.keys(sizes) : ['XS','S','M','L','XL','XXL'];
     allSizes.forEach(sz => {
@@ -4470,8 +4558,25 @@ function editProduct(id) {
       if (inp) inp.value = sizes[sz] || 0;
     });
   } else {
-    sizeSec.style.display = 'none';
-    if(stockNormal) stockNormal.style.display = '';
+    if (sizeSec) sizeSec.style.display = 'none';
+    if (stockNormal) stockNormal.style.display = '';
+  }
+  // Couleurs optionnelles : afficher si le produit en a
+  if (colorGrid) colorGrid.innerHTML = '';
+  const colorsData = p.colors || {};
+  if (Object.keys(colorsData).length > 0) {
+    if (colorSec) colorSec.style.display = '';
+    const icon = document.getElementById('edit-prod-color-toggle-icon');
+    if (icon) icon.textContent = '▲ Masquer';
+    Object.keys(colorsData).forEach(col => {
+      addColorInput('edit-prod-colors-grid', col);
+      const inp = colorGrid?.querySelector(`[data-color="${col}"] input`);
+      if (inp) inp.value = colorsData[col] || 0;
+    });
+  } else {
+    if (colorSec) colorSec.style.display = 'none';
+    const icon = document.getElementById('edit-prod-color-toggle-icon');
+    if (icon) icon.textContent = '▼ Ajouter';
   }
 
   const area = document.getElementById('edit-photo-area');
@@ -4496,6 +4601,7 @@ function updateProduct() {
 
   let stock = 0;
   let sizes = {};
+  const colors = getColorsFromGrid('edit-prod-colors-grid');
   if (type === 'tailles') {
     sizes = getSizesFromGrid('edit-prod-sizes-grid');
     stock = Object.values(sizes).reduce((s, v) => s + v, 0);
@@ -4511,7 +4617,7 @@ function updateProduct() {
     code: document.getElementById('edit-prod-code').value.trim(),
     zone: document.getElementById('edit-prod-zone').value.trim() || '',
     photo: editProductPhoto !== undefined ? editProductPhoto : products[idx].photo,
-    type, sizes
+    type, sizes, colors
   };
   save(); closeModal('modal-edit-product');
   toast(`"${name}" ${t('toast_product_updated')}`);
@@ -4581,6 +4687,7 @@ function renderStockTable(resetPage) {
     if (!groupMap.has(key)) {
       const g = { ...p, _variants: [p], _totalStock: p.stock };
       if (p.type === 'tailles' && p.sizes) g.sizes = { ...p.sizes };
+      if (p.type === 'couleurs' && p.colors) g.colors = { ...p.colors };
       groupMap.set(key, g);
     } else {
       const g = groupMap.get(key);
@@ -4664,6 +4771,9 @@ function renderStockTable(resetPage) {
     }
     if (g.type==='tailles' && g.sizes) {
       stockHtml += `<div style="font-size:10px;color:var(--text2);margin-top:2px;">${Object.entries(g.sizes).filter(([,v])=>v>0).map(([k,v])=>`<span style="background:rgba(108,99,255,0.12);color:var(--accent3);border-radius:4px;padding:1px 4px;margin:1px;">${k}:${v}</span>`).join('')}</div>`;
+    }
+    if (g.type==='couleurs' && g.colors) {
+      stockHtml += `<div style="font-size:10px;color:var(--text2);margin-top:2px;">${Object.entries(g.colors).filter(([,v])=>v>0).map(([k,v])=>`<span style="background:rgba(0,212,170,0.1);color:var(--accent);border-radius:4px;padding:1px 4px;margin:1px;">🎨${k}:${v}</span>`).join('')}</div>`;
     }
     if (g.type==='kg') stockHtml += `<div style="font-size:10px;color:var(--accent);margin-top:2px;">⚖️ Vente au poids</div>`;
 
@@ -4834,11 +4944,13 @@ function renderProductGrid(resetPage) {
       : `<div class="product-thumb">📦</div>`;
     const isOutOfStock = p.type === 'tailles'
       ? Object.values(p.sizes || {}).every(v => v <= 0)
+      : p.type === 'couleurs'
+      ? Object.values(p.colors || {}).every(v => v <= 0)
       : p.type === 'kg'
       ? p.stock <= 0
       : p.stock === 0;
     return `<div class="product-card ${isOutOfStock ? 'out-of-stock' : ''}" onclick="addToCart('${p.id}')">
-      <div class="product-stock-badge">${p.type==='tailles' ? '👕' : p.type==='kg' ? '⚖️' : p.stock}</div>
+      <div class="product-stock-badge">${p.type==='tailles' ? '👕' : p.type==='couleurs' ? '🎨' : p.type==='kg' ? '⚖️' : p.stock}</div>
       ${photo}
       <div class="product-name">${p.name}</div>
       <div class="product-price">${p.price.toFixed(2)} MAD${p.type==='kg' ? '<span style="font-size:10px;color:var(--text2);"> /kg</span>' : ''}</div>
@@ -4874,7 +4986,6 @@ function addToCart(id) {
     const sizes = p.sizes || {};
     const availSizes = Object.entries(sizes).filter(([, qty]) => qty > 0);
     if (!availSizes.length) { toast(t('toast_stock_insuf'), 'warn'); return; }
-    // Afficher modal sélection taille
     document.getElementById('modal-size-product-name').textContent = `📦 ${p.name}`;
     const btnContainer = document.getElementById('modal-size-buttons');
     btnContainer.innerHTML = availSizes.map(([sz, qty]) => `
@@ -4885,6 +4996,24 @@ function addToCart(id) {
       </button>`).join('');
     openModal('modal-size-select');
     return;
+  }
+
+  // Si le produit a des couleurs (quelle que soit son type), proposer le choix
+  if (p.colors && Object.keys(p.colors).length > 0) {
+    const availColors = Object.entries(p.colors).filter(([, qty]) => qty > 0);
+    if (!availColors.length && p.stock <= 0) { toast(t('toast_stock_insuf'), 'warn'); return; }
+    if (availColors.length > 0) {
+      document.getElementById('modal-size-product-name').textContent = `🎨 ${p.name}`;
+      const btnContainer = document.getElementById('modal-size-buttons');
+      btnContainer.innerHTML = availColors.map(([col, qty]) => `
+        <button class="btn btn-secondary" style="min-width:80px;flex-direction:column;gap:2px;"
+          onclick="addToCartWithColor('${id}','${col}');closeModal('modal-size-select')">
+          <span style="font-size:14px;font-weight:800;">🎨 ${col}</span>
+          <span style="font-size:10px;color:var(--text2);">Stock: ${qty}</span>
+        </button>`).join('');
+      openModal('modal-size-select');
+      return;
+    }
   }
 
   // Produit au KG — ouvrir modal saisie poids
@@ -4924,6 +5053,21 @@ function addToCartWithSize(id, size) {
     existing.qty++;
   } else {
     cart.push({ id, name: `${p.name} (${size})`, price: p.price, qty: 1, size, productId: id });
+  }
+  renderCart();
+}
+
+function addToCartWithColor(id, color) {
+  const p = products.find(x => x.id === id);
+  if (!p || !p.colors) return;
+  const availQty = p.colors[color] || 0;
+  if (availQty <= 0) { toast(t('toast_stock_insuf'), 'warn'); return; }
+  const existing = cart.find(c => c.id === id && c.color === color);
+  if (existing) {
+    if (existing.qty >= availQty) { toast(t('toast_stock_insuf'), 'warn'); return; }
+    existing.qty++;
+  } else {
+    cart.push({ id, name: `${p.name} (${color})`, price: p.price, qty: 1, color, productId: id });
   }
   renderCart();
 }
@@ -4994,7 +5138,7 @@ function updateQtyByKey(ck, delta) {
   if (!item) return;
   const pid = item.productId || item.id;
   const p = products.find(x => x.id === pid);
-  const maxQty = item.size ? (p?.sizes?.[item.size] || 999) : (p?.stock || 999);
+  const maxQty = item.size ? (p?.sizes?.[item.size] || 999) : item.color ? (p?.colors?.[item.color] || 999) : (p?.stock || 999);
   item.qty = Math.max(1, item.qty + delta);
   if (item.qty > maxQty) { item.qty = maxQty; toast(t('toast_stock_insuf'), 'warn'); }
   const input = document.getElementById('qty-' + ck);
@@ -5017,7 +5161,7 @@ function updateCartFieldByKey(ck, field, value) {
   if (field === 'qty') {
     const pid = item.productId || item.id;
     const p = products.find(x => x.id === pid);
-    const maxQty = item.size ? (p?.sizes?.[item.size] || 999) : (p?.stock || 999);
+    const maxQty = item.size ? (p?.sizes?.[item.size] || 999) : item.color ? (p?.colors?.[item.color] || 999) : (p?.stock || 999);
     const newQty = parseFloat(value);
     if (!newQty || newQty <= 0) { removeFromCartByKey(ck); return; }
     item.qty = Math.min(newQty, maxQty);
@@ -5300,6 +5444,10 @@ function checkout(docType) {
       // Déduire du stock par taille
       p.sizes[item.size] = Math.max(0, (p.sizes[item.size] || 0) - item.qty);
       p.stock = Object.values(p.sizes).reduce((s, v) => s + v, 0);
+    } else if (item.color && p.colors) {
+      // Déduire du stock par couleur
+      p.colors[item.color] = Math.max(0, (p.colors[item.color] || 0) - item.qty);
+      p.stock = Object.values(p.colors).reduce((s, v) => s + v, 0);
     } else {
       p.stock = Math.max(0, p.stock - item.qty);
     }
@@ -7825,8 +7973,8 @@ function saveEmploye() {
   const name = document.getElementById('emp-name').value.trim();
   if (!name) { toast('Nom requis', 'error'); return; }
   const id = document.getElementById('emp-editing-id').value;
-  const lid = getRequiredLocalId();
-  if (!id && lid === null && isSuperAdmin()) return; // bloquer création SA global
+  const lid = getLocalId();
+  // lid peut être null si SA global — on utilise null comme local_id
   const data = {
     name, prenom: document.getElementById('emp-prenom').value.trim(),
     poste: document.getElementById('emp-poste').value.trim(),
@@ -9172,7 +9320,6 @@ function selectRestockProduct(id) {
   document.getElementById('reappro-search').value = p.name;
 
   if (p.type === 'tailles' && p.sizes) {
-    // Afficher les inputs par taille, cacher l'input quantité globale
     document.getElementById('reappro-qty-container').style.display = 'none';
     document.getElementById('reappro-qty').value = '0';
     document.getElementById('reappro-sizes-section').style.display = '';
@@ -9187,10 +9334,26 @@ function selectRestockProduct(id) {
         <input type="number" min="0" placeholder="0" id="reappro-sz-${sz}"
           style="width:56px;padding:5px;text-align:center;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700;">
       </div>`).join('');
-    // Stock actuel = total de toutes les tailles
     const totalSizes = Object.values(p.sizes||{}).reduce((a,b)=>a+b,0);
     document.getElementById('reappro-stock-cur').textContent = `${totalSizes} ${p.unit||'pièces'}`;
-    // Focus premier input taille
+    setTimeout(() => { sizesGrid.querySelector('input')?.focus(); }, 100);
+  } else if (p.type === 'couleurs' && p.colors) {
+    // Réappro par couleur
+    document.getElementById('reappro-qty-container').style.display = 'none';
+    document.getElementById('reappro-qty').value = '0';
+    document.getElementById('reappro-sizes-section').style.display = '';
+    const sizesGrid = document.getElementById('reappro-sizes-grid');
+    const existingColors = Object.keys(p.colors || {});
+    const colorsToShow = existingColors.length > 0 ? existingColors : ['Noir','Blanc','Rouge','Bleu'];
+    sizesGrid.innerHTML = colorsToShow.map(col => `
+      <div style="text-align:center;">
+        <div style="font-size:11px;font-weight:700;color:var(--accent);margin-bottom:3px;">🎨 ${col}</div>
+        <div style="font-size:10px;color:var(--text2);margin-bottom:3px;">actuel: ${p.colors[col]||0}</div>
+        <input type="number" min="0" placeholder="0" id="reappro-sz-${col}"
+          style="width:60px;padding:5px;text-align:center;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700;">
+      </div>`).join('');
+    const totalColors = Object.values(p.colors||{}).reduce((a,b)=>a+b,0);
+    document.getElementById('reappro-stock-cur').textContent = `${totalColors} ${p.unit||'pièces'}`;
     setTimeout(() => { sizesGrid.querySelector('input')?.focus(); }, 100);
   } else {
     // Produit normal
@@ -9209,22 +9372,23 @@ async function confirmRestock() {
   const p = products.find(x => x.id === id);
   if (!p) return;
 
-  if (p.type === 'tailles' && p.sizes) {
-    // Récupérer les quantités par taille
+  if ((p.type === 'tailles' && p.sizes) || (p.type === 'couleurs' && p.colors)) {
     const sizesGrid = document.getElementById('reappro-sizes-grid');
     const inputs = sizesGrid.querySelectorAll('input[id^="reappro-sz-"]');
     let totalAdded = 0;
     inputs.forEach(inp => {
-      const sz = inp.id.replace('reappro-sz-', '');
+      const key = inp.id.replace('reappro-sz-', '');
       const qty = parseInt(inp.value) || 0;
       if (qty > 0) {
-        p.sizes[sz] = (p.sizes[sz] || 0) + qty;
+        if (p.type === 'tailles') { p.sizes[key] = (p.sizes[key] || 0) + qty; }
+        else { p.colors[key] = (p.colors[key] || 0) + qty; }
         totalAdded += qty;
       }
     });
     if (totalAdded === 0) { toast('Entrez au moins une quantité', 'error'); return; }
-    // Recalculer le stock total
-    p.stock = Object.values(p.sizes).reduce((a,b) => a+b, 0);
+    p.stock = p.type === 'tailles'
+      ? Object.values(p.sizes).reduce((a,b) => a+b, 0)
+      : Object.values(p.colors).reduce((a,b) => a+b, 0);
     p.lastRestock = new Date().toISOString();
     save();
     closeModal('modal-reappro');
