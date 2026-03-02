@@ -856,6 +856,7 @@
         <h1>GestionPro</h1>
         <p>Système de gestion commerce</p>
       </div>
+      <form onsubmit="doLogin();return false;" autocomplete="on">
       <div class="lf">
         <label>Code d'accès</label>
         <input type="text" id="l-code" placeholder="ex: mon-commerce" autocomplete="off" style="text-transform:lowercase;" oninput="this.value=this.value.toLowerCase().replace(/\s/g,'-')">
@@ -868,7 +869,8 @@
         <label>Mot de passe</label>
         <input type="password" id="l-pwd" placeholder="••••••••" autocomplete="current-password">
       </div>
-      <button class="lb" id="l-btn" onclick="doLogin()">Se connecter</button>
+      <button type="submit" class="lb" id="l-btn">Se connecter</button>
+      </form>
       <div class="lerr" id="l-err"></div>
       <div class="ldemo">
         <h4>🧪 Comptes disponibles</h4>
@@ -4200,7 +4202,7 @@ async function _doSave() {
 
     // ── Docs RH ───────────────────────────────────────────────
     await sbSync('gp_docs_rh', docsRHHistory.map(d => ({
-      id: d.id, local_id: lid || d.local_id,
+      id: d.id, tenant_id: tid, local_id: lid || d.local_id,
       emp_id: d.empId || null, emp_name: d.empName || null,
       type: d.type || null, contenu: d.contenu || {}
     })), 'local_id', lid);
@@ -6415,7 +6417,7 @@ function isOwner() {
 // Charger tous les tenants depuis Supabase
 async function loadOAData() {
   try {
-    const { data: tenants } = await sb.from('gp_tenants').select('*').order('created_at', { ascending: false });
+    const { data: tenants } = await sb.from('gp_tenants').select('id, nom, code, actif, plan, expire_at, is_owner, created_at').order('created_at', { ascending: false });
     OA_TENANTS = tenants || [];
 
     // Charger paiements si table existe
@@ -9502,7 +9504,7 @@ async function doLogin() {
     // ── 1. Vérifier le tenant (code d'accès) ──
     const { data: tenantData, error: tenantErr } = await sb
       .from('gp_tenants')
-      .select('*')
+      .select('id, nom, code, actif, plan, expire_at, is_owner')
       .eq('code', code)
       .eq('actif', true)
       .limit(1);
@@ -9913,13 +9915,15 @@ async function loadUserData() {
     }));
 
     // ── Docs RH ───────────────────────────────────────────────
-    const { data: drhs } = await filter(sb.from('gp_docs_rh').select('*').order('created_at', {ascending: false}));
-    docsRHHistory = (drhs || []).map(d => ({
-      id: d.id, local_id: d.local_id,
-      empId: d.emp_id, empName: d.emp_name,
-      type: d.type, contenu: d.contenu || {},
-      date: d.created_at
-    }));
+    try {
+      const { data: drhs } = await filter(sb.from('gp_docs_rh').select('*').order('created_at', {ascending: false}));
+      docsRHHistory = (drhs || []).map(d => ({
+        id: d.id, local_id: d.local_id,
+        empId: d.emp_id, empName: d.emp_name,
+        type: d.type, contenu: d.contenu || {},
+        date: d.created_at
+      }));
+    } catch(e) { console.warn('[SB] gp_docs_rh load skipped:', e.message); docsRHHistory = []; }
 
     // ── Settings GLOBAUX — localStorage uniquement (pas de table dédiée) ──
     try {
@@ -11392,7 +11396,7 @@ function deleteSARole(key) {
             return; // laisse l'écran de login s'afficher
           }
         } else if (GP_USER.tenant_id) {
-          const { data: td } = await sb.from('gp_tenants').select('*').eq('id', GP_USER.tenant_id).limit(1);
+          const { data: td } = await sb.from('gp_tenants').select('id, nom, code, actif, plan, expire_at, is_owner').eq('id', GP_USER.tenant_id).limit(1);
           GP_TENANT = td?.[0] || null;
         }
         await startApp();
