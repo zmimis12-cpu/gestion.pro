@@ -1045,6 +1045,84 @@
             </div>
           </div>
         </div>
+
+        <!-- ═══════════ RAPPORTS ═══════════ -->
+        <div style="margin-top:20px;">
+          <!-- Header Rapports -->
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+            <div style="display:flex;align-items:center;gap:10px;">
+              <span style="font-size:20px;">📈</span>
+              <span style="font-size:16px;font-weight:800;letter-spacing:-0.3px;">Rapports</span>
+            </div>
+            <div style="display:flex;gap:6px;">
+              <button onclick="setRapportPeriod('month')" id="rp-month" style="padding:5px 12px;border-radius:7px;border:1px solid rgba(0,212,170,0.4);background:rgba(0,212,170,0.12);color:var(--accent);font-size:11px;font-weight:700;cursor:pointer;">Ce mois</button>
+              <button onclick="setRapportPeriod('year')" id="rp-year" style="padding:5px 12px;border-radius:7px;border:1px solid var(--border);background:transparent;color:var(--text2);font-size:11px;font-weight:600;cursor:pointer;">Cette année</button>
+              <button onclick="setRapportPeriod('all')" id="rp-all" style="padding:5px 12px;border-radius:7px;border:1px solid var(--border);background:transparent;color:var(--text2);font-size:11px;font-weight:600;cursor:pointer;">Tout</button>
+            </div>
+          </div>
+
+          <!-- KPI Bénéfice + CA -->
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-bottom:16px;">
+            <div style="background:linear-gradient(135deg,rgba(0,212,170,0.12),rgba(0,212,170,0.04));border:1px solid rgba(0,212,170,0.25);border-radius:14px;padding:18px 20px;">
+              <div style="font-size:11px;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">💰 Chiffre d'affaires</div>
+              <div id="rpt-ca" style="font-size:26px;font-weight:900;font-family:'JetBrains Mono',monospace;letter-spacing:-1px;">0 MAD</div>
+              <div id="rpt-ca-count" style="font-size:12px;color:var(--text2);margin-top:4px;">0 ventes</div>
+            </div>
+            <div style="background:linear-gradient(135deg,rgba(100,220,150,0.12),rgba(100,220,150,0.04));border:1px solid rgba(100,220,150,0.25);border-radius:14px;padding:18px 20px;">
+              <div style="font-size:11px;font-weight:700;color:#64dc96;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">📊 Bénéfice net</div>
+              <div id="rpt-benefice" style="font-size:26px;font-weight:900;font-family:'JetBrains Mono',monospace;letter-spacing:-1px;">0 MAD</div>
+              <div id="rpt-marge" style="font-size:12px;color:var(--text2);margin-top:4px;">Marge: 0%</div>
+            </div>
+            <div style="background:linear-gradient(135deg,rgba(245,166,35,0.12),rgba(245,166,35,0.04));border:1px solid rgba(245,166,35,0.25);border-radius:14px;padding:18px 20px;">
+              <div style="font-size:11px;font-weight:700;color:var(--gold);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">🛒 Panier moyen</div>
+              <div id="rpt-panier" style="font-size:26px;font-weight:900;font-family:'JetBrains Mono',monospace;letter-spacing:-1px;">0 MAD</div>
+              <div id="rpt-panier-sub" style="font-size:12px;color:var(--text2);margin-top:4px;">par transaction</div>
+            </div>
+          </div>
+
+          <!-- Grid Rapports -->
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:14px;">
+
+            <!-- CA par mois (barres) -->
+            <div class="card" style="grid-column:1/-1;">
+              <div class="card-header">
+                <span>📅 Chiffre d'affaires & Bénéfice par mois</span>
+              </div>
+              <div class="card-body" style="padding:16px;">
+                <div id="rpt-chart-months" style="display:flex;align-items:flex-end;gap:6px;height:140px;overflow-x:auto;padding-bottom:4px;position:relative;"></div>
+                <div style="display:flex;gap:16px;margin-top:8px;font-size:11px;color:var(--text2);">
+                  <span style="display:flex;align-items:center;gap:5px;"><span style="width:10px;height:10px;background:var(--accent);border-radius:2px;"></span> CA</span>
+                  <span style="display:flex;align-items:center;gap:5px;"><span style="width:10px;height:10px;background:#64dc96;border-radius:2px;"></span> Bénéfice</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Top produits -->
+            <div class="card">
+              <div class="card-header">
+                <span>🏆 Top produits vendus</span>
+                <span id="rpt-top-prod-period" style="font-size:11px;color:var(--text2);"></span>
+              </div>
+              <div class="card-body" style="padding:0;">
+                <div id="rpt-top-products"></div>
+              </div>
+            </div>
+
+            <!-- Meilleurs clients -->
+            <div class="card">
+              <div class="card-header">
+                <span>👑 Meilleurs clients</span>
+                <span id="rpt-top-clients-period" style="font-size:11px;color:var(--text2);"></span>
+              </div>
+              <div class="card-body" style="padding:0;">
+                <div id="rpt-top-clients"></div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+        <!-- FIN RAPPORTS -->
+
       </div>
 
       <!-- ═══════════════════════════════ CAISSE ═══════════════════════════════ -->
@@ -6384,6 +6462,9 @@ function renderDashboard() {
     </table>`;
   }
 
+  // Rapports
+  renderRapports();
+
   // Alerts in dashboard
   const alerts = getAlerts().slice(0, 5);
   const alertsDiv = document.getElementById('dashboard-alerts-list');
@@ -6404,6 +6485,226 @@ function renderDashboard() {
 }
 
 
+
+
+// ╔══════════════════════════════════════════════════════════════╗
+// ║                    RAPPORTS DASHBOARD                        ║
+// ╚══════════════════════════════════════════════════════════════╝
+
+let RAPPORT_PERIOD = 'month'; // month | year | all
+
+function setRapportPeriod(period) {
+  RAPPORT_PERIOD = period;
+  ['month','year','all'].forEach(p => {
+    const btn = document.getElementById('rp-' + p);
+    if (!btn) return;
+    if (p === period) {
+      btn.style.background = 'rgba(0,212,170,0.12)';
+      btn.style.borderColor = 'rgba(0,212,170,0.4)';
+      btn.style.color = 'var(--accent)';
+    } else {
+      btn.style.background = 'transparent';
+      btn.style.borderColor = 'var(--border)';
+      btn.style.color = 'var(--text2)';
+    }
+  });
+  renderRapports();
+}
+
+function getRapportSales() {
+  const now = new Date();
+  switch(RAPPORT_PERIOD) {
+    case 'month':
+      return sales.filter(s => {
+        const d = new Date(s.date);
+        return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+      });
+    case 'year':
+      return sales.filter(s => new Date(s.date).getFullYear() === now.getFullYear());
+    case 'all':
+    default:
+      return sales;
+  }
+}
+
+function getRapportPeriodLabel() {
+  switch(RAPPORT_PERIOD) {
+    case 'month': return 'Ce mois';
+    case 'year':  return 'Cette année';
+    default:      return 'Tout';
+  }
+}
+
+function renderRapports() {
+  const filteredSales = getRapportSales();
+  const label = getRapportPeriodLabel();
+
+  // ── KPIs ──
+  const ca = filteredSales.reduce((s, v) => s + (v.total || 0), 0);
+
+  // Bénéfice = CA - coût d'achat des articles vendus
+  let coutTotal = 0;
+  filteredSales.forEach(sale => {
+    (sale.items || []).forEach(item => {
+      const prod = products.find(p => p.id === item.id || p.name === item.name);
+      const prixAchat = prod?.buyPrice || prod?.prixAchat || 0;
+      const qty = item.qty || item.quantity || 1;
+      coutTotal += prixAchat * qty;
+    });
+  });
+  const benefice = ca - coutTotal;
+  const marge = ca > 0 ? Math.round((benefice / ca) * 100) : 0;
+  const panier = filteredSales.length > 0 ? ca / filteredSales.length : 0;
+
+  const el = (id, v) => { const e = document.getElementById(id); if(e) e.textContent = v; };
+  el('rpt-ca', fmt(ca));
+  el('rpt-ca-count', `${filteredSales.length} ventes`);
+  el('rpt-benefice', fmt(benefice));
+  el('rpt-marge', `Marge: ${marge}%`);
+  el('rpt-panier', fmt(panier));
+  el('rpt-panier-sub', 'par transaction');
+
+  // ── Graphe CA + Bénéfice par mois (12 derniers mois) ──
+  renderMonthChart();
+
+  // ── Top produits ──
+  const prodMap = {};
+  filteredSales.forEach(sale => {
+    (sale.items || []).forEach(item => {
+      const key = item.name || item.id;
+      if (!prodMap[key]) {
+        const prod = products.find(p => p.id === item.id || p.name === item.name);
+        const pa = prod?.buyPrice || prod?.prixAchat || 0;
+        prodMap[key] = { name: key, qty: 0, ca: 0, benefice: 0, pa };
+      }
+      const qty = item.qty || item.quantity || 1;
+      const prix = item.price || item.prix || 0;
+      prodMap[key].qty += qty;
+      prodMap[key].ca  += prix * qty;
+      prodMap[key].benefice += (prix - prodMap[key].pa) * qty;
+    });
+  });
+  const topProds = Object.values(prodMap).sort((a,b) => b.ca - a.ca).slice(0, 7);
+  const topProdsEl = document.getElementById('rpt-top-products');
+  const topProdPeriodEl = document.getElementById('rpt-top-prod-period');
+  if (topProdPeriodEl) topProdPeriodEl.textContent = label;
+  if (topProdsEl) {
+    if (!topProds.length) {
+      topProdsEl.innerHTML = `<div class="empty-state"><div class="emoji">📦</div><p>Aucune vente</p></div>`;
+    } else {
+      const maxCA = topProds[0].ca || 1;
+      topProdsEl.innerHTML = topProds.map((p, i) => {
+        const bar = Math.round((p.ca / maxCA) * 100);
+        const medals = ['🥇','🥈','🥉'];
+        const icon = medals[i] || `<span style="font-size:12px;color:var(--text2);font-weight:700;">${i+1}</span>`;
+        return `<div style="display:flex;align-items:center;gap:10px;padding:10px 16px;border-bottom:1px solid var(--border);">
+          <div style="width:24px;text-align:center;font-size:16px;">${icon}</div>
+          <div style="flex:1;min-width:0;">
+            <div style="font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${p.name}</div>
+            <div style="height:5px;background:var(--surface2);border-radius:3px;margin-top:5px;overflow:hidden;">
+              <div style="height:100%;width:${bar}%;background:linear-gradient(90deg,var(--accent),rgba(0,212,170,0.5));border-radius:3px;transition:width 0.4s;"></div>
+            </div>
+          </div>
+          <div style="text-align:right;flex-shrink:0;">
+            <div style="font-size:12px;font-weight:800;font-family:'JetBrains Mono',monospace;">${fmt(p.ca)}</div>
+            <div style="font-size:10px;color:${p.benefice>=0?'#64dc96':'var(--red)'};">${p.benefice>=0?'+':''}${fmt(p.benefice)}</div>
+            <div style="font-size:10px;color:var(--text2);">${p.qty} unités</div>
+          </div>
+        </div>`;
+      }).join('');
+    }
+  }
+
+  // ── Meilleurs clients ──
+  const clientMap = {};
+  filteredSales.forEach(sale => {
+    const cid = sale.clientId || sale.clientName || 'Anonyme';
+    const cname = sale.clientName || 'Client anonyme';
+    if (!clientMap[cid]) clientMap[cid] = { name: cname, total: 0, count: 0 };
+    clientMap[cid].total += sale.total || 0;
+    clientMap[cid].count++;
+  });
+  const topClients = Object.values(clientMap).sort((a,b) => b.total - a.total).slice(0, 7);
+  const topClientsEl = document.getElementById('rpt-top-clients');
+  const topClientPeriodEl = document.getElementById('rpt-top-clients-period');
+  if (topClientPeriodEl) topClientPeriodEl.textContent = label;
+  if (topClientsEl) {
+    if (!topClients.length) {
+      topClientsEl.innerHTML = `<div class="empty-state"><div class="emoji">👥</div><p>Aucune vente</p></div>`;
+    } else {
+      const maxTotal = topClients[0].total || 1;
+      topClientsEl.innerHTML = topClients.map((c, i) => {
+        const bar = Math.round((c.total / maxTotal) * 100);
+        const medals = ['🥇','🥈','🥉'];
+        const icon = medals[i] || `<span style="font-size:12px;color:var(--text2);font-weight:700;">${i+1}</span>`;
+        return `<div style="display:flex;align-items:center;gap:10px;padding:10px 16px;border-bottom:1px solid var(--border);">
+          <div style="width:24px;text-align:center;font-size:16px;">${icon}</div>
+          <div style="flex:1;min-width:0;">
+            <div style="font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${c.name}</div>
+            <div style="height:5px;background:var(--surface2);border-radius:3px;margin-top:5px;overflow:hidden;">
+              <div style="height:100%;width:${bar}%;background:linear-gradient(90deg,var(--gold),rgba(245,166,35,0.5));border-radius:3px;transition:width 0.4s;"></div>
+            </div>
+          </div>
+          <div style="text-align:right;flex-shrink:0;">
+            <div style="font-size:12px;font-weight:800;font-family:'JetBrains Mono',monospace;">${fmt(c.total)}</div>
+            <div style="font-size:10px;color:var(--text2);">${c.count} achat${c.count>1?'s':''}</div>
+          </div>
+        </div>`;
+      }).join('');
+    }
+  }
+}
+
+function renderMonthChart() {
+  const el = document.getElementById('rpt-chart-months');
+  if (!el) return;
+
+  // Construire les 12 derniers mois
+  const now = new Date();
+  const months = [];
+  for (let i = 11; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    months.push({ year: d.getFullYear(), month: d.getMonth(), label: d.toLocaleDateString('fr-FR', { month: 'short' }) });
+  }
+
+  // Calculer CA et bénéfice par mois
+  months.forEach(m => {
+    const mSales = sales.filter(s => {
+      const d = new Date(s.date);
+      return d.getFullYear() === m.year && d.getMonth() === m.month;
+    });
+    m.ca = mSales.reduce((s, v) => s + (v.total || 0), 0);
+
+    let cout = 0;
+    mSales.forEach(sale => {
+      (sale.items || []).forEach(item => {
+        const prod = products.find(p => p.id === item.id || p.name === item.name);
+        const pa = prod?.buyPrice || prod?.prixAchat || 0;
+        cout += pa * (item.qty || item.quantity || 1);
+      });
+    });
+    m.benefice = m.ca - cout;
+  });
+
+  const maxCA = Math.max(...months.map(m => m.ca), 1);
+
+  el.innerHTML = months.map(m => {
+    const hCA = Math.round((m.ca / maxCA) * 110);
+    const hBen = m.ca > 0 ? Math.round((Math.max(m.benefice, 0) / maxCA) * 110) : 0;
+    const isCurrentMonth = m.year === now.getFullYear() && m.month === now.getMonth();
+    return `<div style="display:flex;flex-direction:column;align-items:center;gap:3px;flex:1;min-width:36px;cursor:pointer;"
+      title="CA: ${fmt(m.ca)}\nBénéfice: ${fmt(m.benefice)}">
+      <div style="font-size:9px;color:var(--text2);font-family:'JetBrains Mono',monospace;white-space:nowrap;">${m.ca > 0 ? (m.ca >= 1000 ? Math.round(m.ca/1000)+'k' : Math.round(m.ca)) : ''}</div>
+      <div style="display:flex;align-items:flex-end;gap:2px;height:110px;">
+        <div style="width:12px;background:linear-gradient(180deg,var(--accent),rgba(0,212,170,0.4));border-radius:4px 4px 0 0;height:${hCA}px;transition:height 0.4s ease;opacity:${isCurrentMonth?1:0.75};"></div>
+        <div style="width:10px;background:linear-gradient(180deg,#64dc96,rgba(100,220,150,0.3));border-radius:4px 4px 0 0;height:${hBen}px;transition:height 0.4s ease;opacity:${isCurrentMonth?1:0.6};"></div>
+      </div>
+      <div style="font-size:9px;color:${isCurrentMonth?'var(--accent)':'var(--text2)'};font-weight:${isCurrentMonth?'800':'400'};margin-top:2px;">${m.label}</div>
+    </div>`;
+  }).join('');
+
+  // Légende (déjà dans le HTML)
+}
 
 // ╔══════════════════════════════════════════════════════════════╗
 // ║              GESTION DES PLANS (Starter/Business/Premium)   ║
