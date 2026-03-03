@@ -1054,7 +1054,8 @@
               <span style="font-size:20px;">📈</span>
               <span style="font-size:16px;font-weight:800;letter-spacing:-0.3px;">Rapports</span>
             </div>
-            <div style="display:flex;gap:6px;">
+            <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
+              <select id="rp-month-select" onchange="setRapportMonth()" style="padding:5px 10px;border-radius:7px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:11px;font-weight:600;cursor:pointer;"></select>
               <button onclick="setRapportPeriod('month')" id="rp-month" style="padding:5px 12px;border-radius:7px;border:1px solid rgba(0,212,170,0.4);background:rgba(0,212,170,0.12);color:var(--accent);font-size:11px;font-weight:700;cursor:pointer;">Ce mois</button>
               <button onclick="setRapportPeriod('year')" id="rp-year" style="padding:5px 12px;border-radius:7px;border:1px solid var(--border);background:transparent;color:var(--text2);font-size:11px;font-weight:600;cursor:pointer;">Cette année</button>
               <button onclick="setRapportPeriod('all')" id="rp-all" style="padding:5px 12px;border-radius:7px;border:1px solid var(--border);background:transparent;color:var(--text2);font-size:11px;font-weight:600;cursor:pointer;">Tout</button>
@@ -1178,16 +1179,36 @@
                 </div>
               </div>
 
+              <!-- Remise globale -->
+              <div style="display:flex;align-items:center;gap:6px;margin-bottom:10px;padding:8px 10px;background:var(--surface2);border-radius:8px;border:1px solid var(--border);">
+                <span style="font-size:13px;">🏷️</span>
+                <span style="font-size:12px;font-weight:600;color:var(--text2);flex:1;">Remise</span>
+                <input type="number" id="cart-remise-val" min="0" step="0.01" placeholder="0" oninput="_updateCartTotals()"
+                  style="width:60px;padding:4px 6px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text);font-size:12px;text-align:right;">
+                <select id="cart-remise-type" onchange="_updateCartTotals()"
+                  style="padding:4px 6px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text);font-size:12px;">
+                  <option value="pct">%</option>
+                  <option value="amt">MAD</option>
+                </select>
+              </div>
               <div class="cart-total-row">
-                <span class="cart-total-label" id="cart-subtotal-label">Sous-total</span>
+                <span class="cart-total-label" id="cart-subtotal-label">Sous-total HT</span>
                 <span class="cart-total-value" id="cart-subtotal">0,00 MAD</span>
+              </div>
+              <div class="cart-total-row" id="cart-remise-row" style="display:none;">
+                <span class="cart-total-label" style="color:var(--gold);">🏷️ Remise</span>
+                <span class="cart-total-value" style="color:var(--gold);" id="cart-remise-amount">- 0,00 MAD</span>
+              </div>
+              <div class="cart-total-row" id="cart-ht-row" style="display:none;">
+                <span class="cart-total-label" style="color:var(--text2);">CA HT</span>
+                <span class="cart-total-value" id="cart-ht-amount">0,00 MAD</span>
               </div>
               <div class="cart-total-row" id="cart-tva-row" style="display:none;">
                 <span class="cart-total-label" id="cart-tva-label">TVA (20%)</span>
                 <span class="cart-total-value" id="cart-tva-amount">0,00 MAD</span>
               </div>
               <div class="cart-total-row">
-                <span class="cart-total-label" style="font-size:16px;font-weight:700;" id="cart-total-label">TOTAL</span>
+                <span class="cart-total-label" style="font-size:16px;font-weight:700;" id="cart-total-label">TOTAL TTC</span>
                 <span class="cart-total-value cart-grand-total" id="cart-total">0,00 MAD</span>
               </div>
               <div style="margin-bottom:12px;">
@@ -5100,7 +5121,8 @@ function renderStockTable(resetPage) {
 
     const cost        = g.cost || 0;
     const profit      = g.price - cost;
-    const margin      = cost > 0 ? (profit / cost * 100) : (g.price > 0 ? 100 : 0);
+    // Marge = bénéfice / prix_vente × 100  (définition correcte)
+    const margin      = g.price > 0 ? (profit / g.price * 100) : 0;
     const profitColor = profit > 0 ? 'var(--accent)' : profit < 0 ? 'var(--red)' : 'var(--text2)';
     const contSrc     = conteneurs.find(c => c.refs?.some(r => r.refCode === g.code));
 
@@ -5547,22 +5569,81 @@ function updateKGCartPrice(ck, value) {
   _updateCartTotals();
 }
 
+// ── Calcul financier professionnel ──
+function calcCartFinancials() {
+  // Sous-total brut HT = somme(prix_vente × qty)
+  const subtotalHT = cart.reduce((s, c) => s + (c.price || 0) * (c.qty || 1), 0);
+
+  // Remise globale
+  const remiseVal  = parseFloat(document.getElementById('cart-remise-val')?.value) || 0;
+  const remiseType = document.getElementById('cart-remise-type')?.value || 'pct';
+  let remiseMt = 0;
+  if (remiseVal > 0) {
+    remiseMt = remiseType === 'pct'
+      ? subtotalHT * (remiseVal / 100)
+      : Math.min(remiseVal, subtotalHT);
+  }
+
+  // CA HT = sous-total après remise
+  const caHT = subtotalHT - remiseMt;
+
+  // COGS = somme(prix_achat × qty) — depuis les produits
+  let cogs = 0;
+  cart.forEach(item => {
+    const pid = item.productId || item.id;
+    const prod = products.find(p => p.id === pid);
+    const pa = prod?.cost || prod?.buyPrice || prod?.prixAchat || 0;
+    cogs += pa * (item.qty || 1);
+  });
+
+  // TVA sur CA HT
+  const tvaRate = settings.showTva ? (settings.tva || 0) : 0;
+  const tvaAmt  = caHT * (tvaRate / 100);
+
+  // Total TTC
+  const totalTTC = caHT + tvaAmt;
+
+  // Bénéfice brut (avant TVA, avant dépenses)
+  const beneficeBrut = caHT - cogs;
+  const marge = caHT > 0 ? (beneficeBrut / caHT) * 100 : 0;
+
+  return { subtotalHT, remiseMt, caHT, cogs, tvaRate, tvaAmt, totalTTC, beneficeBrut, marge };
+}
+
 function _updateCartTotals() {
-  const total = cart.reduce((s, c) => s + c.price * c.qty, 0);
-  const tvaAmt = settings.showTva ? total * (settings.tva / 100) : 0;
-  const ttc = total + tvaAmt;
-  document.getElementById('cart-subtotal').textContent = fmt(total);
+  const f = calcCartFinancials();
+
+  document.getElementById('cart-subtotal').textContent = fmt(f.subtotalHT);
+
+  // Ligne remise
+  const remiseRow = document.getElementById('cart-remise-row');
+  if (remiseRow) {
+    if (f.remiseMt > 0) {
+      remiseRow.style.display = 'flex';
+      document.getElementById('cart-remise-amount').textContent = `- ${fmt(f.remiseMt)}`;
+    } else {
+      remiseRow.style.display = 'none';
+    }
+  }
+
+  // Ligne CA HT (si remise ou TVA)
+  const htRow = document.getElementById('cart-ht-row');
+  if (htRow) htRow.style.display = (f.remiseMt > 0 || f.tvaAmt > 0) ? 'flex' : 'none';
+  const htAmt = document.getElementById('cart-ht-amount');
+  if (htAmt) htAmt.textContent = fmt(f.caHT);
+
+  // TVA
   const tvaRow = document.getElementById('cart-tva-row');
   if (settings.showTva) {
     tvaRow.style.display = 'flex';
-    document.getElementById('cart-tva-label').textContent = `TVA (${settings.tva}%)`;
-    document.getElementById('cart-tva-amount').textContent = fmt(tvaAmt);
+    document.getElementById('cart-tva-label').textContent = `TVA (${f.tvaRate}%)`;
+    document.getElementById('cart-tva-amount').textContent = fmt(f.tvaAmt);
     document.getElementById('cart-total-label').textContent = 'TOTAL TTC';
   } else {
     tvaRow.style.display = 'none';
-    document.getElementById('cart-total-label').textContent = 'TOTAL';
+    document.getElementById('cart-total-label').textContent = 'TOTAL HT';
   }
-  document.getElementById('cart-total').textContent = fmt(ttc);
+  document.getElementById('cart-total').textContent = fmt(f.totalTTC);
 }
 
 function clearCart() {
@@ -5766,15 +5847,15 @@ function populateClientSelect() {
 
 function checkout(docType) {
   if (!cart.length) { toast(t('toast_cart_empty'), 'warn'); return; }
-  const total = cart.reduce((s, c) => s + c.price * c.qty, 0);
+  const fin = calcCartFinancials();
 
-  // Credit check
+  // Credit check — on vérifie sur le total TTC
   if (selectedPayment === 'Crédit') {
     if (!currentClientId) { toast(t('toast_select_client'), 'error'); return; }
     const client = clients.find(c => c.id === currentClientId);
     const used = client.creditUsed || 0;
     const limit = client.creditLimit || 500;
-    if (used + total > limit) {
+    if (used + fin.totalTTC > limit) {
       toast(`${t('toast_credit_exceeded')} (${fmt(limit - used)})`, 'error');
       return;
     }
@@ -5799,41 +5880,76 @@ function checkout(docType) {
   });
 
   // Update client credit
+  // Crédit = augmente CA + bénéfice + débiteur client, mais PAS la trésorerie
   if (currentClientId && selectedPayment === 'Crédit') {
     const client = clients.find(c => c.id === currentClientId);
     if (client) {
-      client.creditUsed = (client.creditUsed || 0) + total;
+      client.creditUsed = (client.creditUsed || 0) + fin.totalTTC;
       if (!client.transactions) client.transactions = [];
-      client.transactions.push({ type: 'debit', amount: total, date: new Date().toISOString(), note: 'Vente à crédit' });
+      client.transactions.push({
+        type: 'debit', amount: fin.totalTTC,
+        date: new Date().toISOString(), note: 'Vente à crédit'
+      });
     }
   }
 
-  // Record sale
+  // Record sale — structure financière complète
   const lid = getLocalId();
-  const tvaAmt = settings.showTva ? total * (settings.tva/100) : 0;
-  const totalTTC = total + tvaAmt;
+  const remiseVal  = parseFloat(document.getElementById('cart-remise-val')?.value) || 0;
+  const remiseType = document.getElementById('cart-remise-type')?.value || 'pct';
   const sale = {
     id: uid(),
     local_id: lid,
     date: new Date().toISOString(),
-    items: [...cart],
-    total: totalTTC,
-    totalHT: total,
-    tva: settings.showTva ? settings.tva : 0,
-    tvaAmount: tvaAmt,
-    payment: selectedPayment,
-    clientId: currentClientId,
-    clientName: currentClientId ? (clients.find(c => c.id === currentClientId)?.name || '') : 'Client de passage'
+    items: cart.map(item => {
+      const pid = item.productId || item.id;
+      const prod = products.find(p => p.id === pid);
+      const pa = prod?.cost || prod?.buyPrice || prod?.prixAchat || 0;
+      return {
+        ...item,
+        buyPrice:  pa,           // snapshot prix achat au moment de la vente
+        sellPrice: item.price,   // snapshot prix vente
+      };
+    }),
+    // Financials
+    subtotalHT:   fin.subtotalHT,    // Sous-total brut HT
+    remiseMt:     fin.remiseMt,      // Montant remise
+    remiseVal:    remiseVal,
+    remiseType:   remiseType,
+    caHT:         fin.caHT,          // CA HT après remise
+    cogs:         fin.cogs,          // Coût marchandises vendues
+    beneficeBrut: fin.beneficeBrut,  // Bénéfice brut (avant TVA)
+    marge:        fin.marge,         // Marge %
+    tva:          fin.tvaRate,
+    tvaAmount:    fin.tvaAmt,        // TVA (ne fait PAS partie du bénéfice)
+    total:        fin.totalTTC,      // Total TTC (ce que paie le client)
+    totalHT:      fin.caHT,          // Alias pour compatibilité
+    payment:      selectedPayment,
+    clientId:     currentClientId,
+    clientName:   currentClientId ? (clients.find(c => c.id === currentClientId)?.name || '') : 'Client de passage',
+    isCreditSale: selectedPayment === 'Crédit',
   };
   sales.unshift(sale);
-  // Log to caisse
-  caisseOps.unshift({
-    id: uid(), local_id: lid, type: 'vente',
-    amount: sale.total,
-    label: `Vente (${sale.items.length} article${sale.items.length>1?'s':''}) — ${sale.clientName}`,
-    date: sale.date,
-    payment: sale.payment
-  });
+
+  // Log caisse — UNIQUEMENT si paiement cash/carte (pas crédit = pas de trésorerie)
+  if (selectedPayment !== 'Crédit') {
+    caisseOps.unshift({
+      id: uid(), local_id: lid, type: 'vente',
+      amount: fin.totalTTC,
+      label: `Vente (${sale.items.length} article${sale.items.length>1?'s':''}) — ${sale.clientName}`,
+      date: sale.date,
+      payment: sale.payment
+    });
+  } else {
+    // Vente crédit → log séparé comme "créance client"
+    caisseOps.unshift({
+      id: uid(), local_id: lid, type: 'credit_vente',
+      amount: fin.totalTTC,
+      label: `Crédit client — ${sale.clientName} (${sale.items.length} art.)`,
+      date: sale.date,
+      payment: 'Crédit'
+    });
+  }
   save();
 
   // Show receipt or invoice
@@ -6463,6 +6579,7 @@ function renderDashboard() {
   }
 
   // Rapports
+  initRapportMonthSelect();
   renderRapports();
 
   // Alerts in dashboard
@@ -6511,14 +6628,44 @@ function setRapportPeriod(period) {
   renderRapports();
 }
 
+let RAPPORT_MONTH = null; // null = mois courant, 'YYYY-MM' pour mois précis
+
+function initRapportMonthSelect() {
+  const sel = document.getElementById('rp-month-select');
+  if (!sel) return;
+  sel.innerHTML = '';
+  const now = new Date();
+  // Générer les 24 derniers mois
+  for (let i = 0; i < 24; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const val = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+    const label = d.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
+    const opt = document.createElement('option');
+    opt.value = val;
+    opt.textContent = label;
+    if (i === 0) opt.selected = true;
+    sel.appendChild(opt);
+  }
+  RAPPORT_MONTH = sel.value;
+}
+
+function setRapportMonth() {
+  const sel = document.getElementById('rp-month-select');
+  RAPPORT_MONTH = sel?.value || null;
+  // Activer le bouton "mois"
+  setRapportPeriod('month');
+}
+
 function getRapportSales() {
   const now = new Date();
   switch(RAPPORT_PERIOD) {
-    case 'month':
+    case 'month': {
+      const [yr, mo] = RAPPORT_MONTH ? RAPPORT_MONTH.split('-').map(Number) : [now.getFullYear(), now.getMonth()+1];
       return sales.filter(s => {
         const d = new Date(s.date);
-        return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+        return d.getFullYear() === yr && d.getMonth() === mo - 1;
       });
+    }
     case 'year':
       return sales.filter(s => new Date(s.date).getFullYear() === now.getFullYear());
     case 'all':
@@ -6528,6 +6675,10 @@ function getRapportSales() {
 }
 
 function getRapportPeriodLabel() {
+  if (RAPPORT_PERIOD === 'month' && RAPPORT_MONTH) {
+    const [yr, mo] = RAPPORT_MONTH.split('-').map(Number);
+    return new Date(yr, mo-1, 1).toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
+  }
   switch(RAPPORT_PERIOD) {
     case 'month': return 'Ce mois';
     case 'year':  return 'Cette année';
@@ -6539,52 +6690,66 @@ function renderRapports() {
   const filteredSales = getRapportSales();
   const label = getRapportPeriodLabel();
 
-  // ── KPIs ──
-  const ca = filteredSales.reduce((s, v) => s + (v.total || 0), 0);
-
-  // Bénéfice = CA - coût d'achat des articles vendus
-  let coutTotal = 0;
-  filteredSales.forEach(sale => {
-    (sale.items || []).forEach(item => {
-      const prod = products.find(p => p.id === item.id || p.name === item.name);
-      const prixAchat = prod?.buyPrice || prod?.prixAchat || 0;
-      const qty = item.qty || item.quantity || 1;
-      coutTotal += prixAchat * qty;
-    });
+  // ── KPIs — logique professionnelle ──
+  let caHT = 0, cogsTotal = 0, tvaTotal = 0, creditTotal = 0;
+  filteredSales.forEach(s => {
+    if (s.caHT !== undefined) {
+      caHT      += s.caHT;
+      cogsTotal += s.cogs || 0;
+      tvaTotal  += s.tvaAmount || 0;
+      if (s.isCreditSale) creditTotal += s.caHT;
+    } else {
+      const ht = s.totalHT || s.total || 0;
+      caHT    += ht;
+      tvaTotal += s.tvaAmount || 0;
+      (s.items || []).forEach(item => {
+        const prod = products.find(p => p.id === (item.productId||item.id) || p.name === item.name);
+        const pa = item.buyPrice || prod?.cost || prod?.buyPrice || prod?.prixAchat || 0;
+        cogsTotal += pa * (item.qty || 1);
+      });
+      if (s.payment === 'Crédit') creditTotal += ht;
+    }
   });
-  const benefice = ca - coutTotal;
-  const marge = ca > 0 ? Math.round((benefice / ca) * 100) : 0;
-  const panier = filteredSales.length > 0 ? ca / filteredSales.length : 0;
+  const beneficeBrut = caHT - cogsTotal;
+  const marge = caHT > 0 ? Math.round((beneficeBrut / caHT) * 100) : 0;
+  const panier = filteredSales.length > 0 ? caHT / filteredSales.length : 0;
 
   const el = (id, v) => { const e = document.getElementById(id); if(e) e.textContent = v; };
-  el('rpt-ca', fmt(ca));
-  el('rpt-ca-count', `${filteredSales.length} ventes`);
-  el('rpt-benefice', fmt(benefice));
-  el('rpt-marge', `Marge: ${marge}%`);
-  el('rpt-panier', fmt(panier));
-  el('rpt-panier-sub', 'par transaction');
+  el('rpt-ca',       fmt(caHT));
+  el('rpt-ca-count', `${filteredSales.length} ventes · TVA: ${fmt(tvaTotal)}`);
+  el('rpt-benefice', fmt(beneficeBrut));
+  el('rpt-marge',    `Marge: ${marge}% · COGS: ${fmt(cogsTotal)}`);
+  el('rpt-panier',   fmt(panier));
+  el('rpt-panier-sub', `Crédit en cours: ${fmt(creditTotal)}`);
 
   // ── Graphe CA + Bénéfice par mois (12 derniers mois) ──
   renderMonthChart();
 
-  // ── Top produits ──
+  // ── Top produits — bénéfice avec snapshot prix achat ──
   const prodMap = {};
   filteredSales.forEach(sale => {
+    // Ratio remise vente pour redistribuer sur les lignes
+    const subtot = (sale.items||[]).reduce((s,i) => s + (i.sellPrice||i.price||0)*(i.qty||1), 0);
+    const remiseRatio = subtot > 0 ? (1 - (sale.caHT || subtot) / subtot) : 0;
+
     (sale.items || []).forEach(item => {
       const key = item.name || item.id;
-      if (!prodMap[key]) {
-        const prod = products.find(p => p.id === item.id || p.name === item.name);
-        const pa = prod?.buyPrice || prod?.prixAchat || 0;
-        prodMap[key] = { name: key, qty: 0, ca: 0, benefice: 0, pa };
-      }
-      const qty = item.qty || item.quantity || 1;
-      const prix = item.price || item.prix || 0;
-      prodMap[key].qty += qty;
-      prodMap[key].ca  += prix * qty;
-      prodMap[key].benefice += (prix - prodMap[key].pa) * qty;
+      if (!prodMap[key]) prodMap[key] = { name: key, qty: 0, caHT: 0, cogs: 0, benefice: 0 };
+      const qty   = item.qty || item.quantity || 1;
+      const pv    = item.sellPrice || item.price || 0;
+      const pa    = item.buyPrice || (()=>{
+        const prod = products.find(p => p.id === (item.productId||item.id) || p.name === item.name);
+        return prod?.cost || prod?.buyPrice || prod?.prixAchat || 0;
+      })();
+      const ligneHT   = pv * qty * (1 - remiseRatio); // après remise proportionnelle
+      const ligneCOGS = pa * qty;
+      prodMap[key].qty      += qty;
+      prodMap[key].caHT     += ligneHT;
+      prodMap[key].cogs     += ligneCOGS;
+      prodMap[key].benefice += (ligneHT - ligneCOGS);
     });
   });
-  const topProds = Object.values(prodMap).sort((a,b) => b.ca - a.ca).slice(0, 7);
+  const topProds = Object.values(prodMap).sort((a,b) => b.caHT - a.caHT).slice(0, 7);
   const topProdsEl = document.getElementById('rpt-top-products');
   const topProdPeriodEl = document.getElementById('rpt-top-prod-period');
   if (topProdPeriodEl) topProdPeriodEl.textContent = label;
@@ -6592,9 +6757,9 @@ function renderRapports() {
     if (!topProds.length) {
       topProdsEl.innerHTML = `<div class="empty-state"><div class="emoji">📦</div><p>Aucune vente</p></div>`;
     } else {
-      const maxCA = topProds[0].ca || 1;
+      const maxCA = topProds[0].caHT || 1;
       topProdsEl.innerHTML = topProds.map((p, i) => {
-        const bar = Math.round((p.ca / maxCA) * 100);
+        const bar = Math.round((p.caHT / maxCA) * 100);
         const medals = ['🥇','🥈','🥉'];
         const icon = medals[i] || `<span style="font-size:12px;color:var(--text2);font-weight:700;">${i+1}</span>`;
         return `<div style="display:flex;align-items:center;gap:10px;padding:10px 16px;border-bottom:1px solid var(--border);">
@@ -6606,7 +6771,7 @@ function renderRapports() {
             </div>
           </div>
           <div style="text-align:right;flex-shrink:0;">
-            <div style="font-size:12px;font-weight:800;font-family:'JetBrains Mono',monospace;">${fmt(p.ca)}</div>
+            <div style="font-size:12px;font-weight:800;font-family:'JetBrains Mono',monospace;">${fmt(p.caHT)}</div>
             <div style="font-size:10px;color:${p.benefice>=0?'#64dc96':'var(--red)'};">${p.benefice>=0?'+':''}${fmt(p.benefice)}</div>
             <div style="font-size:10px;color:var(--text2);">${p.qty} unités</div>
           </div>
@@ -6667,23 +6832,28 @@ function renderMonthChart() {
     months.push({ year: d.getFullYear(), month: d.getMonth(), label: d.toLocaleDateString('fr-FR', { month: 'short' }) });
   }
 
-  // Calculer CA et bénéfice par mois
+  // Calculer CA HT et bénéfice brut par mois — logique professionnelle
   months.forEach(m => {
     const mSales = sales.filter(s => {
       const d = new Date(s.date);
       return d.getFullYear() === m.year && d.getMonth() === m.month;
     });
-    m.ca = mSales.reduce((s, v) => s + (v.total || 0), 0);
-
-    let cout = 0;
-    mSales.forEach(sale => {
-      (sale.items || []).forEach(item => {
-        const prod = products.find(p => p.id === item.id || p.name === item.name);
-        const pa = prod?.buyPrice || prod?.prixAchat || 0;
-        cout += pa * (item.qty || item.quantity || 1);
-      });
+    m.ca = 0; m.cogs = 0;
+    mSales.forEach(s => {
+      if (s.caHT !== undefined) {
+        m.ca   += s.caHT;
+        m.cogs += s.cogs || 0;
+      } else {
+        const ht = s.totalHT || s.total || 0;
+        m.ca += ht;
+        (s.items || []).forEach(item => {
+          const prod = products.find(p => p.id === (item.productId||item.id) || p.name === item.name);
+          const pa = item.buyPrice || prod?.cost || prod?.buyPrice || prod?.prixAchat || 0;
+          m.cogs += pa * (item.qty || 1);
+        });
+      }
     });
-    m.benefice = m.ca - cout;
+    m.benefice = m.ca - m.cogs;
   });
 
   const maxCA = Math.max(...months.map(m => m.ca), 1);
