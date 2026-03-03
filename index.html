@@ -10606,8 +10606,59 @@ function setupRealtime() {
   const lid = getLocalId();
   showSyncIndicator(false);
 
-  // Un seul channel pour toutes les tables — sans filtre serveur
-  // (le filtre côté client est plus fiable que le filtre Supabase qui nécessite REPLICA IDENTITY)
+  // ── Channel séparé pour gp_tenants (plan, blocage, expiration) ──
+  if (GP_TENANT?.id) {
+    const tenantCh = sb.channel('gp_tenant_watch_' + GP_TENANT.id)
+      .on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'gp_tenants',
+        filter: `id=eq.${GP_TENANT.id}`
+      }, (payload) => {
+        console.log('[Realtime] gp_tenants UPDATE:', payload.new);
+        const updated = payload.new;
+        if (!updated) return;
+
+        // Mettre à jour GP_TENANT localement
+        GP_TENANT.actif     = updated.actif;
+        GP_TENANT.expire_at = updated.expire_at;
+        GP_TENANT.plan      = updated.plan;
+
+        // ── Vérifier blocage ──
+        if (!updated.actif) {
+          forceLogout("Votre compte a été désactivé par l'administrateur.");
+          return;
+        }
+
+        // ── Vérifier expiration ──
+        if (updated.expire_at && new Date(updated.expire_at) < new Date()) {
+          forceLogout('Votre licence a expiré. Contactez-nous pour renouveler.');
+          return;
+        }
+
+        // ── Mettre à jour le plan en temps réel ──
+        const planBadge = {starter:'🥉', business:'🥈', premium:'🥇'}[updated.plan] || '';
+        const tenantNameEl = document.getElementById('sidebar-tenant-name');
+        if (tenantNameEl) tenantNameEl.textContent = GP_TENANT.nom + (planBadge ? ' ' + planBadge : '');
+
+        // Réappliquer nav selon nouveau plan
+        applyNavPermissions();
+
+        // Toast info
+        const planLabels = {starter:'Starter 🥉', business:'Business 🥈', premium:'Premium 🥇'};
+        if (updated.plan !== GP_TENANT.plan) {
+          toast(`Plan mis à jour : ${planLabels[updated.plan] || updated.plan}`, 'success');
+        }
+
+        console.log('[Tenant] Mis à jour en temps réel — plan:', updated.plan, 'actif:', updated.actif);
+      })
+      .subscribe((status) => {
+        console.log('[Tenant Realtime] status:', status);
+      });
+    _rtChannels.push(tenantCh);
+  }
+
+  // ── Channel principal pour les données métier ──
   const tables = ['gp_products', 'gp_sales', 'gp_clients', 'gp_employes', 'gp_caisse_ops',
                   'gp_livraisons', 'gp_conges', 'gp_conteneurs', 'gp_ordres', 'gp_docs_rh', 'gp_locaux'];
   let ch = sb.channel('gp_realtime_all');
