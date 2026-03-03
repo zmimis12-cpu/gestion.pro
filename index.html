@@ -6601,8 +6601,16 @@ async function saveOATenant() {
 
     if (id) {
       // Modifier tenant existant
-      const { error } = await sb.from('gp_tenants').update({ nom, plan, expire_at: expireAt, notes }).eq('id', id);
+      console.log('[OA] Updating tenant:', id, { nom, plan, expire_at: expireAt });
+      const { data: updated, error } = await sb.from('gp_tenants')
+        .update({ nom, plan, expire_at: expireAt, notes })
+        .eq('id', id)
+        .select();
+      console.log('[OA] Update result:', updated, error);
       if (error) throw error;
+      // Mettre à jour localement immédiatement
+      const idx = OA_TENANTS.findIndex(t => t.id === id);
+      if (idx >= 0) OA_TENANTS[idx] = { ...OA_TENANTS[idx], nom, plan, expire_at: expireAt, notes };
       toast('Client mis à jour ✅');
     } else {
       // Créer nouveau tenant
@@ -6667,8 +6675,14 @@ async function renewOATenant() {
   const newExpire = new Date(base.getTime() + duree * 30 * 24 * 60 * 60 * 1000).toISOString();
 
   try {
-    const { error } = await sb.from('gp_tenants').update({ expire_at: newExpire, actif: true }).eq('id', id);
+    console.log('[OA] Renew tenant:', id, 'expire_at ->', newExpire);
+    const { data: res, error } = await sb.from('gp_tenants')
+      .update({ expire_at: newExpire, actif: true })
+      .eq('id', id)
+      .select();
+    console.log('[OA] Renew result:', res, error);
     if (error) throw error;
+    if (!res || res.length === 0) throw new Error('Aucune ligne modifiée — vérifier les permissions RLS dans Supabase');
 
     if (montant > 0) {
       await sb.from('gp_payments').insert({
@@ -6677,9 +6691,14 @@ async function renewOATenant() {
       });
     }
 
+    // Mettre à jour localement
+    const idx = OA_TENANTS.findIndex(t => t.id === id);
+    if (idx >= 0) { OA_TENANTS[idx].expire_at = newExpire; OA_TENANTS[idx].actif = true; }
+
     toast(`Licence renouvelée jusqu'au ${new Date(newExpire).toLocaleDateString('fr-FR')} ✅`);
     closeModal('modal-oa-renew');
-    await loadOAData();
+    renderOAStats();
+    renderOATenants();
   } catch(e) {
     toast('Erreur: ' + e.message, 'error');
   }
@@ -6692,17 +6711,21 @@ async function toggleOATenant(tenantId, currentActif) {
   if (!confirm(`Voulez-vous ${action} ce client ?`)) return;
   try {
     const newActif = !isActif;
-    const { error } = await sb.from('gp_tenants')
+    console.log('[OA] Toggle tenant:', tenantId, 'actif ->', newActif);
+    const { data: res, error } = await sb.from('gp_tenants')
       .update({ actif: newActif })
-      .eq('id', tenantId);
+      .eq('id', tenantId)
+      .select();
+    console.log('[OA] Toggle result:', res, error);
     if (error) throw error;
-    // Mettre à jour localement sans recharger
+    if (!res || res.length === 0) throw new Error('Aucune ligne modifiée — vérifier les permissions RLS dans Supabase');
     const idx = OA_TENANTS.findIndex(t => t.id === tenantId);
     if (idx >= 0) OA_TENANTS[idx].actif = newActif;
     toast(isActif ? '🚫 Client bloqué' : '✅ Client activé');
     renderOAStats();
     renderOATenants();
   } catch(e) {
+    console.error('[OA] Toggle error:', e);
     toast('Erreur: ' + e.message, 'error');
   }
 }
@@ -9629,6 +9652,71 @@ async function doLogin() {
   }
 }
 
+// ── Vérification accès tenant en temps réel ──
+async function checkTenantAccess() {
+  if (!GP_TENANT?.id) return;
+  try {
+    const { data } = await sb.from('gp_tenants')
+      .select('actif, expire_at, plan')
+      .eq('id', GP_TENANT.id)
+      .single();
+    if (!data) return;
+
+    // Mettre à jour GP_TENANT avec les données fraîches
+    GP_TENANT.actif    = data.actif;
+    GP_TENANT.expire_at = data.expire_at;
+    GP_TENANT.plan     = data.plan;
+
+    // Vérifier blocage
+    if (!data.actif) {
+      forceLogout('Votre compte a été désactivé. Contactez le support.');
+      return;
+    }
+    // Vérifier expiration
+    if (data.expire_at && new Date(data.expire_at) < new Date()) {
+      forceLogout('Votre licence a expiré. Contactez-nous pour renouveler.');
+      return;
+    }
+    // Mettre à jour le plan dans la sidebar
+    const tenantNameEl = document.getElementById('sidebar-tenant-name');
+    if (tenantNameEl) {
+      const planBadge = {starter:'🥉',business:'🥈',premium:'🥇'}[data.plan] || '';
+      tenantNameEl.textContent = GP_TENANT.nom + (planBadge ? ' ' + planBadge : '');
+    }
+    // Réappliquer permissions selon nouveau plan
+    applyNavPermissions();
+  } catch(e) {
+    console.warn('[Tenant] checkTenantAccess error:', e.message);
+  }
+}
+
+function forceLogout(reason) {
+  localStorage.removeItem('gp_session');
+  GP_USER = null; GP_TENANT = null;
+  const appWrap = document.getElementById('app-wrapper');
+  const loginScreen = document.getElementById('login-screen');
+  if (appWrap) appWrap.style.display = 'none';
+  if (loginScreen) loginScreen.classList.remove('hidden');
+  // Afficher message
+  const err = document.getElementById('l-err');
+  if (err) {
+    err.style.display = 'block';
+    err.style.background = 'rgba(224,49,49,0.1)';
+    err.style.border = '1px solid rgba(224,49,49,0.3)';
+    err.style.padding = '14px';
+    err.style.borderRadius = '10px';
+    err.innerHTML = `<div style="font-weight:700;color:var(--red);margin-bottom:6px;">⛔ Accès bloqué</div>
+      <div style="font-size:13px;color:var(--text2);">${reason}</div>
+      <a href="https://wa.me/212664783510?text=Bonjour%2C%20je%20veux%20renouveler%20ma%20licence%20GestionPro" 
+         target="_blank" style="display:inline-flex;align-items:center;gap:8px;margin-top:10px;background:#25D366;color:#fff;padding:10px 20px;border-radius:8px;text-decoration:none;font-weight:700;font-size:14px;">
+        💬 Renouveler sur WhatsApp
+      </a>`;
+  }
+}
+
+// Vérification toutes les 5 minutes
+let _tenantCheckInterval = null;
+
 function showLicenceExpired(tenant) {
   const err = document.getElementById('l-err');
   err.style.display = 'block';
@@ -9726,6 +9814,10 @@ async function startApp() {
   updateEmployeSelects();
   updateSALocalSwitcher();
   applyNavPermissions(); // cacher les sections selon le rôle
+  // Vérification accès tenant en temps réel (toutes les 5 min)
+  if (_tenantCheckInterval) clearInterval(_tenantCheckInterval);
+  await checkTenantAccess(); // vérification immédiate
+  _tenantCheckInterval = setInterval(checkTenantAccess, 5 * 60 * 1000);
   // Afficher nom du tenant
   const tenantNameEl = document.getElementById('sidebar-tenant-name');
   if (tenantNameEl && GP_TENANT) {
