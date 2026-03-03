@@ -9691,6 +9691,11 @@ async function checkTenantAccess() {
 }
 
 function forceLogout(reason) {
+  // Arrêter le polling tenant
+  if (_tenantCheckInterval) { clearInterval(_tenantCheckInterval); _tenantCheckInterval = null; }
+  // Arrêter Realtime
+  _rtChannels.forEach(ch => { try { sb.removeChannel(ch); } catch(e){} });
+  _rtChannels = [];
   localStorage.removeItem('gp_session');
   GP_USER = null; GP_TENANT = null;
   const appWrap = document.getElementById('app-wrapper');
@@ -10607,53 +10612,56 @@ function setupRealtime() {
   showSyncIndicator(false);
 
   // ── Channel séparé pour gp_tenants (plan, blocage, expiration) ──
+  // Sans filtre serveur pour éviter le besoin de REPLICA IDENTITY FULL
   if (GP_TENANT?.id) {
-    const tenantCh = sb.channel('gp_tenant_watch_' + GP_TENANT.id)
+    const tenantCh = sb.channel('gp_tenant_watch')
       .on('postgres_changes', {
         event: 'UPDATE',
         schema: 'public',
-        table: 'gp_tenants',
-        filter: `id=eq.${GP_TENANT.id}`
+        table: 'gp_tenants'
+        // Pas de filtre serveur — on filtre côté client
       }, (payload) => {
-        console.log('[Realtime] gp_tenants UPDATE:', payload.new);
         const updated = payload.new;
         if (!updated) return;
+        // Filtrer côté client — uniquement notre tenant
+        if (updated.id !== GP_TENANT.id) return;
+
+        console.log('[Tenant RT] UPDATE reçu:', updated);
+
+        const oldPlan = GP_TENANT.plan;
 
         // Mettre à jour GP_TENANT localement
         GP_TENANT.actif     = updated.actif;
         GP_TENANT.expire_at = updated.expire_at;
         GP_TENANT.plan      = updated.plan;
+        GP_TENANT.nom       = updated.nom || GP_TENANT.nom;
 
-        // ── Vérifier blocage ──
-        if (!updated.actif) {
+        // ── 1. Vérifier blocage → logout immédiat ──
+        if (updated.actif === false) {
           forceLogout("Votre compte a été désactivé par l'administrateur.");
           return;
         }
 
-        // ── Vérifier expiration ──
+        // ── 2. Vérifier expiration → logout immédiat ──
         if (updated.expire_at && new Date(updated.expire_at) < new Date()) {
           forceLogout('Votre licence a expiré. Contactez-nous pour renouveler.');
           return;
         }
 
-        // ── Mettre à jour le plan en temps réel ──
+        // ── 3. Plan changé → mettre à jour nav en temps réel ──
         const planBadge = {starter:'🥉', business:'🥈', premium:'🥇'}[updated.plan] || '';
         const tenantNameEl = document.getElementById('sidebar-tenant-name');
         if (tenantNameEl) tenantNameEl.textContent = GP_TENANT.nom + (planBadge ? ' ' + planBadge : '');
 
-        // Réappliquer nav selon nouveau plan
         applyNavPermissions();
 
-        // Toast info
-        const planLabels = {starter:'Starter 🥉', business:'Business 🥈', premium:'Premium 🥇'};
-        if (updated.plan !== GP_TENANT.plan) {
-          toast(`Plan mis à jour : ${planLabels[updated.plan] || updated.plan}`, 'success');
+        if (updated.plan !== oldPlan) {
+          const planLabels = {starter:'Starter 🥉', business:'Business 🥈', premium:'Premium 🥇'};
+          toast('Plan mis à jour : ' + (planLabels[updated.plan] || updated.plan), 'success');
         }
-
-        console.log('[Tenant] Mis à jour en temps réel — plan:', updated.plan, 'actif:', updated.actif);
       })
       .subscribe((status) => {
-        console.log('[Tenant Realtime] status:', status);
+        console.log('[Tenant RT] status:', status);
       });
     _rtChannels.push(tenantCh);
   }
