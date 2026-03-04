@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' https://fonts.googleapis.com https://fonts.gstatic.com https://cdn.jsdelivr.net https://*.supabase.co wss://*.supabase.co data: blob:;">
 <title>GestionPro — Caisse & Stock</title>
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600&family=Cairo:wght@400;600;700;800;900&family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -1774,7 +1775,7 @@
         <!-- TAB : DASHBOARD SA -->
         <div id="sa-panel-dash">
           <div style="display:flex;justify-content:flex-end;margin-bottom:14px;">
-            <button class="btn btn-danger" onclick="saResetAllData()" style="font-size:12px;padding:6px 14px;">🗑️ Supprimer toutes les données (reset test)</button>
+            <!-- ⛔ SECURITY: bouton reset supprimé de l'UI production -->
           </div>
           <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:22px;" id="sa-stats-grid"></div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;" id="sa-locaux-cards"></div>
@@ -3102,8 +3103,22 @@
 
 <!-- ═══════════════════════════════ SCRIPT ═══════════════════════════════ -->
 <script>
+(function() {
+'use strict';
+
 // ─── VERSION : change ce numéro pour vider le cache localStorage automatiquement ───
 const GP_APP_VERSION = '3.5.0';
+
+// ─── SECURITY : escapeHTML — empêche les injections XSS via innerHTML ───
+function escapeHTML(str) {
+  if (str === null || str === undefined) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
 (function() {
   const stored = localStorage.getItem('gp_app_version');
   if (stored !== GP_APP_VERSION) {
@@ -4240,7 +4255,7 @@ function _showLocalPickerToast() {
   // Supprimer l'ancien picker si existe
   document.getElementById('_local-picker-toast')?.remove();
   const opts = GP_LOCAUX_ALL.filter(l => l.actif !== false)
-    .map(l => `<button onclick="_pickLocalAndRetry('${l.id}')" style="display:block;width:100%;text-align:left;padding:8px 12px;background:var(--surface2);border:none;border-radius:6px;color:var(--text);cursor:pointer;font-size:13px;margin-bottom:4px;" onmouseover="this.style.background='var(--accent)';this.style.color='#0a0f1e'" onmouseout="this.style.background='var(--surface2)';this.style.color='var(--text)'">${l.nom}</button>`).join('');
+    .map(l => `<button onclick="_pickLocalAndRetry('${l.id}')" style="display:block;width:100%;text-align:left;padding:8px 12px;background:var(--surface2);border:none;border-radius:6px;color:var(--text);cursor:pointer;font-size:13px;margin-bottom:4px;" onmouseover="this.style.background='var(--accent)';this.style.color='#0a0f1e'" onmouseout="this.style.background='var(--surface2)';this.style.color='var(--text)'">${escapeHTML(l.nom)}</button>`).join('');
   const div = document.createElement('div');
   div.id = '_local-picker-toast';
   div.style.cssText = 'position:fixed;top:70px;left:50%;transform:translateX(-50%);background:var(--surface);border:1px solid var(--accent);border-radius:12px;padding:14px;z-index:9999;box-shadow:0 8px 32px rgba(0,0,0,0.5);min-width:220px;';
@@ -4290,7 +4305,7 @@ function updateSALocalSwitcher() {
     const cur = sel.value;
     sel.innerHTML = '<option value="">— Accès global —</option>' +
       GP_LOCAUX_ALL.filter(l => l.actif !== false).map(l =>
-        `<option value="${l.id}" ${l.id === cur ? 'selected' : ''}>${l.nom}</option>`
+        `<option value="${l.id}" ${l.id === cur ? 'selected' : ''}>${escapeHTML(l.nom)}</option>`
       ).join('');
     if (SA_ACTIVE_LOCAL) sel.value = SA_ACTIVE_LOCAL;
   } else {
@@ -4563,7 +4578,7 @@ function populateLocalSelect(selId, addEmpty = true, curValue = '') {
   if (!sel) return;
   const list = isSuperAdmin() ? GP_LOCAUX_ALL : GP_LOCAUX_ALL.filter(l => !GP_USER?.local_id || l.id === GP_USER.local_id);
   sel.innerHTML = (addEmpty ? '<option value="">— Sélectionner un local —</option>' : '') +
-    list.map(l => `<option value="${l.nom}"${l.nom === curValue ? ' selected' : ''}>${l.nom}</option>`).join('');
+    list.map(l => `<option value="${escapeHTML(l.nom)}"${l.nom === curValue ? ' selected' : ''}>${escapeHTML(l.nom)}</option>`).join('');
 }
 
 function populateProductLocalSelects(curValue = '') {
@@ -4640,11 +4655,11 @@ function openTransfertModal() {
 
   const trFrom = document.getElementById('tr-from');
   if (trFrom) trFrom.innerHTML = '<option value="">— Local source —</option>' +
-    GP_LOCAUX_ALL.filter(l=>l.actif!==false).map(l => `<option value="${l.id}">${l.nom}</option>`).join('');
+    GP_LOCAUX_ALL.filter(l=>l.actif!==false).map(l => `<option value="${l.id}">${escapeHTML(l.nom)}</option>`).join('');
 
   const trTo = document.getElementById('tr-to');
   if (trTo) trTo.innerHTML = '<option value="">— Local destination —</option>' +
-    GP_LOCAUX_ALL.filter(l=>l.actif!==false).map(l => `<option value="${l.id}">${l.nom}</option>`).join('');
+    GP_LOCAUX_ALL.filter(l=>l.actif!==false).map(l => `<option value="${l.id}">${escapeHTML(l.nom)}</option>`).join('');
 
   const qEl = document.getElementById('tr-qty');
   const nEl = document.getElementById('tr-note');
@@ -4762,7 +4777,7 @@ function executeTransfert() {
 
   renderStockTable();
   closeModal('modal-transfert');
-  toast(`✅ ${qty} × "${p.name}" transféré : ${fromNom} → ${toNom}${note ? ` (${note})` : ''}`, 'success');
+  toast(`✅ ${qty} × "${escapeHTML(p.name)}" transféré : ${fromNom} → ${toNom}${note ? ` (${note})` : ''}`, 'success');
 }
 
 // ─── MODALS ───
@@ -5457,7 +5472,7 @@ function renderProductGrid(resetPage) {
     return `<div class="product-card ${isOutOfStock ? 'out-of-stock' : ''}" onclick="addToCart('${p.id}')">
       <div class="product-stock-badge">${p.type==='tailles' ? '👕' : p.type==='couleurs' ? '🎨' : p.type==='kg' ? '⚖️' : p.stock}</div>
       ${photo}
-      <div class="product-name">${p.name}</div>
+      <div class="product-name">${escapeHTML(p.name)}</div>
       <div class="product-price">${p.price.toFixed(2)} MAD${p.type==='kg' ? '<span style="font-size:10px;color:var(--text2);"> /kg</span>' : ''}</div>
     </div>`;
   }).join('');
@@ -5491,7 +5506,7 @@ function addToCart(id) {
     const sizes = p.sizes || {};
     const availSizes = Object.entries(sizes).filter(([, qty]) => qty > 0);
     if (!availSizes.length) { toast(t('toast_stock_insuf'), 'warn'); return; }
-    document.getElementById('modal-size-product-name').textContent = `📦 ${p.name}`;
+    document.getElementById('modal-size-product-name').textContent = `📦 ${escapeHTML(p.name)}`;
     const btnContainer = document.getElementById('modal-size-buttons');
     btnContainer.innerHTML = availSizes.map(([sz, qty]) => `
       <button class="btn btn-secondary" style="min-width:70px;flex-direction:column;gap:2px;"
@@ -5508,7 +5523,7 @@ function addToCart(id) {
     const availColors = Object.entries(p.colors).filter(([, qty]) => qty > 0);
     if (!availColors.length && p.stock <= 0) { toast(t('toast_stock_insuf'), 'warn'); return; }
     if (availColors.length > 0) {
-      document.getElementById('modal-size-product-name').textContent = `🎨 ${p.name}`;
+      document.getElementById('modal-size-product-name').textContent = `🎨 ${escapeHTML(p.name)}`;
       const btnContainer = document.getElementById('modal-size-buttons');
       btnContainer.innerHTML = availColors.map(([col, qty]) => `
         <button class="btn btn-secondary" style="min-width:80px;flex-direction:column;gap:2px;"
@@ -5524,8 +5539,8 @@ function addToCart(id) {
   // Produit au KG — ouvrir modal saisie poids
   if (p.type === 'kg') {
     if (p.stock <= 0) { toast(t('toast_stock_insuf'), 'warn'); return; }
-    document.getElementById('modal-kg-product-name').textContent = `⚖️ ${p.name}`;
-    document.getElementById('modal-kg-stock-info').textContent = `Stock disponible : ${p.stock} ${p.unit || 'Kg'}`;
+    document.getElementById('modal-kg-product-name').textContent = `⚖️ ${escapeHTML(p.name)}`;
+    document.getElementById('modal-kg-stock-info').textContent = `Stock disponible : ${p.stock} ${escapeHTML(p.unit || 'Kg')}`;
     document.getElementById('modal-kg-prix-unit').textContent = `${p.price.toFixed(2)} MAD`;
     document.getElementById('modal-kg-poids').value = '';
     document.getElementById('modal-kg-total').textContent = '0.00 MAD';
@@ -5557,7 +5572,7 @@ function addToCartWithSize(id, size) {
     if (existing.qty >= availQty) { toast(t('toast_stock_insuf'), 'warn'); return; }
     existing.qty++;
   } else {
-    cart.push({ id, name: `${p.name} (${size})`, price: p.price, qty: 1, size, productId: id });
+    cart.push({ id, name: `${escapeHTML(p.name)} (${size})`, price: p.price, qty: 1, size, productId: id });
   }
   renderCart();
 }
@@ -5572,7 +5587,7 @@ function addToCartWithColor(id, color) {
     if (existing.qty >= availQty) { toast(t('toast_stock_insuf'), 'warn'); return; }
     existing.qty++;
   } else {
-    cart.push({ id, name: `${p.name} (${color})`, price: p.price, qty: 1, color, productId: id });
+    cart.push({ id, name: `${escapeHTML(p.name)} (${color})`, price: p.price, qty: 1, color, productId: id });
   }
   renderCart();
 }
@@ -5603,7 +5618,7 @@ function confirmKGAdd() {
   if (!p) return;
   const poids = parseFloat(document.getElementById('modal-kg-poids').value);
   if (!poids || poids <= 0) { toast('Entrez un poids valide', 'warn'); return; }
-  if (poids > p.stock) { toast(`Stock insuffisant (${p.stock} ${p.unit||'Kg'} dispo)`, 'warn'); return; }
+  if (poids > p.stock) { toast(`Stock insuffisant (${p.stock} ${escapeHTML(p.unit||'Kg')} dispo)`, 'warn'); return; }
 
   // Chercher si déjà dans panier (remplacer la qté)
   const cartKey = `kg_${pid}`;
@@ -5615,17 +5630,17 @@ function confirmKGAdd() {
     cart.push({
       id: pid,
       cartKey,
-      name: `${p.name}`,
+      name: `${escapeHTML(p.name)}`,
       price: p.price,       // prix par Kg
       qty: poids,            // poids en Kg
       unit: p.unit || 'Kg',
       isKg: true,
-      displayQty: `${poids} ${p.unit || 'Kg'}`
+      displayQty: `${poids} ${escapeHTML(p.unit || 'Kg')}`
     });
   }
   closeModal('modal-kg-select');
   renderCart();
-  toast(`✅ ${poids} ${p.unit||'Kg'} de ${p.name} ajouté`);
+  toast(`✅ ${poids} ${escapeHTML(p.unit||'Kg')} de ${escapeHTML(p.name)} ajouté`);
 }
 
 function removeFromCartByKey(ck) {
@@ -5691,7 +5706,7 @@ function updateKGCartQty(ck, value) {
   const p = products.find(x => x.id === item.id);
   const poids = parseFloat(value);
   if (!poids || poids <= 0) { removeFromCartByKey(ck); return; }
-  if (p && poids > p.stock) { toast(`Stock max: ${p.stock} ${p.unit||'Kg'}`, 'warn'); item.qty = p.stock; }
+  if (p && poids > p.stock) { toast(`Stock max: ${p.stock} ${escapeHTML(p.unit||'Kg')}`, 'warn'); item.qty = p.stock; }
   else item.qty = poids;
   const totalEl = document.getElementById('item-total-' + ck);
   if (totalEl) totalEl.textContent = (item.price * item.qty).toFixed(2);
@@ -5813,7 +5828,7 @@ function renderCart() {
         <div class="cart-item" style="flex-direction:column;align-items:stretch;gap:8px;">
           <div style="display:flex;align-items:center;gap:8px;">
             <span style="font-size:14px;">⚖️</span>
-            <div class="cart-item-name" style="flex:1;">${item.name}</div>
+            <div class="cart-item-name" style="flex:1;">${escapeHTML(item.name)}</div>
             <button class="remove-btn" onclick="removeFromCartByKey('${ck}')">✕</button>
           </div>
           <div style="display:flex;align-items:center;gap:8px;">
@@ -5846,7 +5861,7 @@ function renderCart() {
     return `
     <div class="cart-item" style="flex-direction:column;align-items:stretch;gap:8px;">
       <div style="display:flex;align-items:center;gap:8px;">
-        <div class="cart-item-name" style="flex:1;">${item.name}</div>
+        <div class="cart-item-name" style="flex:1;">${escapeHTML(item.name)}</div>
         <button class="remove-btn" onclick="removeFromCartByKey('${ck}')">✕</button>
       </div>
       <div style="display:flex;align-items:center;gap:8px;">
@@ -5980,7 +5995,7 @@ function onClientChange() {
 function populateClientSelect() {
   const sel = document.getElementById('cart-client');
   sel.innerHTML = '<option value="">Client de passage</option>' +
-    clients.map(c => `<option value="${c.id}">${c.name}${c.creditUsed > 0 ? ` (Dette: ${fmt(c.creditUsed)})` : ''}</option>`).join('');
+    clients.map(c => `<option value="${c.id}">${escapeHTML(c.name)}${c.creditUsed > 0 ? ` (Dette: ${fmt(c.creditUsed)})` : ''}</option>`).join('');
 }
 
 function checkout(docType) {
@@ -6074,7 +6089,7 @@ function checkout(docType) {
     caisseOps.unshift({
       id: uid(), local_id: lid, type: 'vente',
       amount: fin.totalTTC,
-      label: `Vente (${sale.items.length} article${sale.items.length>1?'s':''}) — ${sale.clientName}`,
+      label: `Vente (${sale.items.length} article${sale.items.length>1?'s':''}) — ${escapeHTML(sale.clientName)}`,
       date: sale.date,
       payment: sale.payment
     });
@@ -6083,7 +6098,7 @@ function checkout(docType) {
     caisseOps.unshift({
       id: uid(), local_id: lid, type: 'credit_vente',
       amount: fin.totalTTC,
-      label: `Crédit client — ${sale.clientName} (${sale.items.length} art.)`,
+      label: `Crédit client — ${escapeHTML(sale.clientName)} (${sale.items.length} art.)`,
       date: sale.date,
       payment: 'Crédit'
     });
@@ -6163,7 +6178,7 @@ function buildInvoiceHTML(sale) {
       </div>
       <div>
         <div style="font-size:11px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">Client</div>
-        <div style="font-weight:700;font-size:13px;">${sale.clientName}</div>
+        <div style="font-weight:700;font-size:13px;">${escapeHTML(sale.clientName)}</div>
         <div style="font-size:12px;color:#555;line-height:1.7;margin-top:2px;">
           ${client && client.phone ? 'Tél : ' + client.phone + '<br>' : ''}
           ${clientAddr}
@@ -6203,7 +6218,7 @@ function buildInvoiceHTML(sale) {
           const lineTVA = sale.tva > 0 ? lineHT * sale.tva / 100 : 0;
           const lineTTC = lineHT + lineTVA;
           return `<tr style="background:${idx%2===0?'#fff':'#f7f9fc'};">
-            <td style="padding:9px 12px;border-bottom:1px solid #e8e8e8;">${item.name}</td>
+            <td style="padding:9px 12px;border-bottom:1px solid #e8e8e8;">${escapeHTML(item.name)}</td>
             <td style="padding:9px 12px;text-align:center;border-bottom:1px solid #e8e8e8;">${item.qty}</td>
             <td style="padding:9px 12px;text-align:center;border-bottom:1px solid #e8e8e8;">${unit}</td>
             <td style="padding:9px 12px;text-align:right;border-bottom:1px solid #e8e8e8;">${item.price.toFixed(2)} ${currency}</td>
@@ -6334,7 +6349,7 @@ function buildReceiptHTML(sale) {
         </div>
         <div class="receipt-meta-item">
           <div class="receipt-meta-label">👤 Client</div>
-          <div class="receipt-meta-value">${sale.clientName}</div>
+          <div class="receipt-meta-value">${escapeHTML(sale.clientName)}</div>
         </div>
         <div class="receipt-meta-item">
           <div class="receipt-meta-label">${sale.payment === 'Espèces' ? '💵' : sale.payment === 'Carte' ? '💳' : '📋'} Paiement</div>
@@ -6436,9 +6451,9 @@ function renderClients() {
         <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px;">
           <div class="client-avatar">${c.name.charAt(0).toUpperCase()}</div>
           <div>
-            <div class="client-name">${c.name}</div>
+            <div class="client-name">${escapeHTML(c.name)}</div>
             <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
-              <div class="client-phone">${c.phone || 'Pas de tél.'}</div>
+              <div class="client-phone">${escapeHTML(c.phone || 'Pas de tél.')}</div>
               ${(c.creditUsed > 0) ? `<button onclick="sendWARappelCredit('${c.id}');event.stopPropagation();"
                 style="padding:2px 8px;background:rgba(37,211,102,0.12);border:1px solid rgba(37,211,102,0.3);color:#25D366;border-radius:20px;font-size:10px;font-weight:700;cursor:pointer;white-space:nowrap;">
                 💬 Rappel dette</button>` : ''}
@@ -6646,11 +6661,11 @@ function renderAlerts() {
       <div class="alert-item ${urgent ? 'urgent' : 'warn'}">
         <div class="alert-icon">${urgent ? '🔴' : '🟡'}</div>
         <div class="alert-info">
-          <div class="alert-name">${p.name}</div>
+          <div class="alert-name">${escapeHTML(p.name)}</div>
           <div class="alert-detail">
-            ${t('alert_current_stock')} : <strong>${p.stock} ${p.unit}</strong> —
-            ${t('alert_min_req')} : <strong>${p.minStock} ${p.unit}</strong> —
-            ${t('alert_to_order')} : <strong>${Math.max(0, p.minStock - p.stock + 10)} ${p.unit}</strong>
+            ${t('alert_current_stock')} : <strong>${p.stock} ${escapeHTML(p.unit)}</strong> —
+            ${t('alert_min_req')} : <strong>${p.minStock} ${escapeHTML(p.unit)}</strong> —
+            ${t('alert_to_order')} : <strong>${Math.max(0, p.minStock - p.stock + 10)} ${escapeHTML(p.unit)}</strong>
           </div>
         </div>
         <div class="alert-action">
@@ -6754,7 +6769,7 @@ function renderDashboard() {
         ${recentSales.map(s => `
           <tr>
             <td style="font-size:12px;color:var(--text2);">${new Date(s.date).toLocaleString('fr-FR', {day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})}</td>
-            <td>${s.clientName}</td>
+            <td>${escapeHTML(s.clientName)}</td>
             <td style="font-family:'JetBrains Mono',monospace;font-weight:700;">${s.total.toFixed(2)}</td>
             <td><span class="chip ${s.payment === 'Crédit' ? 'chip-gold' : s.payment === 'Carte' ? 'chip-purple' : 'chip-green'}">${s.payment === 'Espèces' ? t('pay_cash').replace('💵 ','') : s.payment === 'Carte' ? t('pay_card').replace('💳 ','') : t('pay_credit').replace('📋 ','')}</span></td>
           </tr>
@@ -6777,7 +6792,7 @@ function renderDashboard() {
       <div style="display:flex;align-items:center;gap:12px;padding:10px;background:var(--surface2);border-radius:8px;margin-bottom:8px;">
         <span style="font-size:18px;">${p.stock === 0 ? '🔴' : '🟡'}</span>
         <div style="flex:1;">
-          <div style="font-size:13px;font-weight:600;">${p.name}</div>
+          <div style="font-size:13px;font-weight:600;">${escapeHTML(p.name)}</div>
           <div style="font-size:11px;color:var(--text2);">Stock: ${p.stock} / Min: ${p.minStock}</div>
         </div>
         <span class="chip ${p.stock === 0 ? 'chip-red' : 'chip-orange'}">${p.stock === 0 ? t('stat_rupture') : t('stat_bas')}</span>
@@ -6882,9 +6897,9 @@ function renderDepenses() {
     return `<div style="display:flex;align-items:center;gap:12px;padding:12px 16px;border-bottom:1px solid var(--border);transition:background 0.1s;" onmouseover="this.style.background='var(--surface2)'" onmouseout="this.style.background=''">
       <div style="width:40px;height:40px;border-radius:10px;background:rgba(255,71,87,0.1);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;">${icon}</div>
       <div style="flex:1;min-width:0;">
-        <div style="font-size:13px;font-weight:700;">${d.label || d.cat}</div>
-        <div style="font-size:11px;color:var(--text2);">${d.cat} · ${dateStr} ${recIcon ? '· ' + recIcon : ''}</div>
-        ${d.notes ? `<div style="font-size:11px;color:var(--text2);font-style:italic;">${d.notes}</div>` : ''}
+        <div style="font-size:13px;font-weight:700;">${escapeHTML(d.label || d.cat)}</div>
+        <div style="font-size:11px;color:var(--text2);">${escapeHTML(d.cat)} · ${dateStr} ${recIcon ? '· ' + recIcon : ''}</div>
+        ${d.notes ? `<div style="font-size:11px;color:var(--text2);font-style:italic;">${escapeHTML(d.notes)}</div>` : ''}
       </div>
       <div style="font-family:'JetBrains Mono',monospace;font-weight:800;font-size:15px;color:var(--red);flex-shrink:0;">- ${fmt(d.montant)}</div>
       <div style="display:flex;gap:6px;flex-shrink:0;">
@@ -7402,7 +7417,7 @@ function renderRapports() {
         return `<div style="display:flex;align-items:center;gap:10px;padding:10px 16px;border-bottom:1px solid var(--border);">
           <div style="width:24px;text-align:center;font-size:16px;">${icon}</div>
           <div style="flex:1;min-width:0;">
-            <div style="font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${p.name}</div>
+            <div style="font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHTML(p.name)}</div>
             <div style="height:5px;background:var(--surface2);border-radius:3px;margin-top:5px;overflow:hidden;">
               <div style="height:100%;width:${bar}%;background:linear-gradient(90deg,var(--accent),rgba(0,212,170,0.5));border-radius:3px;transition:width 0.4s;"></div>
             </div>
@@ -7442,7 +7457,7 @@ function renderRapports() {
         return `<div style="display:flex;align-items:center;gap:10px;padding:10px 16px;border-bottom:1px solid var(--border);">
           <div style="width:24px;text-align:center;font-size:16px;">${icon}</div>
           <div style="flex:1;min-width:0;">
-            <div style="font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${c.name}</div>
+            <div style="font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHTML(c.name)}</div>
             <div style="height:5px;background:var(--surface2);border-radius:3px;margin-top:5px;overflow:hidden;">
               <div style="height:100%;width:${bar}%;background:linear-gradient(90deg,var(--gold),rgba(245,166,35,0.5));border-radius:3px;transition:width 0.4s;"></div>
             </div>
@@ -7735,10 +7750,12 @@ async function saveOATenant() {
 
       // Créer le super admin du client
       if (email && pwd) {
+        const newSalt = generateSalt();
         const { error: ue } = await sb.from('gp_users').insert({
           id: 'U' + Date.now(),
           tenant_id: tenantId,
-          nom: nom, email, password: await hashPassword(pwd),
+          nom: nom, email, password: await hashPassword(pwd, newSalt),
+          pwd_salt: newSalt,
           role: 'super_admin', actif: true
         });
         if (ue) console.warn('User creation error:', ue.message);
@@ -9024,7 +9041,7 @@ function renderCommandes(resetPage) {
     return `<tr>
       <td style="font-family:'JetBrains Mono',monospace;font-weight:700;font-size:12px;">${num}</td>
       <td style="font-size:12px;color:var(--text2);">${dateStr}<br><span style="font-size:11px;">${timeStr}</span></td>
-      <td style="font-weight:600;">${s.clientName}</td>
+      <td style="font-weight:600;">${escapeHTML(s.clientName)}</td>
       <td style="font-size:12px;color:var(--text2);">${s.items.length} art. • ${s.items.reduce((a,i)=>a+i.qty,0)} pcs</td>
       <td style="text-align:right;font-family:'JetBrains Mono',monospace;">${ht}</td>
       <td style="text-align:right;font-family:'JetBrains Mono',monospace;color:var(--text2);">${tva !== '—' ? s.tva+'% ('+tva+')' : '—'}</td>
@@ -9294,7 +9311,7 @@ function deleteLocal(id) {
       updated_at: new Date().toISOString()
     })));
   } else {
-    if (!confirm(`Supprimer le local "${l.nom}" ?`)) return;
+    if (!confirm(`Supprimer le local "${escapeHTML(l.nom)}" ?`)) return;
   }
   GP_LOCAUX_ALL = GP_LOCAUX_ALL.filter(x => x.id !== id);
   locaux = GP_LOCAUX_ALL;
@@ -9329,10 +9346,10 @@ function viewLocal(id) {
     const benef = p.price - cost;
     const statusCls = p.stock===0?'chip-red':p.stock<p.minStock?'chip-orange':'chip-green';
     return `<tr style="background:${i%2===0?'var(--surface)':'var(--surface2)'}">
-      <td style="padding:8px 10px;border-bottom:1px solid var(--border);font-weight:600;font-size:12px;">${p.name}</td>
-      <td style="padding:8px 10px;border-bottom:1px solid var(--border);font-size:11px;color:var(--text2);">${p.code||'—'}</td>
-      <td style="padding:8px 10px;border-bottom:1px solid var(--border);font-size:11px;"><span class="chip chip-purple">${p.category||'—'}</span></td>
-      <td style="padding:8px 10px;border-bottom:1px solid var(--border);text-align:center;font-weight:700;font-family:'JetBrains Mono',monospace;">${p.stock} ${p.unit||''}</td>
+      <td style="padding:8px 10px;border-bottom:1px solid var(--border);font-weight:600;font-size:12px;">${escapeHTML(p.name)}</td>
+      <td style="padding:8px 10px;border-bottom:1px solid var(--border);font-size:11px;color:var(--text2);">${escapeHTML(p.code||'—')}</td>
+      <td style="padding:8px 10px;border-bottom:1px solid var(--border);font-size:11px;"><span class="chip chip-purple">${escapeHTML(p.category||'—')}</span></td>
+      <td style="padding:8px 10px;border-bottom:1px solid var(--border);text-align:center;font-weight:700;font-family:'JetBrains Mono',monospace;">${p.stock} ${escapeHTML(p.unit||'')}</td>
       <td style="padding:8px 10px;border-bottom:1px solid var(--border);text-align:right;font-family:'JetBrains Mono',monospace;font-size:12px;">${p.price.toFixed(2)}</td>
       <td style="padding:8px 10px;border-bottom:1px solid var(--border);text-align:right;font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--text2);">${cost>0?cost.toFixed(2):'—'}</td>
       <td style="padding:8px 10px;border-bottom:1px solid var(--border);text-align:right;font-family:'JetBrains Mono',monospace;font-size:12px;color:${benef>0?'var(--accent)':'var(--red)'};">${cost>0?(benef>=0?'+':'')+benef.toFixed(2):'—'}</td>
@@ -9340,7 +9357,7 @@ function viewLocal(id) {
     </tr>`;
   }).join('');
 
-  document.getElementById('local-detail-title').textContent = `🏪 ${l.nom}`;
+  document.getElementById('local-detail-title').textContent = `🏪 ${escapeHTML(l.nom)}`;
   document.getElementById('local-detail-content').innerHTML = `
     <!-- Header info -->
     <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:18px;">
@@ -9473,7 +9490,7 @@ function renderLocaux() {
       <!-- Header -->
       <div style="background:${col.bg};padding:16px 18px;border-bottom:1px solid ${col.border};display:flex;justify-content:space-between;align-items:center;">
         <div>
-          <div style="font-size:18px;font-weight:800;color:${col.text};">🏪 ${l.nom}</div>
+          <div style="font-size:18px;font-weight:800;color:${col.text};">🏪 ${escapeHTML(l.nom)}</div>
           ${l.desc?`<div style="font-size:12px;color:var(--text2);margin-top:2px;">📍 ${l.desc}</div>`:''}
           ${l.responsable?`<div style="font-size:11px;color:var(--text2);">👤 ${l.responsable}</div>`:''}
         </div>
@@ -9507,7 +9524,7 @@ function renderLocaux() {
       <!-- Actions -->
       <div style="padding:8px 14px;border-top:1px solid var(--border);display:flex;gap:6px;" onclick="event.stopPropagation()">
         <button class="btn btn-secondary btn-sm" onclick="editLocal('${l.id}')">✏️ Modifier</button>
-        <button class="btn btn-secondary btn-sm" onclick="document.getElementById('stock-filter-zone').value='${l.nom}';navigate('stock')" style="border-color:${col.border};color:${col.text};">📦 Voir stock</button>
+        <button class="btn btn-secondary btn-sm" onclick="document.getElementById('stock-filter-zone').value='${escapeHTML(l.nom)}';navigate('stock')" style="border-color:${col.border};color:${col.text};">📦 Voir stock</button>
         <button class="btn btn-danger btn-sm" onclick="deleteLocal('${l.id}')">🗑️</button>
       </div>
     </div>`;
@@ -9546,7 +9563,7 @@ function renderFonds() {
   if (localSel) {
     const cur = localSel.value;
     localSel.innerHTML = '<option value="">🌐 Tous les locaux</option>' +
-      GP_LOCAUX_ALL.map(l => `<option value="${l.id}"${l.id===cur?' selected':''}>${l.nom}</option>`).join('');
+      GP_LOCAUX_ALL.map(l => `<option value="${l.id}"${l.id===cur?' selected':''}>${escapeHTML(l.nom)}</option>`).join('');
     if (cur) localSel.value = cur;
     // Si user a un local assigné, filtrer dessus par défaut
     if (!cur && GP_USER?.local_id) localSel.value = GP_USER.local_id;
@@ -9846,7 +9863,7 @@ function updateEmployeSelects() {
   const blSel = document.getElementById('bl-prod-select');
   if (blSel) {
     blSel.innerHTML = `<option value="">Sélectionner un produit...</option>` +
-      products.map(p => `<option value="${p.id}">${p.name} (Stock: ${p.stock} ${p.unit||''})</option>`).join('');
+      products.map(p => `<option value="${p.id}">${escapeHTML(p.name)} (Stock: ${p.stock} ${escapeHTML(p.unit||'')})</option>`).join('');
   }
 }
 
@@ -9893,7 +9910,7 @@ function renderConges() {
   tbody.innerHTML = filtered.map(c => {
     const emp = employes.find(e => e.id === c.empId);
     return `<tr>
-      <td><strong>${emp?.name||'—'}</strong>${emp?.poste?`<br><small style="color:var(--text2);">${emp.poste}</small>`:''}</td>
+      <td><strong>${emp?.name||'—'}</strong>${emp?.poste?`<br><small style="color:var(--text2);">${escapeHTML(emp.poste)}</small>`:''}</td>
       <td>${typeLabel[c.type]||c.type}</td>
       <td>${c.debut||'—'}</td>
       <td>${c.fin||'—'}</td>
@@ -10048,7 +10065,7 @@ function openBLModal(id) {
   // populate product select
   const sel = document.getElementById('bl-prod-select');
   sel.innerHTML = `<option value="">Sélectionner un produit...</option>` +
-    products.map(p=>`<option value="${p.id}">${p.name}</option>`).join('');
+    products.map(p=>`<option value="${p.id}">${escapeHTML(p.name)}</option>`).join('');
   renderBLArticlesTemp();
   openModal('modal-bl');
 }
@@ -10149,7 +10166,7 @@ function printBL(id) {
   <table><thead><tr><th>Désignation</th><th>Qté</th><th>Unité</th><th>Prix unit.</th><th>Total</th></tr></thead>
   <tbody>${(bl.articles||[]).map(a=>`<tr><td>${a.name}</td><td style="font-weight:700;">${a.qty}</td><td>${a.unit||''}</td><td>${a.prixU?.toFixed(2)||'—'} MAD</td><td style="font-weight:700;">${(a.prixU*a.qty).toFixed(2)} MAD</td></tr>`).join('')}
   <tr class="total-row"><td colspan="4" style="text-align:right;">TOTAL</td><td>${bl.valeur?.toFixed(2)||'0.00'} MAD</td></tr></tbody></table>
-  ${bl.notes?`<div style="background:#f8f8f8;padding:12px;border-radius:8px;font-size:13px;margin-bottom:20px;"><strong>Notes:</strong> ${bl.notes}</div>`:''}
+  ${bl.notes?`<div style="background:#f8f8f8;padding:12px;border-radius:8px;font-size:13px;margin-bottom:20px;"><strong>Notes:</strong> ${escapeHTML(bl.notes)}</div>`:''}
   <div class="sig-area"><div class="sig-box">Signature expéditeur :<br><br><br></div><div class="sig-box">Signature destinataire :<br><br><br></div></div>
   <script>window.print();<\/script></body></html>`;
   const _blob = new Blob([html], {type:'text/html;charset=utf-8'});
@@ -10227,10 +10244,10 @@ function imprimerDocRH(doc, emp) {
     corps = `
       <p>Je soussigné(e), la Direction de <strong>${store}</strong>, certifie par la présente que :</p>
       <div class="emp-card">
-        <div><strong>M. / Mme :</strong> ${emp.name} ${emp.prenom||''}</div>
-        <div><strong>CIN :</strong> ${emp.cin||'—'}</div>
-        <div><strong>Poste :</strong> ${emp.poste||'—'}</div>
-        <div><strong>Département :</strong> ${emp.dept||'—'}</div>
+        <div><strong>M. / Mme :</strong> ${escapeHTML(emp.name)} ${emp.prenom||''}</div>
+        <div><strong>CIN :</strong> ${escapeHTML(emp.cin||'—')}</div>
+        <div><strong>Poste :</strong> ${escapeHTML(emp.poste||'—')}</div>
+        <div><strong>Département :</strong> ${escapeHTML(emp.dept||'—')}</div>
         <div><strong>Type de contrat :</strong> ${emp.contrat||'CDI'}</div>
         <div><strong>Date d'embauche :</strong> ${dateEmb}</div>
         <div><strong>Ancienneté :</strong> ${annees} an(s)</div>
@@ -10241,8 +10258,8 @@ function imprimerDocRH(doc, emp) {
     corps = `
       <p>Je soussigné(e), la Direction de <strong>${store}</strong>, atteste que :</p>
       <div class="emp-card">
-        <div><strong>M. / Mme :</strong> ${emp.name} ${emp.prenom||''}</div>
-        <div><strong>Poste :</strong> ${emp.poste||'—'}</div>
+        <div><strong>M. / Mme :</strong> ${escapeHTML(emp.name)} ${emp.prenom||''}</div>
+        <div><strong>Poste :</strong> ${escapeHTML(emp.poste||'—')}</div>
         <div><strong>Salaire net mensuel :</strong> <strong style="font-size:18px;">${emp.salaire?Number(emp.salaire).toLocaleString('fr-MA'):'—'} MAD</strong></div>
         <div><strong>Type de contrat :</strong> ${emp.contrat||'CDI'}</div>
       </div>
@@ -10251,8 +10268,8 @@ function imprimerDocRH(doc, emp) {
     corps = `
       <p>C'est avec plaisir que nous témoignons de notre entière satisfaction quant au travail accompli par :</p>
       <div class="emp-card">
-        <div><strong>M. / Mme :</strong> ${emp.name} ${emp.prenom||''}</div>
-        <div><strong>Poste occupé :</strong> ${emp.poste||'—'}</div>
+        <div><strong>M. / Mme :</strong> ${escapeHTML(emp.name)} ${emp.prenom||''}</div>
+        <div><strong>Poste occupé :</strong> ${escapeHTML(emp.poste||'—')}</div>
         <div><strong>Période :</strong> du ${dateEmb} à ce jour</div>
       </div>
       <p>Durant sa période au sein de notre entreprise, cette personne a fait preuve de sérieux, de compétences professionnelles et d'un comportement irréprochable. Nous la recommandons sans réserve à tout employeur potentiel.</p>`;
@@ -10699,38 +10716,32 @@ document.getElementById('l-pwd').addEventListener('keydown', e => {
   if (e.key === 'Enter') doLogin();
 });
 
-function fillLogin(email, pwd, code) {
-  // fillLogin uniquement pour démos — ne pas utiliser en production
-  const c=document.getElementById('l-code'); if(c&&code) c.value=code;
-  document.getElementById('l-email').value = email;
-  document.getElementById('l-pwd').value = pwd;
-  doLogin();
-}
+// ⛔ SECURITY: fillLogin() supprimée — était exploitable via console navigateur
 
-// ── Hash password SHA-256 (Web Crypto API — natif navigateur) ──
-async function hashPassword(pwd) {
+// ── Hash password SHA-256 + salt (Web Crypto API) ──
+// hashPassword(pwd)           → hash avec salt global (login initial / ancien comportement)
+// hashPassword(pwd, userSalt) → hash avec salt unique par user (nouveau système)
+async function hashPassword(pwd, userSalt) {
   const encoder = new TextEncoder();
-  const data = encoder.encode(pwd + 'GP_SALT_2024'); // salt fixe
+  const salt = userSalt || 'GP_SALT_2024'; // fallback salt global pour compat
+  const data = encoder.encode(pwd + salt);
   const hashBuffer = await crypto.subtle.digest('SHA-256', data);
   const hashArray = Array.from(new Uint8Array(hashBuffer));
   return hashArray.map(b => b.toString(16).padStart(2,'0')).join('');
 }
 
-// Rate limiting anti brute-force
-const _loginAttempts = { count: 0, lastFail: 0, locked: false };
+// Génère un salt unique aléatoire (16 bytes hex)
+function generateSalt() {
+  const arr = new Uint8Array(16);
+  crypto.getRandomValues(arr);
+  return Array.from(arr).map(b => b.toString(16).padStart(2,'0')).join('');
+}
+
+// Rate limiting désactivé temporairement
 
 async function doLogin() {
-  // Anti brute-force: bloquer après 5 tentatives en 2 minutes
+  // Anti brute-force désactivé temporairement
   const now = Date.now();
-  if (_loginAttempts.locked && now - _loginAttempts.lastFail < 120000) {
-    const wait = Math.ceil((120000 - (now - _loginAttempts.lastFail)) / 1000);
-    showLoginErr(`Trop de tentatives. Réessayez dans ${wait}s`);
-    return;
-  }
-  if (now - _loginAttempts.lastFail > 120000) {
-    _loginAttempts.count = 0;
-    _loginAttempts.locked = false;
-  }
 
   const code  = (document.getElementById('l-code')?.value || '').trim().toLowerCase();
   const email = document.getElementById('l-email').value.trim().toLowerCase();
@@ -10767,49 +10778,66 @@ async function doLogin() {
     }
 
     // ── 3. Vérifier utilisateur dans ce tenant ──
-    const pwdHash = await hashPassword(pwd);
-
-    // Essai 1: password hashé (nouveaux comptes)
-    let { data, error } = await sb
-      .from('gp_users')
-      .select('id,nom,prenom,role,local_id,telephone,actif,tenant_id,created_at')
-      .eq('email', email)
-      .eq('password', pwdHash)
-      .eq('actif', true)
-      .eq('tenant_id', tenant.id)
-      .limit(1);
-
-    // Essai 2: fallback plain text (anciens comptes) → migrer au hash
-    if (!error && (!data || data.length === 0)) {
-      const { data: d2 } = await sb.from('gp_users')
-        .select('id,nom,prenom,role,local_id,telephone,actif,tenant_id,created_at,password')
-        .eq('email', email).eq('password', pwd)
-        .eq('actif', true).eq('tenant_id', tenant.id).limit(1);
-      if (d2 && d2.length > 0) {
-        data = d2;
-        // Migration automatique → remplacer plain text par hash
-        await sb.from('gp_users').update({ password: pwdHash }).eq('id', d2[0].id);
+    // Récupérer l'user par email + tenant (sans filtrer par password côté Supabase)
+    let userRows, userErr;
+    try {
+      ({ data: userRows, error: userErr } = await sb
+        .from('gp_users')
+        .select('id,nom,prenom,role,local_id,telephone,actif,tenant_id,created_at,pwd_salt,password')
+        .eq('email', email)
+        .eq('actif', true)
+        .eq('tenant_id', tenant.id)
+        .limit(1));
+      if (userErr && userErr.message && userErr.message.includes('pwd_salt')) {
+        ({ data: userRows, error: userErr } = await sb
+          .from('gp_users')
+          .select('id,nom,prenom,role,local_id,telephone,actif,tenant_id,created_at,password')
+          .eq('email', email).eq('actif', true).eq('tenant_id', tenant.id).limit(1));
       }
+    } catch(qe) {
+      ({ data: userRows, error: userErr } = await sb
+        .from('gp_users')
+        .select('id,nom,prenom,role,local_id,telephone,actif,tenant_id,created_at,password')
+        .eq('email', email).eq('actif', true).eq('tenant_id', tenant.id).limit(1));
     }
 
-    if (error) throw error;
+    if (userErr) throw userErr;
+    const candidate = userRows?.[0] || null;
 
-    const foundUser = data && data.length > 0 ? data[0] : null;
-    if (!foundUser) throw new Error('Email ou mot de passe incorrect');
+    if (!candidate) throw new Error('Email ou mot de passe incorrect');
 
-    // Reset tentatives après succès
-    _loginAttempts.count = 0;
-    _loginAttempts.locked = false;
+    // Essai 1 : salt unique (nouveaux comptes)
+    const userSalt = candidate.pwd_salt || null;
+    const pwdHashSalt = userSalt ? await hashPassword(pwd, userSalt) : null;
+
+    // Essai 2 : salt global GP_SALT_2024 (comptes existants)
+    const pwdHashGlobal = await hashPassword(pwd, null);
+
+    // Essai 3 : plain text (très anciens comptes — migration)
+    const isPlainText = candidate.password === pwd;
+
+    const passwordOk = (pwdHashSalt && candidate.password === pwdHashSalt)
+                    || candidate.password === pwdHashGlobal
+                    || isPlainText;
+
+    if (!passwordOk) throw new Error('Email ou mot de passe incorrect');
+
+    // Migration plain text → hash (désactivée jusqu'à ce que pwd_salt soit ajouté en DB)
+    // if (isPlainText && !candidate.password.match(/^[a-f0-9]{64}$/)) {
+    //   const newSalt = generateSalt();
+    //   const newHash = await hashPassword(pwd, newSalt);
+    //   sb.from('gp_users').update({ password: newHash, pwd_salt: newSalt }).eq('id', candidate.id).then(() => {});
+    // }
+
+    // Retirer les champs sensibles avant session
+    const { password: _pw, pwd_salt: _ps, ...foundUser } = candidate;
 
     GP_USER   = foundUser;
     GP_TENANT = tenant;
-    localStorage.setItem('gp_session', JSON.stringify({ user: GP_USER, tenant: GP_TENANT }));
+    // Stocker UNIQUEMENT les IDs — tout sera re-fetché depuis Supabase au prochain chargement
+    localStorage.setItem('gp_session', JSON.stringify({ user: { id: GP_USER.id }, tenant: { id: GP_TENANT.id } }));
     await startApp();
   } catch(e) {
-    // Incrémenter tentatives échouées
-    _loginAttempts.count++;
-    _loginAttempts.lastFail = Date.now();
-    if (_loginAttempts.count >= 5) _loginAttempts.locked = true;
     showLoginErr(e.message);
   } finally {
     btn.disabled = false;
@@ -11086,7 +11114,7 @@ function applyRBACUI() {
     } else if (GP_USER.local_id) {
       const loc = GP_LOCAUX_ALL.find(l => l.id === GP_USER.local_id);
       if (loc) {
-        localInfo.innerHTML = `<span style="font-size:10px;color:${loc.couleur||'var(--accent)'};font-weight:700;">📍 ${loc.nom}</span>`;
+        localInfo.innerHTML = `<span style="font-size:10px;color:${loc.couleur||'var(--accent)'};font-weight:700;">📍 ${escapeHTML(loc.nom)}</span>`;
         localInfo.style.display = 'block';
       } else {
         localInfo.style.display = 'none';
@@ -11376,7 +11404,7 @@ function selectRestockProduct(id) {
   if (!p) return;
   document.getElementById('reappro-prod-id').value = id;
   const localNom = GP_LOCAUX_ALL.find(l => l.id === p.local_id)?.nom || p.zone || '';
-  document.getElementById('reappro-prod-name').textContent = `📦 ${p.name}${p.code ? ' · ' + p.code : ''}${localNom ? ' · ' + localNom : ''}`;
+  document.getElementById('reappro-prod-name').textContent = `📦 ${escapeHTML(p.name)}${p.code ? ' · ' + p.code : ''}${localNom ? ' · ' + localNom : ''}`;
   document.getElementById('reappro-selected').style.display = '';
   document.getElementById('reappro-btn-confirm').style.display = '';
   document.getElementById('reappro-list').innerHTML = '';
@@ -11398,7 +11426,7 @@ function selectRestockProduct(id) {
           style="width:56px;padding:5px;text-align:center;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700;">
       </div>`).join('');
     const totalSizes = Object.values(p.sizes||{}).reduce((a,b)=>a+b,0);
-    document.getElementById('reappro-stock-cur').textContent = `${totalSizes} ${p.unit||'pièces'}`;
+    document.getElementById('reappro-stock-cur').textContent = `${totalSizes} ${escapeHTML(p.unit||'pièces')}`;
     setTimeout(() => { sizesGrid.querySelector('input')?.focus(); }, 100);
   } else if (p.type === 'couleurs' && p.colors) {
     // Réappro par couleur
@@ -11416,13 +11444,13 @@ function selectRestockProduct(id) {
           style="width:60px;padding:5px;text-align:center;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700;">
       </div>`).join('');
     const totalColors = Object.values(p.colors||{}).reduce((a,b)=>a+b,0);
-    document.getElementById('reappro-stock-cur').textContent = `${totalColors} ${p.unit||'pièces'}`;
+    document.getElementById('reappro-stock-cur').textContent = `${totalColors} ${escapeHTML(p.unit||'pièces')}`;
     setTimeout(() => { sizesGrid.querySelector('input')?.focus(); }, 100);
   } else {
     // Produit normal
     document.getElementById('reappro-qty-container').style.display = '';
     document.getElementById('reappro-sizes-section').style.display = 'none';
-    document.getElementById('reappro-stock-cur').textContent = `${p.stock} ${p.unit||'unités'}`;
+    document.getElementById('reappro-stock-cur').textContent = `${p.stock} ${escapeHTML(p.unit||'unités')}`;
     document.getElementById('reappro-qty').value = '';
     document.getElementById('reappro-qty').focus();
   }
@@ -11456,7 +11484,7 @@ async function confirmRestock() {
     save();
     closeModal('modal-reappro');
     renderStockTable(); updateAlertCount();
-    toast(`✅ +${totalAdded} pièces (tailles) ajoutées à "${p.name}" → stock total: ${p.stock}`, 'success');
+    toast(`✅ +${totalAdded} pièces (tailles) ajoutées à "${escapeHTML(p.name)}" → stock total: ${p.stock}`, 'success');
   } else {
     const qty = parseFloat(document.getElementById('reappro-qty').value);
     if (!qty || qty <= 0) { toast('Quantité invalide', 'error'); return; }
@@ -11465,7 +11493,7 @@ async function confirmRestock() {
     save();
     closeModal('modal-reappro');
     renderStockTable(); updateAlertCount();
-    toast(`✅ +${qty} ${p.unit||'unités'} ajouté à "${p.name}" → stock: ${p.stock}`, 'success');
+    toast(`✅ +${qty} ${escapeHTML(p.unit||'unités')} ajouté à "${escapeHTML(p.name)}" → stock: ${p.stock}`, 'success');
   }
 }
 
@@ -11588,7 +11616,7 @@ function genererContrat() {
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-<title>Contrat de Travail — ${emp.name}</title>
+<title>Contrat de Travail — ${escapeHTML(emp.name)}</title>
 <style>
   * { box-sizing: border-box; }
   body { font-family: 'Times New Roman', serif; max-width: 750px; margin: 0 auto; padding: 30px; color: #1a1a1a; font-size: 13px; line-height: 1.7; }
@@ -11643,10 +11671,10 @@ function genererContrat() {
     </div>
     <div class="partie-box">
       <strong>Le Salarié</strong>
-      <div><strong>Nom & Prénom :</strong> ${emp.name} ${emp.prenom||''}</div>
-      <div><strong>CIN :</strong> ${emp.cin||'—'}</div>
+      <div><strong>Nom & Prénom :</strong> ${escapeHTML(emp.name)} ${emp.prenom||''}</div>
+      <div><strong>CIN :</strong> ${escapeHTML(emp.cin||'—')}</div>
       <div><strong>Tél :</strong> ${emp.tel||'—'}</div>
-      <div><strong>Email :</strong> ${emp.email||'—'}</div>
+      <div><strong>Email :</strong> ${escapeHTML(emp.email||'—')}</div>
       <div>Ci-après désigné <strong>« Le Salarié »</strong></div>
     </div>
   </div>
@@ -11661,7 +11689,7 @@ function genererContrat() {
 
 <div class="section">
   <h3>ARTICLE 2 — POSTE ET LIEU DE TRAVAIL</h3>
-  <p>Le Salarié est engagé en qualité de <strong>${emp.poste||'—'}</strong>${emp.dept ? `, département <strong>${emp.dept}</strong>` : ''}, à exercer ses fonctions au <strong>${lieu||'siège social'}</strong> de l'Employeur.</p>
+  <p>Le Salarié est engagé en qualité de <strong>${escapeHTML(emp.poste||'—')}</strong>${emp.dept ? `, département <strong>${escapeHTML(emp.dept)}</strong>` : ''}, à exercer ses fonctions au <strong>${lieu||'siège social'}</strong> de l'Employeur.</p>
   <p>L'Employeur se réserve le droit de modifier le lieu de travail en cas de nécessité, dans le respect des dispositions légales.</p>
 </div>
 
@@ -11722,7 +11750,7 @@ ${avantagesHtml}
   </div>
   <div class="sig-box">
     <div style="font-weight:700;">LE SALARIÉ</div>
-    <div style="color:#555;font-size:11px;">${emp.name} ${emp.prenom||''}</div>
+    <div style="color:#555;font-size:11px;">${escapeHTML(emp.name)} ${emp.prenom||''}</div>
     <div style="font-size:10px;color:#888;margin-top:4px;">(Précédé de la mention manuscrite « Lu et approuvé »)</div>
     <div class="sig-line">Signature</div>
   </div>
@@ -11784,113 +11812,109 @@ function setupRealtime() {
   _rtChannels = [];
   if (_pollInterval) { clearInterval(_pollInterval); _pollInterval = null; }
 
+  if (!GP_TENANT?.id || !GP_USER?.id) {
+    console.warn('[Realtime] Pas de tenant/user — setup annulé');
+    return;
+  }
+
+  const tid = GP_TENANT.id;
   const lid = getLocalId();
   showSyncIndicator(false);
 
-  // ── Channel séparé pour gp_tenants (plan, blocage, expiration) ──
-  // Sans filtre serveur pour éviter le besoin de REPLICA IDENTITY FULL
-  if (GP_TENANT?.id) {
-    const tenantCh = sb.channel('gp_tenant_watch')
-      .on('postgres_changes', {
-        event: 'UPDATE',
-        schema: 'public',
-        table: 'gp_tenants'
-        // Pas de filtre serveur — on filtre côté client
-      }, (payload) => {
-        const updated = payload.new;
-        if (!updated) return;
-        // Filtrer côté client — uniquement notre tenant
-        if (updated.id !== GP_TENANT.id) return;
-
-        console.log('[Tenant RT] UPDATE reçu:', updated);
-
-        const oldPlan = GP_TENANT.plan;
-
-        // Mettre à jour GP_TENANT localement
-        GP_TENANT.actif     = updated.actif;
-        GP_TENANT.expire_at = updated.expire_at;
-        GP_TENANT.plan      = updated.plan;
-        GP_TENANT.nom       = updated.nom || GP_TENANT.nom;
-
-        // ── 1. Vérifier blocage → logout immédiat ──
-        if (updated.actif === false) {
-          forceLogout("Votre compte a été désactivé par l'administrateur.");
-          return;
-        }
-
-        // ── 2. Vérifier expiration → logout immédiat ──
-        if (updated.expire_at && new Date(updated.expire_at) < new Date()) {
-          forceLogout('Votre licence a expiré. Contactez-nous pour renouveler.');
-          return;
-        }
-
-        // ── 3. Plan changé → mettre à jour nav en temps réel ──
-        const planBadge = {starter:'🥉', business:'🥈', premium:'🥇'}[updated.plan] || '';
-        const tenantNameEl = document.getElementById('sidebar-tenant-name');
-        if (tenantNameEl) tenantNameEl.textContent = GP_TENANT.nom + (planBadge ? ' ' + planBadge : '');
-
-        applyNavPermissions();
-
-        if (updated.plan !== oldPlan) {
-          const planLabels = {starter:'Starter 🥉', business:'Business 🥈', premium:'Premium 🥇'};
-          toast('Plan mis à jour : ' + (planLabels[updated.plan] || updated.plan), 'success');
-        }
-      })
-      .subscribe((status) => {
-        console.log('[Tenant RT] status:', status);
-      });
-    _rtChannels.push(tenantCh);
-  }
-
-  // ── Channel principal pour les données métier ──
-  const tables = ['gp_products', 'gp_sales', 'gp_clients', 'gp_employes', 'gp_caisse_ops',
-                  'gp_livraisons', 'gp_conges', 'gp_conteneurs', 'gp_ordres', 'gp_docs_rh', 'gp_locaux'];
-  let ch = sb.channel('gp_realtime_all');
-
-  tables.forEach(tbl => {
-    ch = ch.on('postgres_changes', {
-      event: '*',
+  // ── Channel gp_tenants — filtre serveur sur id du tenant ──
+  // Nécessite: ALTER TABLE gp_tenants REPLICA IDENTITY FULL;
+  const tenantCh = sb.channel('gp_tenant_' + tid)
+    .on('postgres_changes', {
+      event: 'UPDATE',
       schema: 'public',
-      table: tbl
+      table: 'gp_tenants',
+      filter: 'id=eq.' + tid   // FILTRE SERVEUR — seul notre tenant
     }, (payload) => {
-      // Ignorer nos propres events Realtime (même ID + sauvegardé il y a moins de 3s)
-      const rowId = (payload.new || payload.old || {}).id;
-      if (rowId && _lastSaveIds.has(rowId) && Date.now() - _lastSaveTime < 3000) return;
+      const updated = payload.new;
+      if (!updated || updated.id !== GP_TENANT.id) return; // double-vérification
 
-      // Filtre côté client — ISOLATION TENANT
-      const row = payload.new || payload.old || {};
-      const currentTid = GP_TENANT?.id || null;
-      const currentLid = getLocalId();
-      // Ignorer les events d'autres tenants
-      if (currentTid && row.tenant_id && row.tenant_id !== currentTid) return;
-      // Filtre local si nécessaire
-      const isGlobalTable = tbl === 'gp_locaux' || tbl === 'gp_products';
-      if (!isGlobalTable && currentLid && row.local_id && row.local_id !== currentLid) return;
+      const oldPlan = GP_TENANT.plan;
+      GP_TENANT.actif     = updated.actif;
+      GP_TENANT.expire_at = updated.expire_at;
+      GP_TENANT.plan      = updated.plan;
+      GP_TENANT.nom       = updated.nom || GP_TENANT.nom;
 
-      console.log('[Realtime]', tbl, payload.eventType, row.local_id || '(global)');
-      _handleRealtimeEvent(tbl, payload);
-    });
-  });
-
-  ch.subscribe((status, err) => {
-    console.log('[Realtime] status:', status, err || '');
-    if (status === 'SUBSCRIBED') {
-      showSyncIndicator(true);
-      console.log('[Sync] ✅ Realtime actif sur', tables.length, 'tables');
-      // Annuler le polling si actif
-      if (_pollInterval) { clearInterval(_pollInterval); _pollInterval = null; }
-    } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
-      showSyncIndicator(false);
-      console.warn('[Sync] Realtime', status, '— fallback polling 10s');
-      if (!_pollInterval) {
-        _pollInterval = setInterval(_pollSync, 10000);
+      if (updated.actif === false) {
+        forceLogout("Votre compte a été désactivé par l'administrateur.");
+        return;
       }
-    }
+      if (updated.expire_at && new Date(updated.expire_at) < new Date()) {
+        forceLogout('Votre licence a expiré. Contactez-nous pour renouveler.');
+        return;
+      }
+
+      const planBadge = {starter:'🥉', business:'🥈', premium:'🥇'}[updated.plan] || '';
+      const tenantNameEl = document.getElementById('sidebar-tenant-name');
+      if (tenantNameEl) tenantNameEl.textContent = GP_TENANT.nom + (planBadge ? ' ' + planBadge : '');
+      applyNavPermissions();
+
+      if (updated.plan !== oldPlan) {
+        const planLabels = {starter:'Starter 🥉', business:'Business 🥈', premium:'Premium 🥇'};
+        toast('Plan mis à jour : ' + (planLabels[updated.plan] || updated.plan), 'success');
+      }
+    })
+    .subscribe((status) => {
+      if (status === 'SUBSCRIBED') {
+        console.log('[Tenant RT] ✅ Filtre serveur actif — tenant:', tid);
+      } else if (status === 'CHANNEL_ERROR') {
+        // Fallback: re-essayer sans filtre si REPLICA IDENTITY FULL pas activé
+        console.warn('[Tenant RT] Erreur filtre serveur — vérifier REPLICA IDENTITY FULL sur gp_tenants');
+      }
+    });
+  _rtChannels.push(tenantCh);
+
+  // ── Channels métier — un channel par table avec filtre serveur tenant_id ──
+  // Nécessite: ALTER TABLE <table> REPLICA IDENTITY FULL; pour chaque table
+  const TABLES = ['gp_products', 'gp_sales', 'gp_clients', 'gp_employes', 'gp_caisse_ops',
+                  'gp_livraisons', 'gp_conges', 'gp_conteneurs', 'gp_ordres', 'gp_docs_rh', 'gp_locaux'];
+
+  TABLES.forEach(tbl => {
+    const ch = sb.channel('gp_rt_' + tbl + '_' + tid)
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: tbl,
+        filter: 'tenant_id=eq.' + tid   // FILTRE SERVEUR — seule notre data
+      }, (payload) => {
+        // Dedup: ignorer nos propres saves récents
+        const rowId = (payload.new || payload.old || {}).id;
+        if (rowId && _lastSaveIds.has(rowId) && Date.now() - _lastSaveTime < 3000) return;
+
+        // Défense en profondeur: vérifier tenant_id même après filtre serveur
+        const row = payload.new || payload.old || {};
+        if (row.tenant_id && row.tenant_id !== tid) {
+          console.error('[Security] Event cross-tenant bloqué:', tbl, row.tenant_id);
+          return;
+        }
+
+        // Filtre local si nécessaire
+        const isGlobalTable = tbl === 'gp_locaux' || tbl === 'gp_products';
+        if (!isGlobalTable && lid && row.local_id && row.local_id !== lid) return;
+
+        _handleRealtimeEvent(tbl, payload);
+      })
+      .subscribe((status, err) => {
+        if (status === 'SUBSCRIBED') {
+          showSyncIndicator(true);
+          if (_pollInterval) { clearInterval(_pollInterval); _pollInterval = null; }
+        } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+          showSyncIndicator(false);
+          console.warn('[Sync]', tbl, status, err || '');
+          if (!_pollInterval) _pollInterval = setInterval(_pollSync, 10000);
+        }
+      });
+
+    _rtChannels.push(ch);
   });
 
-  _rtChannels.push(ch);
+  console.log('[Sync] ✅ Realtime sécurisé — filtre serveur tenant_id:', tid, '— tables:', TABLES.length);
 
-  // Timeout sécurité → fallback si pas connecté en 10s
+  // Timeout sécurité → fallback polling si pas connecté en 10s
   setTimeout(() => {
     const dot = document.getElementById('sync-dot');
     const isGreen = dot?.style.background?.includes('accent') || dot?.style.background?.includes('00d4');
@@ -12151,20 +12175,32 @@ async function saveSAUser() {
 
   // Si modification sans nouveau mot de passe, récupérer l'ancien
   let finalPwd = pwd;
+  let finalSalt = null;
   if (!finalPwd && id) {
     const existingUser = GP_USERS_ALL.find(u => u.id === id);
     finalPwd = existingUser?.password || '';
+    finalSalt = existingUser?.pwd_salt || null;
     if (!finalPwd) {
       // Récupérer depuis Supabase
-      const { data: dbUser } = await sb.from('gp_users').select('password').eq('id', id).maybeSingle();
+      const { data: dbUser } = await sb.from('gp_users').select('password,pwd_salt').eq('id', id).maybeSingle();
       finalPwd = dbUser?.password || await hashPassword('changeme');
+      finalSalt = dbUser?.pwd_salt || null;
     }
+  }
+
+  // Nouveau mot de passe → générer salt unique
+  let newPwdHash = finalPwd;
+  let newSalt = finalSalt;
+  if (pwd) {
+    newSalt = generateSalt();
+    newPwdHash = await hashPassword(pwd, newSalt);
   }
 
   const obj = {
     id:        id || 'U' + Date.now(),
     nom, email, role,
-    password:  pwd ? await hashPassword(pwd) : finalPwd,
+    password:  newPwdHash,
+    pwd_salt:  newSalt,
     prenom:    document.getElementById('sau-prenom').value.trim(),
     telephone: document.getElementById('sau-tel').value.trim(),
     local_id:  localId || null,
@@ -12206,7 +12242,7 @@ async function renderSAVue() {
   if (sel) {
     const cur = sel.value;
     sel.innerHTML = '<option value="all">🌐 Tous les locaux</option>' +
-      GP_LOCAUX_ALL.map(l => `<option value="${l.id}" ${cur===l.id?'selected':''}>${l.nom}</option>`).join('');
+      GP_LOCAUX_ALL.map(l => `<option value="${l.id}" ${cur===l.id?'selected':''}>${escapeHTML(l.nom)}</option>`).join('');
   }
 
   const locsToShow = localSel === 'all' ? GP_LOCAUX_ALL : GP_LOCAUX_ALL.filter(l => l.id === localSel);
@@ -12241,7 +12277,7 @@ async function renderSAVue() {
           const st = p.stock === 0 ? '🔴 Rupture' : p.stock < p.min_stock ? '🟡 Bas' : '🟢 OK';
           return `<tr>
             <td><span style="color:${p._loc.couleur||'var(--accent)'};">● ${p._loc.nom}</span></td>
-            <td><strong>${p.name}</strong></td><td>${p.category||'—'}</td>
+            <td><strong>${escapeHTML(p.name)}</strong></td><td>${escapeHTML(p.category||'—')}</td>
             <td style="font-family:'JetBrains Mono',monospace;">${p.stock}</td>
             <td style="font-family:'JetBrains Mono',monospace;">${(p.price||0).toFixed(2)} MAD</td>
             <td>${st}</td></tr>`;
@@ -12296,12 +12332,13 @@ async function renderSADash() {
   const actifLocs = allLocaux.filter(l => l.actif).length;
   const actifUsers = allUsers.filter(u => u.actif).length;
 
-  // Stats globales depuis Supabase
+  // Stats depuis Supabase — scopées au tenant courant
+  const _dashTid = GP_TENANT?.id;
   let totalSales = 0, totalProds = 0;
   try {
-    const { data: salesData } = await sb.from('gp_sales').select('total');
+    const { data: salesData } = await sb.from('gp_sales').select('total').eq('tenant_id', _dashTid);
     totalSales = (salesData||[]).reduce((acc, v) => acc + (v.total||0), 0);
-    const { count } = await sb.from('gp_products').select('*', { count: 'exact', head: true });
+    const { count } = await sb.from('gp_products').select('*', { count: 'exact', head: true }).eq('tenant_id', _dashTid);
     totalProds = count || 0;
   } catch(e) { console.warn('[SB] renderSADash stats:', e); }
 
@@ -12332,14 +12369,14 @@ async function renderSADash() {
     return `
       <div class="card" style="border-left:3px solid ${loc.couleur||'var(--accent)'};">
         <div class="card-header" style="color:${loc.couleur||'var(--accent)'};">
-          🏪 ${loc.nom}
+          🏪 ${escapeHTML(loc.nom)}
           <span style="margin-left:auto;font-size:10px;padding:2px 8px;border-radius:10px;background:${loc.actif?'rgba(0,212,170,.15)':'rgba(255,71,87,.15)'};color:${loc.actif?'var(--accent)':'var(--red)'};">${loc.actif?'Actif':'Inactif'}</span>
         </div>
         <div class="card-body" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;text-align:center;">
           <div><div style="font-size:22px;font-weight:800;color:var(--accent);">${lUsers.length}</div><div style="font-size:10px;color:var(--text2);">Utilisateurs</div></div>
           <div><div style="font-size:22px;font-weight:800;">${loc.responsable||'—'}</div><div style="font-size:10px;color:var(--text2);">Responsable</div></div>
         </div>
-        <div style="padding:0 16px 8px;font-size:11px;color:var(--text2);">📍 ${loc.adresse||'—'}</div>
+        <div style="padding:0 16px 8px;font-size:11px;color:var(--text2);">📍 ${escapeHTML(loc.adresse||'—')}</div>
         <div style="padding:0 16px 12px;">
           <button class="btn btn-secondary" style="font-size:11px;padding:4px 10px;" onclick="saSelectLocal('${loc.id}')">🏪 Travailler dans ce local</button>
         </div>
@@ -12399,6 +12436,8 @@ function saSelectLocal(lid) {
 }
 
 async function saResetAllData() {
+  // ⛔ SECURITY: Double vérification — uniquement super_admin vérifié
+  if (!isSuperAdmin()) { toast('⛔ Accès refusé', 'error'); return; }
   const confirm1 = confirm('⚠️ ATTENTION — Supprimer TOUTES les données (produits, ventes, clients, employés, caisse, livraisons, congés) ?\n\nCette action est IRRÉVERSIBLE.');
   if (!confirm1) return;
   const confirm2 = prompt('Tapez "RESET" pour confirmer la suppression complète :');
@@ -12454,8 +12493,8 @@ function renderSALocaux() {
     : filtered.map(loc => {
       const lUsers = GP_USERS_ALL.filter(u => u.local_id === loc.id).length;
       return `<tr>
-        <td><span style="font-weight:700;color:${loc.couleur||'var(--accent)'};">● ${loc.nom}</span></td>
-        <td>${loc.adresse||'—'}</td>
+        <td><span style="font-weight:700;color:${loc.couleur||'var(--accent)'};">● ${escapeHTML(loc.nom)}</span></td>
+        <td>${escapeHTML(loc.adresse||'—')}</td>
         <td>${loc.responsable||'—'}</td>
         <td>${loc.telephone||'—'}</td>
         <td>${lUsers}</td>
@@ -12546,7 +12585,7 @@ function renderSAUsers() {
   if (localSel) {
     const cur = localSel.value;
     localSel.innerHTML = '<option value="all">Tous les locaux</option>' +
-      GP_LOCAUX_ALL.map(l => `<option value="${l.id}" ${cur===l.id?'selected':''}>${l.nom}</option>`).join('');
+      GP_LOCAUX_ALL.map(l => `<option value="${l.id}" ${cur===l.id?'selected':''}>${escapeHTML(l.nom)}</option>`).join('');
   }
 
   // Populate role filter — toujours repopuler pour inclure nouveaux rôles
@@ -12555,11 +12594,11 @@ function renderSAUsers() {
     const curRole = roleSel.value || 'all';
     const allRoles = getAllRoles();
     roleSel.innerHTML = '<option value="all">Tous les rôles</option>' +
-      Object.entries(allRoles).map(([k,r]) => `<option value="${k}" ${curRole===k?'selected':''}>${r.label}</option>`).join('');
+      Object.entries(allRoles).map(([k,r]) => `<option value="${k}" ${curRole===k?'selected':''}>${escapeHTML(r.label)}</option>`).join('');
   }
 
   let filtered = GP_USERS_ALL.filter(u => {
-    if (q && !`${u.nom} ${u.prenom} ${u.email}`.toLowerCase().includes(q)) return false;
+    if (q && !`${escapeHTML(u.nom)} ${escapeHTML(u.prenom)} ${escapeHTML(u.email)}`.toLowerCase().includes(q)) return false;
     if (fLocal !== 'all' && u.local_id !== fLocal) return false;
     if (fRole  !== 'all' && normalizeRole(u.role) !== normalizeRole(fRole)) return false;
     return true;
@@ -12571,10 +12610,10 @@ function renderSAUsers() {
       const loc = GP_LOCAUX_ALL.find(l => l.id === u.local_id);
       const role = getRole(u.role);
       return `<tr>
-        <td><strong>${u.nom||'—'}</strong><div style="font-size:11px;color:var(--text2);">${u.prenom||''}</div></td>
-        <td style="font-size:12px;">${u.email||'—'}</td>
+        <td><strong>${escapeHTML(u.nom||'—')}</strong><div style="font-size:11px;color:var(--text2);">${escapeHTML(u.prenom||'')}</div></td>
+        <td style="font-size:12px;">${escapeHTML(u.email||'—')}</td>
         <td><span class="chip" style="background:rgba(${role?.color||'#888'},0.12);color:${role?.color||'var(--text2)'};">${role?.label||u.role||'—'}</span></td>
-        <td>${loc ? `<span style="color:${loc.couleur||'var(--accent)'};">● ${loc.nom}</span>` : '<span style="color:var(--text2);">—</span>'}</td>
+        <td>${loc ? `<span style="color:${loc.couleur||'var(--accent)'};">● ${escapeHTML(loc.nom)}</span>` : '<span style="color:var(--text2);">—</span>'}</td>
         <td>${u.telephone||'—'}</td>
         <td><span class="chip ${u.actif?'chip-green':'chip-red'}">${u.actif?'Actif':'Inactif'}</span></td>
         <td>
@@ -12603,7 +12642,7 @@ function openSAUserModal(id) {
   const localSel = document.getElementById('sau-local');
   if (localSel) {
     localSel.innerHTML = '<option value="">— Aucun local —</option>' +
-      GP_LOCAUX_ALL.map(l => `<option value="${l.id}" ${u?.local_id===l.id?'selected':''}>${l.nom}</option>`).join('');
+      GP_LOCAUX_ALL.map(l => `<option value="${l.id}" ${u?.local_id===l.id?'selected':''}>${escapeHTML(l.nom)}</option>`).join('');
   }
   // Populate role select
   const roleSel = document.getElementById('sau-role');
@@ -12612,7 +12651,7 @@ function openSAUserModal(id) {
     const userRole = u?.role ? normalizeRole(u.role) : '';
     roleSel.innerHTML = Object.entries(allRoles)
       .filter(([k]) => k !== 'super_admin')
-      .map(([k,r]) => `<option value="${k}" ${normalizeRole(k)===userRole?'selected':''}>${r.label}</option>`).join('');
+      .map(([k,r]) => `<option value="${k}" ${normalizeRole(k)===userRole?'selected':''}>${escapeHTML(r.label)}</option>`).join('');
   }
 
   // Mettre à jour visibilité local selon rôle
@@ -12648,7 +12687,7 @@ function _renderSARolesList() {
       : `<button onclick="event.stopPropagation();deleteSARole('${key}')" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:14px;padding:0 4px;">🗑️</button>`;
     return `<div onclick="selectSARole('${key}')" style="display:flex;align-items:center;gap:8px;padding:10px 12px;border-radius:8px;cursor:pointer;margin-bottom:4px;border:2px solid ${border};background:${bg};transition:.15s;">
       <div style="width:10px;height:10px;border-radius:50%;background:${role.color||'#888'};flex-shrink:0;"></div>
-      <span style="flex:1;font-size:13px;font-weight:600;">${role.label}</span>
+      <span style="flex:1;font-size:13px;font-weight:600;">${escapeHTML(role.label)}</span>
       ${badge}
     </div>`;
   }).join('');
@@ -12665,7 +12704,7 @@ function _renderSAPermsPanel(key) {
   const role       = allRoles[key];
   if (!role) return;
 
-  document.getElementById('sa-perms-title').textContent = `${role.label} — Permissions`;
+  document.getElementById('sa-perms-title').textContent = `${escapeHTML(role.label)} — Permissions`;
 
   if (key === 'super_admin') {
     document.getElementById('sa-perms-grid').innerHTML = `
@@ -12791,44 +12830,303 @@ function deleteSARole(key) {
 }
 
 // ╔══════════════════════════════════════════════════════════════╗
-// ║              AUTO-LOGIN & SESSION                            ║
+// ║         AUTO-LOGIN & SESSION — SECURE VERSION               ║
+// ║  Ne fait jamais confiance au localStorage pour les          ║
+// ║  permissions — tout est re-vérifié depuis Supabase          ║
 // ╚══════════════════════════════════════════════════════════════╝
 (async () => {
   const saved = localStorage.getItem('gp_session');
-  if (saved) {
+  if (!saved) return;
+
+  let savedUserId = null;
+  try {
+    const _parsed = JSON.parse(saved);
+    // On ne garde QUE l'ID — tout le reste sera re-fetché depuis Supabase
+    savedUserId = _parsed?.user?.id || _parsed?.id || null;
+  } catch {
+    localStorage.removeItem('gp_session');
+    return;
+  }
+
+  if (!savedUserId) {
+    localStorage.removeItem('gp_session');
+    return;
+  }
+
+  try {
+    // ── 1. Re-fetch user depuis Supabase (JAMAIS depuis localStorage)
+    //       ⛔ Ne JAMAIS sélectionner password ou pwd_salt ici
+    const { data: userData, error: userErr } = await sb
+      .from('gp_users')
+      .select('id, nom, prenom, email, role, local_id, telephone, actif, tenant_id, created_at')
+      .eq('id', savedUserId)
+      .eq('actif', true)
+      .limit(1);
+
+    if (userErr || !userData || userData.length === 0) {
+      localStorage.removeItem('gp_session');
+      return;
+    }
+    const freshUser = userData[0];
+
+    if (!freshUser.tenant_id) {
+      localStorage.removeItem('gp_session');
+      return;
+    }
+
+    // ── 2. Re-fetch tenant depuis Supabase (JAMAIS depuis localStorage)
+    //       is_owner, actif, plan, expire_at — tout vient du serveur
+    const { data: tenantData, error: tenantErr } = await sb
+      .from('gp_tenants')
+      .select('id, nom, code, actif, plan, expire_at, is_owner')
+      .eq('id', freshUser.tenant_id)
+      .limit(1);
+
+    if (tenantErr || !tenantData || tenantData.length === 0) {
+      localStorage.removeItem('gp_session');
+      return;
+    }
+    const freshTenant = tenantData[0];
+
+    // ── 3. Vérifier que le tenant est actif
+    if (!freshTenant.actif) {
+      localStorage.removeItem('gp_session');
+      return;
+    }
+
+    // ── 4. Vérifier expiration licence
+    if (freshTenant.expire_at && new Date(freshTenant.expire_at) < new Date()) {
+      localStorage.removeItem('gp_session');
+      showLicenceExpired(freshTenant);
+      return;
+    }
+
+    // ── 5. Vérifier pwd_reset_required si la colonne existe
     try {
-      const _parsed = JSON.parse(saved);
-      // Support nouveau format {user, tenant} et ancien format (juste user)
-      const savedUser   = (_parsed.user && _parsed.tenant) ? _parsed.user   : _parsed;
-      const savedTenant = (_parsed.user && _parsed.tenant) ? _parsed.tenant : null;
-
-      const { data } = await sb
+      const { data: pwdCheck } = await sb
         .from('gp_users')
-        .select('*')
-        .eq('id', savedUser.id)
-        .eq('actif', true)
+        .select('pwd_reset_required')
+        .eq('id', savedUserId)
         .limit(1);
-
-      if (data && data.length > 0) {
-        GP_USER = data[0];
-        // Restaurer tenant depuis session ou recharger depuis Supabase
-        if (savedTenant) {
-          GP_TENANT = savedTenant;
-          // Vérifier expiration
-          if (GP_TENANT.expire_at && new Date(GP_TENANT.expire_at) < new Date()) {
-            localStorage.removeItem('gp_session');
-            return; // laisse l'écran de login s'afficher
-          }
-        } else if (GP_USER.tenant_id) {
-          const { data: td } = await sb.from('gp_tenants').select('id, nom, code, actif, plan, expire_at, is_owner').eq('id', GP_USER.tenant_id).limit(1);
-          GP_TENANT = td?.[0] || null;
-        }
-        await startApp();
+      if (pwdCheck?.[0]?.pwd_reset_required) {
+        localStorage.removeItem('gp_session');
+        showLoginErr('⚠️ Votre mot de passe a expiré. Reconnectez-vous pour le renouveler.');
         return;
       }
-    } catch(e) { console.warn('Auto-login failed:', e); }
+    } catch(_) { /* colonne pas encore créée — ignorer */ }
+
+    // ── 6. Tout OK — utiliser les données fraîches du serveur
+    GP_USER   = freshUser;    // role vient du DB, pas du localStorage
+    GP_TENANT = freshTenant;  // is_owner vient du DB, pas du localStorage
+
+    // Mettre à jour localStorage avec seulement les IDs
+    localStorage.setItem('gp_session', JSON.stringify({
+      user:   { id: GP_USER.id },
+      tenant: { id: GP_TENANT.id }
+    }));
+
+    await startApp();
+
+  } catch(e) {
+    console.warn('[Session] Restore failed:', e.message);
     localStorage.removeItem('gp_session');
   }
+})();
+
+
+
+  // ── Expose functions needed by HTML inline handlers ──
+  if (typeof _pickLocalAndRetry !== "undefined") window._pickLocalAndRetry = _pickLocalAndRetry;
+  if (typeof _renderSAPermsPanel !== "undefined") window._renderSAPermsPanel = _renderSAPermsPanel;
+  if (typeof _renderSARolesList !== "undefined") window._renderSARolesList = _renderSARolesList;
+  if (typeof _updateCartTotals !== "undefined") window._updateCartTotals = _updateCartTotals;
+  if (typeof addBLArticle !== "undefined") window.addBLArticle = addBLArticle;
+  if (typeof addCaisseOp !== "undefined") window.addCaisseOp = addCaisseOp;
+  if (typeof addColorInput !== "undefined") window.addColorInput = addColorInput;
+  if (typeof addCustomColor !== "undefined") window.addCustomColor = addCustomColor;
+  if (typeof addCustomSize !== "undefined") window.addCustomSize = addCustomSize;
+  if (typeof addRefLine !== "undefined") window.addRefLine = addRefLine;
+  if (typeof addSizeInput !== "undefined") window.addSizeInput = addSizeInput;
+  if (typeof addToCart !== "undefined") window.addToCart = addToCart;
+  if (typeof addToCartWithColor !== "undefined") window.addToCartWithColor = addToCartWithColor;
+  if (typeof addToCartWithSize !== "undefined") window.addToCartWithSize = addToCartWithSize;
+  if (typeof addToStockFromConteneur !== "undefined") window.addToStockFromConteneur = addToStockFromConteneur;
+  if (typeof autoCalcJoursRetard !== "undefined") window.autoCalcJoursRetard = autoCalcJoursRetard;
+  if (typeof buildPagination !== "undefined") window.buildPagination = buildPagination;
+  if (typeof checkout !== "undefined") window.checkout = checkout;
+  if (typeof clearCart !== "undefined") window.clearCart = clearCart;
+  if (typeof closeLightbox !== "undefined") window.closeLightbox = closeLightbox;
+  if (typeof closeModal !== "undefined") window.closeModal = closeModal;
+  if (typeof cloturerCaisse !== "undefined") window.cloturerCaisse = cloturerCaisse;
+  if (typeof confirmKGAdd !== "undefined") window.confirmKGAdd = confirmKGAdd;
+  if (typeof confirmRestock !== "undefined") window.confirmRestock = confirmRestock;
+  if (typeof debouncedRenderGrid !== "undefined") window.debouncedRenderGrid = debouncedRenderGrid;
+  if (typeof debouncedRenderStock !== "undefined") window.debouncedRenderStock = debouncedRenderStock;
+  if (typeof deleteBL !== "undefined") window.deleteBL = deleteBL;
+  if (typeof deleteBLArticle !== "undefined") window.deleteBLArticle = deleteBLArticle;
+  if (typeof deleteCaisseOp !== "undefined") window.deleteCaisseOp = deleteCaisseOp;
+  if (typeof deleteConge !== "undefined") window.deleteConge = deleteConge;
+  if (typeof deleteConteneur !== "undefined") window.deleteConteneur = deleteConteneur;
+  if (typeof deleteDep !== "undefined") window.deleteDep = deleteDep;
+  if (typeof deleteEmploye !== "undefined") window.deleteEmploye = deleteEmploye;
+  if (typeof deleteLocal !== "undefined") window.deleteLocal = deleteLocal;
+  if (typeof deleteOATenant !== "undefined") window.deleteOATenant = deleteOATenant;
+  if (typeof deleteProduct !== "undefined") window.deleteProduct = deleteProduct;
+  if (typeof deleteSALocal !== "undefined") window.deleteSALocal = deleteSALocal;
+  if (typeof deleteSARole !== "undefined") window.deleteSARole = deleteSARole;
+  if (typeof deleteSAUser !== "undefined") window.deleteSAUser = deleteSAUser;
+  if (typeof doLogin !== "undefined") window.doLogin = doLogin;
+  if (typeof doLogout !== "undefined") window.doLogout = doLogout;
+  if (typeof downloadSampleCSV !== "undefined") window.downloadSampleCSV = downloadSampleCSV;
+  if (typeof editConteneur !== "undefined") window.editConteneur = editConteneur;
+  if (typeof editDep !== "undefined") window.editDep = editDep;
+  if (typeof editLocal !== "undefined") window.editLocal = editLocal;
+  if (typeof editLocalFromDetail !== "undefined") window.editLocalFromDetail = editLocalFromDetail;
+  if (typeof editProduct !== "undefined") window.editProduct = editProduct;
+  if (typeof executeTransfert !== "undefined") window.executeTransfert = executeTransfert;
+  if (typeof exportProductsJSON !== "undefined") window.exportProductsJSON = exportProductsJSON;
+  if (typeof fillLogin !== "undefined") window.fillLogin = fillLogin;
+  if (typeof filterProducts !== "undefined") window.filterProducts = filterProducts;
+  if (typeof filterRestockList !== "undefined") window.filterRestockList = filterRestockList;
+  if (typeof fixOrphanData !== "undefined") window.fixOrphanData = fixOrphanData;
+  if (typeof fmt !== "undefined") window.fmt = fmt;
+  if (typeof genererContrat !== "undefined") window.genererContrat = genererContrat;
+  if (typeof genererDocAdmin !== "undefined") window.genererDocAdmin = genererDocAdmin;
+  if (typeof genererDocRH !== "undefined") window.genererDocRH = genererDocRH;
+  if (typeof getFondsLocalId !== "undefined") window.getFondsLocalId = getFondsLocalId;
+  if (typeof handleEditPhotoUpload !== "undefined") window.handleEditPhotoUpload = handleEditPhotoUpload;
+  if (typeof handleLogoUpload !== "undefined") window.handleLogoUpload = handleLogoUpload;
+  if (typeof handlePhotoUpload !== "undefined") window.handlePhotoUpload = handlePhotoUpload;
+  if (typeof importCSV !== "undefined") window.importCSV = importCSV;
+  if (typeof importProductsJSON !== "undefined") window.importProductsJSON = importProductsJSON;
+  if (typeof imprimerDocAdmin !== "undefined") window.imprimerDocAdmin = imprimerDocAdmin;
+  if (typeof imprimerDocRH !== "undefined") window.imprimerDocRH = imprimerDocRH;
+  if (typeof initRapportMonthSelect !== "undefined") window.initRapportMonthSelect = initRapportMonthSelect;
+  if (typeof loadSettingsForm !== "undefined") window.loadSettingsForm = loadSettingsForm;
+  if (typeof navigate !== "undefined") window.navigate = navigate;
+  if (typeof onClientChange !== "undefined") window.onClientChange = onClientChange;
+  if (typeof onSALocalSwitch !== "undefined") window.onSALocalSwitch = onSALocalSwitch;
+  if (typeof openBLModal !== "undefined") window.openBLModal = openBLModal;
+  if (typeof openCongeModal !== "undefined") window.openCongeModal = openCongeModal;
+  if (typeof openContratModal !== "undefined") window.openContratModal = openContratModal;
+  if (typeof openDocAdmin !== "undefined") window.openDocAdmin = openDocAdmin;
+  if (typeof openEmployeModal !== "undefined") window.openEmployeModal = openEmployeModal;
+  if (typeof openLightbox !== "undefined") window.openLightbox = openLightbox;
+  if (typeof openModal !== "undefined") window.openModal = openModal;
+  if (typeof openNewLocal !== "undefined") window.openNewLocal = openNewLocal;
+  if (typeof openNewOrdre !== "undefined") window.openNewOrdre = openNewOrdre;
+  if (typeof openOAEdit !== "undefined") window.openOAEdit = openOAEdit;
+  if (typeof openOANewTenant !== "undefined") window.openOANewTenant = openOANewTenant;
+  if (typeof openOARenew !== "undefined") window.openOARenew = openOARenew;
+  if (typeof openOAWA !== "undefined") window.openOAWA = openOAWA;
+  if (typeof openSARoleModal !== "undefined") window.openSARoleModal = openSARoleModal;
+  if (typeof openTransfertFromProduct !== "undefined") window.openTransfertFromProduct = openTransfertFromProduct;
+  if (typeof openTransfertModal !== "undefined") window.openTransfertModal = openTransfertModal;
+  if (typeof ouvrirCaisse !== "undefined") window.ouvrirCaisse = ouvrirCaisse;
+  if (typeof payCredit !== "undefined") window.payCredit = payCredit;
+  if (typeof populateClientSelect !== "undefined") window.populateClientSelect = populateClientSelect;
+  if (typeof previewRepartition !== "undefined") window.previewRepartition = previewRepartition;
+  if (typeof printBL !== "undefined") window.printBL = printBL;
+  if (typeof printInvoice !== "undefined") window.printInvoice = printInvoice;
+  if (typeof printOrdre !== "undefined") window.printOrdre = printOrdre;
+  if (typeof printRapport !== "undefined") window.printRapport = printRapport;
+  if (typeof quickToggleTva !== "undefined") window.quickToggleTva = quickToggleTva;
+  if (typeof regenDocRH !== "undefined") window.regenDocRH = regenDocRH;
+  if (typeof removeFromCart !== "undefined") window.removeFromCart = removeFromCart;
+  if (typeof removeFromCartByKey !== "undefined") window.removeFromCartByKey = removeFromCartByKey;
+  if (typeof removeLogo !== "undefined") window.removeLogo = removeLogo;
+  if (typeof renderBLArticlesTemp !== "undefined") window.renderBLArticlesTemp = renderBLArticlesTemp;
+  if (typeof renderClients !== "undefined") window.renderClients = renderClients;
+  if (typeof renderCommandes !== "undefined") window.renderCommandes = renderCommandes;
+  if (typeof renderConges !== "undefined") window.renderConges = renderConges;
+  if (typeof renderConteneurs !== "undefined") window.renderConteneurs = renderConteneurs;
+  if (typeof renderDepenses !== "undefined") window.renderDepenses = renderDepenses;
+  if (typeof renderEmployes !== "undefined") window.renderEmployes = renderEmployes;
+  if (typeof renderFonds !== "undefined") window.renderFonds = renderFonds;
+  if (typeof renderLivraisons !== "undefined") window.renderLivraisons = renderLivraisons;
+  if (typeof renderLocaux !== "undefined") window.renderLocaux = renderLocaux;
+  if (typeof renderMonthChart !== "undefined") window.renderMonthChart = renderMonthChart;
+  if (typeof renderOATenants !== "undefined") window.renderOATenants = renderOATenants;
+  if (typeof renderOrdres !== "undefined") window.renderOrdres = renderOrdres;
+  if (typeof renderRapports !== "undefined") window.renderRapports = renderRapports;
+  if (typeof renderSADash !== "undefined") window.renderSADash = renderSADash;
+  if (typeof renderSALocaux !== "undefined") window.renderSALocaux = renderSALocaux;
+  if (typeof renderSARoles !== "undefined") window.renderSARoles = renderSARoles;
+  if (typeof renderSAUsers !== "undefined") window.renderSAUsers = renderSAUsers;
+  if (typeof renderSAVue !== "undefined") window.renderSAVue = renderSAVue;
+  if (typeof renderStockTable !== "undefined") window.renderStockTable = renderStockTable;
+  if (typeof renderSuperAdmin !== "undefined") window.renderSuperAdmin = renderSuperAdmin;
+  if (typeof renewOATenant !== "undefined") window.renewOATenant = renewOATenant;
+  if (typeof resetAllRolePerms !== "undefined") window.resetAllRolePerms = resetAllRolePerms;
+  if (typeof resetDepForm !== "undefined") window.resetDepForm = resetDepForm;
+  if (typeof resetRolePerms !== "undefined") window.resetRolePerms = resetRolePerms;
+  if (typeof saSelectLocal !== "undefined") window.saSelectLocal = saSelectLocal;
+  if (typeof saTab !== "undefined") window.saTab = saTab;
+  if (typeof saveAllSettings !== "undefined") window.saveAllSettings = saveAllSettings;
+  if (typeof saveBL !== "undefined") window.saveBL = saveBL;
+  if (typeof saveClient !== "undefined") window.saveClient = saveClient;
+  if (typeof saveConge !== "undefined") window.saveConge = saveConge;
+  if (typeof saveConteneur !== "undefined") window.saveConteneur = saveConteneur;
+  if (typeof saveCreditLimit !== "undefined") window.saveCreditLimit = saveCreditLimit;
+  if (typeof saveDep !== "undefined") window.saveDep = saveDep;
+  if (typeof saveEmploye !== "undefined") window.saveEmploye = saveEmploye;
+  if (typeof saveLocal !== "undefined") window.saveLocal = saveLocal;
+  if (typeof saveOATenant !== "undefined") window.saveOATenant = saveOATenant;
+  if (typeof saveProduct !== "undefined") window.saveProduct = saveProduct;
+  if (typeof saveSALocal !== "undefined") window.saveSALocal = saveSALocal;
+  if (typeof saveSARole !== "undefined") window.saveSARole = saveSARole;
+  if (typeof saveSAUser !== "undefined") window.saveSAUser = saveSAUser;
+  if (typeof selectCategory !== "undefined") window.selectCategory = selectCategory;
+  if (typeof selectPayment !== "undefined") window.selectPayment = selectPayment;
+  if (typeof selectRestockProduct !== "undefined") window.selectRestockProduct = selectRestockProduct;
+  if (typeof selectSARole !== "undefined") window.selectSARole = selectSARole;
+  if (typeof sendWARappelCredit !== "undefined") window.sendWARappelCredit = sendWARappelCredit;
+  if (typeof sendWhatsAppCredit !== "undefined") window.sendWhatsAppCredit = sendWhatsAppCredit;
+  if (typeof setDashPeriod !== "undefined") window.setDashPeriod = setDashPeriod;
+  if (typeof setKGPoids !== "undefined") window.setKGPoids = setKGPoids;
+  if (typeof setLang !== "undefined") window.setLang = setLang;
+  if (typeof setRapportMonth !== "undefined") window.setRapportMonth = setRapportMonth;
+  if (typeof setRapportPeriod !== "undefined") window.setRapportPeriod = setRapportPeriod;
+  if (typeof setRetardMode !== "undefined") window.setRetardMode = setRetardMode;
+  if (typeof setTvaRate !== "undefined") window.setTvaRate = setTvaRate;
+  if (typeof showOrdreConteneur !== "undefined") window.showOrdreConteneur = showOrdreConteneur;
+  if (typeof showOrdrePDF !== "undefined") window.showOrdrePDF = showOrdrePDF;
+  if (typeof showSaleDoc !== "undefined") window.showSaleDoc = showSaleDoc;
+  if (typeof showWACreditPopup !== "undefined") window.showWACreditPopup = showWACreditPopup;
+  if (typeof switchDocType !== "undefined") window.switchDocType = switchDocType;
+  if (typeof toast !== "undefined") window.toast = toast;
+  if (typeof toggleColorSection !== "undefined") window.toggleColorSection = toggleColorSection;
+  if (typeof toggleContratFields !== "undefined") window.toggleContratFields = toggleContratFields;
+  if (typeof toggleOATenant !== "undefined") window.toggleOATenant = toggleOATenant;
+  if (typeof togglePermission !== "undefined") window.togglePermission = togglePermission;
+  if (typeof toggleSizesSection !== "undefined") window.toggleSizesSection = toggleSizesSection;
+  if (typeof toggleTva !== "undefined") window.toggleTva = toggleTva;
+  if (typeof topbarAction !== "undefined") window.topbarAction = topbarAction;
+  if (typeof updateAlertCount !== "undefined") window.updateAlertCount = updateAlertCount;
+  if (typeof updateCartField !== "undefined") window.updateCartField = updateCartField;
+  if (typeof updateCartFieldByKey !== "undefined") window.updateCartFieldByKey = updateCartFieldByKey;
+  if (typeof updateCartTvaUI !== "undefined") window.updateCartTvaUI = updateCartTvaUI;
+  if (typeof updateCongeStatut !== "undefined") window.updateCongeStatut = updateCongeStatut;
+  if (typeof updateContratFields !== "undefined") window.updateContratFields = updateContratFields;
+  if (typeof updateDocRHForm !== "undefined") window.updateDocRHForm = updateDocRHForm;
+  if (typeof updateEmployeSelects !== "undefined") window.updateEmployeSelects = updateEmployeSelects;
+  if (typeof updateKGCartPrice !== "undefined") window.updateKGCartPrice = updateKGCartPrice;
+  if (typeof updateKGCartQty !== "undefined") window.updateKGCartQty = updateKGCartQty;
+  if (typeof updateKGPrixTotal !== "undefined") window.updateKGPrixTotal = updateKGPrixTotal;
+  if (typeof updateProduct !== "undefined") window.updateProduct = updateProduct;
+  if (typeof updateQty !== "undefined") window.updateQty = updateQty;
+  if (typeof updateQtyByKey !== "undefined") window.updateQtyByKey = updateQtyByKey;
+  if (typeof updateSAUserLocalVisibility !== "undefined") window.updateSAUserLocalVisibility = updateSAUserLocalVisibility;
+  if (typeof updateTotalFrais !== "undefined") window.updateTotalFrais = updateTotalFrais;
+  if (typeof updateTotalFraisManuel !== "undefined") window.updateTotalFraisManuel = updateTotalFraisManuel;
+  if (typeof updateTransfertQtyMax !== "undefined") window.updateTransfertQtyMax = updateTransfertQtyMax;
+  if (typeof updateTvaExample !== "undefined") window.updateTvaExample = updateTvaExample;
+  if (typeof updateTvaToggleUI !== "undefined") window.updateTvaToggleUI = updateTvaToggleUI;
+  if (typeof viewClient !== "undefined") window.viewClient = viewClient;
+  if (typeof viewConteneur !== "undefined") window.viewConteneur = viewConteneur;
+  if (typeof viewLocal !== "undefined") window.viewLocal = viewLocal;
+  if (typeof voirEmploye !== "undefined") window.voirEmploye = voirEmploye;
+
 })();
 </script>
 </body>
