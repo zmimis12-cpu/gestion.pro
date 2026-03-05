@@ -10519,23 +10519,19 @@ const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON, {
   },
 });
 
-// Override getSession pour que supabase-js utilise toujours notre JWT
-sb.auth.getSession = async () => {
+// Override COMPLET de l'auth supabase-js pour utiliser notre JWT custom
+// supabase-js v2 appelle getSession + _getSession + fetchWithAuth internalement
+const _gpSession = () => {
   const token = (typeof GP_ACCESS_TOKEN !== 'undefined' && GP_ACCESS_TOKEN) 
     ? GP_ACCESS_TOKEN : null;
-  if (!token) return { data: { session: null }, error: null };
-  return { 
-    data: { 
-      session: { 
-        access_token: token, 
-        token_type: 'bearer',
-        refresh_token: '',
-        expires_in: 3600,
-        user: { id: 'gp-user' }
-      } 
-    }, 
-    error: null 
-  };
+  if (!token) return null;
+  return { access_token: token, token_type: 'bearer', refresh_token: '', expires_in: 3600, user: { id: 'gp-user', role: 'authenticated' } };
+};
+sb.auth.getSession = async () => ({ data: { session: _gpSession() }, error: null });
+sb.auth._getSession = async () => ({ data: { session: _gpSession() }, error: null });
+sb.auth.getUser = async () => {
+  const s = _gpSession();
+  return s ? { data: { user: s.user }, error: null } : { data: { user: null }, error: null };
 };
 
 // ╔══════════════════════════════════════════════════════════════╗
