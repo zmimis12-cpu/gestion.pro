@@ -10486,15 +10486,20 @@ const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON, {
   global: {
     fetch: (url, options = {}) => {
       const token = GP_ACCESS_TOKEN || SUPABASE_ANON;
+      // supabase-js v2 passe les headers comme un objet Headers ou un objet plain
+      // On doit gérer les deux cas pour ne pas perdre Content-Type et Prefer
       const incoming = options.headers || {};
-      // IMPORTANT: préserver TOUS les headers existants (Prefer, Content-Type, etc.)
-      // On ajoute seulement Authorization + apikey sans écraser quoi que ce soit
-      const headers = {
-        ...incoming,
-        'Authorization': 'Bearer ' + token,
-        'apikey': SUPABASE_ANON,
-      };
-      return fetch(url, { ...options, headers });
+      // Convertir en objet plain si c'est un Headers object
+      const plainHeaders = {};
+      if (incoming instanceof Headers) {
+        incoming.forEach((val, key) => { plainHeaders[key] = val; });
+      } else {
+        Object.assign(plainHeaders, incoming);
+      }
+      // Injecter Authorization + apikey sans écraser les autres headers
+      plainHeaders['Authorization'] = 'Bearer ' + token;
+      plainHeaders['apikey'] = SUPABASE_ANON;
+      return fetch(url, { ...options, headers: plainHeaders });
     }
   },
   auth: { persistSession: false, autoRefreshToken: false }
