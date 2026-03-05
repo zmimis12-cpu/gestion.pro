@@ -10487,17 +10487,13 @@ const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON, {
     fetch: (url, options = {}) => {
       const token = GP_ACCESS_TOKEN || SUPABASE_ANON;
       const incoming = options.headers || {};
-      // Préserver Content-Type existant (important pour POST/PATCH)
-      // Ajouter uniquement Authorization + apikey
+      // IMPORTANT: préserver TOUS les headers existants (Prefer, Content-Type, etc.)
+      // On ajoute seulement Authorization + apikey sans écraser quoi que ce soit
       const headers = {
         ...incoming,
         'Authorization': 'Bearer ' + token,
         'apikey': SUPABASE_ANON,
       };
-      // Si Content-Type n'est pas défini et que c'est un POST/PATCH, laisser le navigateur le gérer
-      if (!headers['Content-Type'] && !headers['content-type'] && options.body) {
-        headers['Content-Type'] = 'application/json';
-      }
       return fetch(url, { ...options, headers });
     }
   },
