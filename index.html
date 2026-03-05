@@ -10589,7 +10589,7 @@ const DEFAULT_ROLES = {
 // ╚══════════════════════════════════════════════════════════════╝
 let GP_USER         = null;   // utilisateur connecté
 let GP_TENANT       = null;   // tenant actif (client)
-let GP_ACCESS_TOKEN = null;   // JWT signé par sign-jwt Edge Function
+var GP_ACCESS_TOKEN = null;   // JWT signé par sign-jwt Edge Function (var = global scope)
 let GP_ROLES  = {};     // rôles chargés depuis Supabase
 let GP_LOCAUX_ALL = []; // tous les locaux (pour super admin)
 let GP_USERS_ALL  = []; // tous les utilisateurs (pour super admin)
@@ -10881,15 +10881,9 @@ async function doLogin() {
     // ── Store JWT in memory (NOT localStorage — security best practice) ──
     GP_ACCESS_TOKEN = access_token;
 
-    // ── Inject signed JWT into Supabase client so RLS claims are active ──
-    // All subsequent sb.from() calls will carry this JWT with tenant_id + role
-    try {
-      await sb.auth.setSession({ access_token, refresh_token: '' });
-    } catch(sessionErr) {
-      // If setSession fails (custom JWT vs Supabase Auth secret mismatch),
-      // queries will work via the Authorization header set in gp_setAuthHeader()
-      console.warn('[Auth] setSession note:', sessionErr.message);
-    }
+    // ── JWT injecté via custom fetch — pas besoin de setSession ──
+    // Le custom fetch intercepte chaque requête et injecte GP_ACCESS_TOKEN
+    // dans le header Authorization automatiquement
 
     // ── Build GP_USER and GP_TENANT from JWT payload ──
     GP_USER = {
@@ -12956,10 +12950,7 @@ function deleteSARole(key) {
       return;
     }
 
-    // Inject JWT into Supabase client so RLS claims are active
-    try {
-      await sb.auth.setSession({ access_token: GP_ACCESS_TOKEN, refresh_token: '' });
-    } catch(_) { /* header-based auth fallback — queries still work */ }
+    // JWT injecté via custom fetch automatiquement
 
     // ── 1. Re-fetch user depuis Supabase (JAMAIS depuis localStorage)
     //       ⛔ Ne JAMAIS sélectionner password ou pwd_salt ici
