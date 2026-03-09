@@ -7589,10 +7589,20 @@ function isOwner() {
 }
 
 // Charger tous les tenants depuis Supabase
+let OA_PLANS = [];        // plans disponibles
+let OA_SUBSCRIPTIONS = []; // historique subscriptions
+
 async function loadOAData() {
   try {
-    const { data: tenants } = await sb.from('gp_tenants').select('id, nom, code, actif, plan, expire_at, is_owner, created_at').order('created_at', { ascending: false });
-    OA_TENANTS = tenants || [];
+    const [tenantsRes, plansRes, subsRes] = await Promise.all([
+      sb.from('gp_tenants').select('id, nom, code, actif, plan, expire_at, is_owner, created_at, notes').order('created_at', { ascending: false }),
+      sb.from('gp_plans').select('*').eq('actif', true).order('prix_mensuel'),
+      sb.from('gp_subscriptions').select('*').order('created_at', { ascending: false })
+    ]);
+
+    OA_TENANTS       = tenantsRes.data || [];
+    OA_PLANS         = plansRes.data   || [];
+    OA_SUBSCRIPTIONS = subsRes.data    || [];
 
     // Charger paiements si table existe
     try {
@@ -7615,7 +7625,8 @@ function renderOAStats() {
   const actifs  = OA_TENANTS.filter(t => t.actif && (!t.expire_at || new Date(t.expire_at) > now)).length;
   const soon    = OA_TENANTS.filter(t => t.actif && t.expire_at && new Date(t.expire_at) > now && new Date(t.expire_at) <= in5days).length;
   const expired = OA_TENANTS.filter(t => !t.actif || (t.expire_at && new Date(t.expire_at) < now)).length;
-  const revenue = OA_PAYMENTS.reduce((s, p) => s + (p.montant || 0), 0);
+  const revenue = OA_SUBSCRIPTIONS.reduce((s, p) => s + (p.montant || 0), 0) ||
+                  OA_PAYMENTS.reduce((s, p) => s + (p.montant || 0), 0);
 
   const el = (id, v) => { const e = document.getElementById(id); if(e) e.textContent = v; };
   el('oa-stat-total', total);
@@ -7676,8 +7687,13 @@ function renderOATenants() {
         <div style="font-size:13px;font-weight:700;">${expireStr}</div>
       </div>
       <div style="text-align:center;min-width:80px;">
-        <div style="font-size:11px;color:var(--text2);">Payé</div>
-        <div style="font-size:13px;font-weight:700;color:var(--accent);">${totalPay > 0 ? fmt(totalPay) : '—'}</div>
+        <div style="font-size:11px;color:var(--text2);">Payé total</div>
+        <div style="font-size:13px;font-weight:700;color:var(--accent);">${(() => {
+          const subTotal = OA_SUBSCRIPTIONS.filter(s => s.tenant_id === t.id).reduce((sum, s) => sum + (s.montant||0), 0);
+          const payTotal = OA_PAYMENTS.filter(p => p.tenant_id === t.id).reduce((sum, p) => sum + (p.montant||0), 0);
+          const total = subTotal || payTotal;
+          return total > 0 ? fmt(total) + ' MAD' : '—';
+        })()}</div>
       </div>
       <div style="text-align:center;min-width:70px;">
         <span style="color:${statusColor};font-weight:700;font-size:13px;">${statusIcon} ${statusLabel}</span>
@@ -7772,11 +7788,23 @@ async function saveOATenant() {
       toast(`Client "${nom}" créé ✅`);
     }
 
+    // Enregistrer subscription dans gp_subscriptions
+    await sb.from('gp_subscriptions').insert({
+      tenant_id: tenantId,
+      plan_id: plan,
+      statut: 'active',
+      date_debut: new Date().toISOString(),
+      date_fin: expireAt,
+      montant: montant,
+      methode: 'manuel',
+      notes: notes || `${id ? 'Renouvellement' : 'Création'} ${plan}`
+    });
+
     // Enregistrer paiement si montant > 0
     if (montant > 0) {
       await sb.from('gp_payments').insert({
         tenant_id: tenantId, montant,
-        methode: 'whatsapp', notes: `Création/renouvellement ${plan}`
+        methode: 'manuel', notes: `Création/renouvellement ${plan}`
       });
     }
 
