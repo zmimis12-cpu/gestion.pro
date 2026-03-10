@@ -7777,22 +7777,18 @@ async function saveOATenant() {
 
       // Créer le super admin du client
       if (email && pwd) {
-        // 1. Créer compte Supabase Auth
-        const { data: authData, error: authErr } = await sb.auth.admin
-          ? await sb.auth.admin.createUser({ email, password: pwd, email_confirm: true,
-              user_metadata: { tenant_id: tenantId } })
-          : { data: null, error: { message: 'admin API not available' } };
-
-        // Fallback : utiliser signUp si admin API non disponible
-        let authId = authData?.user?.id || null;
-        if (!authId) {
-          // Créer via une Edge Function ou signUp temporaire
-          const { data: signUpData } = await sb.auth.signUp({
-            email, password: pwd,
-            options: { data: { tenant_id: tenantId } }
-          });
-          authId = signUpData?.user?.id || null;
-        }
+        // 1. Créer compte Supabase Auth via Edge Function (sans casser la session active)
+        const efRes = await fetch(`${SUPABASE_URL}/functions/v1/create-tenant-user`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${SUPABASE_ANON}`
+          },
+          body: JSON.stringify({ email, password: pwd, tenantId, nom })
+        });
+        const efData = await efRes.json();
+        if (!efRes.ok) console.warn('[OA] Edge Function error:', efData.error);
+        const authId = efData.auth_id || null;
 
         // 2. Créer dans gp_users avec auth_id
         const { error: ue } = await sb.from('gp_users').insert({
@@ -7804,11 +7800,6 @@ async function saveOATenant() {
           auth_id: authId
         });
         if (ue) console.warn('User creation error:', ue.message);
-
-        // 3. Mettre tenant_id dans auth metadata si auth_id récupéré
-        if (authId) {
-          await sb.auth.updateUser({ data: { tenant_id: tenantId } });
-        }
       }
       toast(`Client "${nom}" créé ✅`);
     }
