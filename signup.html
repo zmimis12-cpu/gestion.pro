@@ -400,32 +400,7 @@
     outline: none;
   }
 
-  /* OTP */
-  .otp-section { display: none; }
-  .otp-section.visible { display: block; }
 
-  .otp-inputs {
-    display: flex;
-    gap: 8px;
-    justify-content: center;
-    margin: 12px 0;
-  }
-
-  .otp-input {
-    width: 44px; height: 52px;
-    background: var(--surface2);
-    border: 1.5px solid var(--border);
-    border-radius: 10px;
-    color: var(--text);
-    font-size: 20px;
-    font-family: 'Syne', sans-serif;
-    font-weight: 700;
-    text-align: center;
-    outline: none;
-    transition: border-color 0.15s;
-  }
-
-  .otp-input:focus { border-color: var(--accent); }
 
   .btn-primary {
     width: 100%;
@@ -569,16 +544,7 @@
       <div class="step-num">1</div>
       <span>Choisir un plan</span>
     </div>
-    <div class="step-line" id="line1"></div>
-    <div class="step" id="step2">
-      <div class="step-num">2</div>
-      <span>Vos informations</span>
-    </div>
-    <div class="step-line" id="line2"></div>
-    <div class="step" id="step3">
-      <div class="step-num">3</div>
-      <span>Vérification SMS</span>
-    </div>
+
   </div>
 
   <!-- Main content -->
@@ -644,34 +610,12 @@
           </div>
         </div>
 
-        <button class="btn-primary" onclick="goToOTP()" id="btn-next">
-          Continuer →
+        <button class="btn-primary" onclick="createAccount()" id="btn-create">
+          Créer mon compte →
         </button>
       </div>
 
-      <!-- Step 2 : OTP -->
-      <div id="form-step2" class="otp-section">
-        <div style="text-align:center;margin-bottom:20px;">
-          <div style="font-size:32px;margin-bottom:8px;">📱</div>
-          <div style="font-weight:600;margin-bottom:6px;">Code de vérification envoyé</div>
-          <div style="font-size:13px;color:var(--text2);">Entrez le code reçu au <span id="otp-phone-display" style="color:var(--text);font-weight:500;"></span></div>
-        </div>
 
-        <div class="otp-inputs">
-          <input type="tel" class="otp-input" maxlength="1" oninput="otpNext(this,0)" onkeydown="otpBack(event,this,0)">
-          <input type="tel" class="otp-input" maxlength="1" oninput="otpNext(this,1)" onkeydown="otpBack(event,this,1)">
-          <input type="tel" class="otp-input" maxlength="1" oninput="otpNext(this,2)" onkeydown="otpBack(event,this,2)">
-          <input type="tel" class="otp-input" maxlength="1" oninput="otpNext(this,3)" onkeydown="otpBack(event,this,3)">
-          <input type="tel" class="otp-input" maxlength="1" oninput="otpNext(this,4)" onkeydown="otpBack(event,this,4)">
-          <input type="tel" class="otp-input" maxlength="1" oninput="otpNext(this,5)" onkeydown="otpBack(event,this,5)">
-        </div>
-
-        <button class="btn-primary" onclick="verifyOTP()" id="btn-verify">
-          ✅ Vérifier et créer mon compte
-        </button>
-        <button class="btn-secondary" onclick="resendOTP()">Renvoyer le code</button>
-        <button class="btn-secondary" onclick="backToStep1()">← Retour</button>
-      </div>
 
     </div>
   </div>
@@ -699,25 +643,20 @@ const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
 let SELECTED_PLAN = null;
 let USER_IP = null;
 
-// ── Plans features map ──
 const PLAN_FEATURES = {
   starter:  ['Caisse', 'Stock', 'Clients', 'Dépenses', 'Alertes', '3 utilisateurs'],
   business: ['+ Employés', '+ Congés', '+ Locaux', '+ Commandes', '10 utilisateurs'],
   premium:  ['+ Conteneurs', '+ Livraisons', '+ Documents RH', '+ Docs Admin', 'Utilisateurs illimités']
 };
-
 const PLAN_EMOJIS = { starter:'🥉', business:'🥈', premium:'🥇' };
 
-// ── Init ──
 async function init() {
-  // Récupérer IP
   try {
     const r = await fetch('https://api.ipify.org?format=json');
     const d = await r.json();
     USER_IP = d.ip;
   } catch(e) { USER_IP = 'unknown'; }
 
-  // Charger plans
   const { data: plans } = await sb.from('gp_plans').select('*').eq('actif', true).order('prix_mensuel');
   renderPlans(plans || []);
 }
@@ -744,60 +683,15 @@ function renderPlans(plans) {
 
 function selectPlan(planId) {
   SELECTED_PLAN = planId;
-
-  // Remove all selections
   document.querySelectorAll('.plan-card, .trial-card').forEach(el => el.classList.remove('selected'));
-
-  // Select current
   const el = document.getElementById('plan-' + planId);
   if (el) el.classList.add('selected');
-
-  // Preview
   const names = { trial:'🎁 Essai gratuit 3 jours', starter:'🥉 Starter', business:'🥈 Business', premium:'🥇 Premium' };
   document.getElementById('preview-plan-name').textContent = names[planId] || planId;
   document.getElementById('selected-preview').classList.add('visible');
-
-  // Trial warning
   document.getElementById('trial-warning').style.display = planId === 'trial' ? 'block' : 'none';
 }
 
-// ── OTP helpers ──
-function otpNext(input, idx) {
-  input.value = input.value.replace(/[^0-9]/g, '');
-  if (input.value && idx < 5) {
-    document.querySelectorAll('.otp-input')[idx + 1].focus();
-  }
-  // Auto-verify when all 6 digits entered
-  const vals = [...document.querySelectorAll('.otp-input')].map(i => i.value);
-  if (vals.every(v => v)) verifyOTP();
-}
-
-function otpBack(e, input, idx) {
-  if (e.key === 'Backspace' && !input.value && idx > 0) {
-    document.querySelectorAll('.otp-input')[idx - 1].focus();
-  }
-}
-
-function backToStep1() {
-  document.getElementById('form-step1').style.display = 'block';
-  document.getElementById('form-step2').classList.remove('visible');
-  updateStep(1);
-}
-
-function updateStep(n) {
-  [1,2,3].forEach(i => {
-    const s = document.getElementById('step' + i);
-    s.classList.remove('active', 'done');
-    if (i < n) s.classList.add('done');
-    else if (i === n) s.classList.add('active');
-  });
-  [1,2].forEach(i => {
-    const l = document.getElementById('line' + i);
-    l.classList.toggle('done', i < n);
-  });
-}
-
-// ── Toast ──
 function toast(msg, type = 'success') {
   const el = document.getElementById('toast');
   el.textContent = msg;
@@ -805,133 +699,71 @@ function toast(msg, type = 'success') {
   setTimeout(() => el.classList.remove('show'), 3500);
 }
 
-// ── Step 1 → OTP ──
-async function goToOTP() {
+async function createAccount() {
   const nom   = document.getElementById('f-nom').value.trim();
   const code  = document.getElementById('f-code').value.trim();
   const email = document.getElementById('f-email').value.trim();
   const pwd   = document.getElementById('f-pwd').value;
   const phone = document.getElementById('f-phone').value.trim();
 
-  if (!nom)   { toast('Nom du commerce requis', 'error'); return; }
+  if (!nom)                      { toast('Nom du commerce requis', 'error'); return; }
   if (!code || code.length < 3)  { toast('Code min. 3 caractères', 'error'); return; }
-  if (!email) { toast('Email requis', 'error'); return; }
-  if (!pwd || pwd.length < 8) { toast('Mot de passe min. 8 caractères', 'error'); return; }
-  if (!phone || phone.length < 9) { toast('Numéro de téléphone invalide', 'error'); return; }
-  if (!SELECTED_PLAN) { toast('Veuillez choisir un plan', 'error'); return; }
+  if (!email)                    { toast('Email requis', 'error'); return; }
+  if (!pwd || pwd.length < 8)    { toast('Mot de passe min. 8 caractères', 'error'); return; }
+  if (!phone || phone.length < 9){ toast('Numéro de téléphone invalide', 'error'); return; }
+  if (!SELECTED_PLAN)            { toast('Veuillez choisir un plan', 'error'); return; }
 
-  const btn = document.getElementById('btn-next');
+  const btn = document.getElementById('btn-create');
   btn.disabled = true;
-  btn.innerHTML = '<span class="spinner"></span>Vérification...';
+  btn.innerHTML = '<span class="spinner"></span>Création en cours...';
+
+  const fullPhone = '+212' + phone;
 
   try {
-    // Vérifier code unique
+    // 1. Vérifier code unique
     const { data: existCode } = await sb.from('gp_tenants').select('id').eq('code', code).maybeSingle();
     if (existCode) {
       document.getElementById('code-error').classList.add('visible');
-      btn.disabled = false;
-      btn.textContent = 'Continuer →';
+      btn.disabled = false; btn.textContent = 'Créer mon compte →';
       return;
     }
     document.getElementById('code-error').classList.remove('visible');
 
-    // Vérifier email unique
+    // 2. Vérifier email unique
     const { data: existEmail } = await sb.from('gp_users').select('id').eq('email', email).maybeSingle();
-    if (existEmail) { toast('Email déjà utilisé', 'error'); btn.disabled = false; btn.textContent = 'Continuer →'; return; }
+    if (existEmail) { toast('Email déjà utilisé', 'error'); btn.disabled = false; btn.textContent = 'Créer mon compte →'; return; }
 
-    const fullPhone = '+212' + phone;
-
-    // Si essai gratuit : vérifier phone + IP
+    // 3. Anti-fraude essai gratuit
     if (SELECTED_PLAN === 'trial') {
+      // Vérifier téléphone
       const { data: phoneBlock } = await sb.from('gp_trial_blocks').select('id').eq('type','phone').eq('value', fullPhone).maybeSingle();
       if (phoneBlock) {
         document.getElementById('phone-error').classList.add('visible');
-        btn.disabled = false;
-        btn.textContent = 'Continuer →';
+        btn.disabled = false; btn.textContent = 'Créer mon compte →';
         return;
       }
       document.getElementById('phone-error').classList.remove('visible');
-
+      // Vérifier IP
       const { data: ipBlock } = await sb.from('gp_trial_blocks').select('id').eq('type','ip').eq('value', USER_IP || 'unknown').maybeSingle();
-      if (ipBlock) { toast('⚠️ Un essai gratuit a déjà été utilisé depuis cette adresse IP', 'error'); btn.disabled = false; btn.textContent = 'Continuer →'; return; }
+      if (ipBlock) { toast('⚠️ Un essai gratuit a déjà été utilisé depuis cette adresse IP', 'error'); btn.disabled = false; btn.textContent = 'Créer mon compte →'; return; }
     }
 
-    // Envoyer OTP SMS via Supabase Auth
-    const { error: otpErr } = await sb.auth.signInWithOtp({
-      phone: fullPhone
-    });
-
-    if (otpErr) throw otpErr;
-
-    // Passer à step OTP
-    document.getElementById('form-step1').style.display = 'none';
-    document.getElementById('form-step2').classList.add('visible');
-    document.getElementById('otp-phone-display').textContent = fullPhone;
-    updateStep(3);
-    toast('Code SMS envoyé ✅');
-
-  } catch(e) {
-    toast('Erreur: ' + e.message, 'error');
-  }
-
-  btn.disabled = false;
-  btn.textContent = 'Continuer →';
-}
-
-async function resendOTP() {
-  const phone = '+212' + document.getElementById('f-phone').value.trim();
-  const { error } = await sb.auth.signInWithOtp({ phone });
-  if (error) { toast('Erreur: ' + error.message, 'error'); return; }
-  toast('Code renvoyé ✅');
-}
-
-// ── Verify OTP + Create tenant ──
-async function verifyOTP() {
-  const code = [...document.querySelectorAll('.otp-input')].map(i => i.value).join('');
-  if (code.length < 6) { toast('Entrez le code complet', 'error'); return; }
-
-  const nom    = document.getElementById('f-nom').value.trim();
-  const tCode  = document.getElementById('f-code').value.trim();
-  const email  = document.getElementById('f-email').value.trim();
-  const pwd    = document.getElementById('f-pwd').value;
-  const phone  = '+212' + document.getElementById('f-phone').value.trim();
-
-  const btn = document.getElementById('btn-verify');
-  btn.disabled = true;
-  btn.innerHTML = '<span class="spinner"></span>Création en cours...';
-
-  try {
-    // Vérifier OTP
-    const { data: authData, error: otpErr } = await sb.auth.verifyOtp({
-      phone,
-      token: code,
-      type: 'sms'
-    });
-    if (otpErr) throw new Error('Code invalide ou expiré');
-
-    // Calculer dates
-    const isTrial = SELECTED_PLAN === 'trial';
-    const planId  = isTrial ? 'premium' : SELECTED_PLAN;
-    const days    = isTrial ? 3 : 30;
+    // 4. Créer tenant
+    const isTrial  = SELECTED_PLAN === 'trial';
+    const planId   = isTrial ? 'premium' : SELECTED_PLAN;
+    const days     = isTrial ? 3 : 30;
     const expireAt = new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString();
 
-    // Créer tenant
     const { data: tenant, error: tenantErr } = await sb.from('gp_tenants').insert({
-      nom: nom,
-      code: tCode,
-      actif: true,
-      plan: planId,
-      expire_at: expireAt,
-      is_owner: false,
-      trial_used: isTrial,
-      trial_phone: isTrial ? phone : null,
+      nom, code, actif: true, plan: planId, expire_at: expireAt,
+      is_owner: false, trial_used: isTrial,
+      trial_phone: isTrial ? fullPhone : null,
       trial_ip: isTrial ? USER_IP : null,
       signup_ip: USER_IP
     }).select().single();
-
     if (tenantErr) throw tenantErr;
 
-    // Créer compte Auth via Edge Function
+    // 5. Créer compte Auth via Edge Function
     const efRes = await fetch(`${SUPABASE_URL}/functions/v1/create-tenant-user`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${SUPABASE_ANON}` },
@@ -940,40 +772,36 @@ async function verifyOTP() {
     const efData = await efRes.json();
     if (!efRes.ok) throw new Error(efData.error || 'Erreur création compte');
 
-    // Subscription
+    // 6. Subscription
     await sb.from('gp_subscriptions').insert({
-      tenant_id: tenant.id,
-      plan_id: planId,
+      tenant_id: tenant.id, plan_id: planId,
       statut: isTrial ? 'trial' : 'pending',
-      date_debut: new Date().toISOString(),
-      date_fin: expireAt,
-      montant: 0,
-      methode: isTrial ? 'trial' : 'virement',
+      date_debut: new Date().toISOString(), date_fin: expireAt,
+      montant: 0, methode: isTrial ? 'trial' : 'virement',
       notes: isTrial ? 'Essai gratuit 3 jours' : 'En attente de virement'
     });
 
-    // Bloquer phone + IP si essai
+    // 7. Bloquer phone + IP si essai
     if (isTrial) {
       await sb.from('gp_trial_blocks').insert([
-        { type: 'phone', value: phone, tenant_id: tenant.id },
-        { type: 'ip', value: USER_IP || 'unknown', tenant_id: tenant.id }
-      ]).throwOnError();
+        { type: 'phone', value: fullPhone, tenant_id: tenant.id },
+        { type: 'ip',    value: USER_IP || 'unknown', tenant_id: tenant.id }
+      ]);
     }
 
-    // Success
+    // 8. Succès
     document.getElementById('main-layout').style.display = 'none';
     document.getElementById('hero-section').style.display = 'none';
     document.getElementById('steps-section').style.display = 'none';
-    const successMsg = isTrial
+    document.getElementById('success-msg').textContent = isTrial
       ? `Votre essai Premium de 3 jours est activé ! Connectez-vous avec ${email}.`
       : `Votre compte est créé. Connectez-vous et effectuez le virement pour activer votre plan ${planId}.`;
-    document.getElementById('success-msg').textContent = successMsg;
     document.getElementById('success-screen').classList.add('visible');
 
   } catch(e) {
     toast('Erreur: ' + e.message, 'error');
     btn.disabled = false;
-    btn.textContent = '✅ Vérifier et créer mon compte';
+    btn.textContent = 'Créer mon compte →';
   }
 }
 
