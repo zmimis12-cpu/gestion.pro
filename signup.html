@@ -1,0 +1,983 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GestionPro — Créer votre compte</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root {
+    --bg: #0a0a0f;
+    --surface: #13131a;
+    --surface2: #1c1c26;
+    --border: rgba(255,255,255,0.07);
+    --accent: #00d4aa;
+    --accent2: #7c3aed;
+    --gold: #f5a623;
+    --red: #e03131;
+    --text: #f0f0f5;
+    --text2: #8888a0;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Background mesh */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background:
+      radial-gradient(ellipse 80% 50% at 20% 20%, rgba(0,212,170,0.06) 0%, transparent 60%),
+      radial-gradient(ellipse 60% 60% at 80% 80%, rgba(124,58,237,0.08) 0%, transparent 60%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .wrap {
+    position: relative;
+    z-index: 1;
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 40px 20px 80px;
+  }
+
+  /* Header */
+  .header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 60px;
+  }
+
+  .logo {
+    font-family: 'Syne', sans-serif;
+    font-size: 22px;
+    font-weight: 800;
+    color: var(--accent);
+    letter-spacing: -0.5px;
+  }
+
+  .login-link {
+    font-size: 13px;
+    color: var(--text2);
+  }
+  .login-link a {
+    color: var(--accent);
+    text-decoration: none;
+    font-weight: 500;
+  }
+
+  /* Hero */
+  .hero {
+    text-align: center;
+    margin-bottom: 60px;
+  }
+
+  .hero-badge {
+    display: inline-block;
+    padding: 6px 16px;
+    border-radius: 100px;
+    border: 1px solid rgba(0,212,170,0.3);
+    background: rgba(0,212,170,0.07);
+    font-size: 12px;
+    color: var(--accent);
+    font-weight: 500;
+    letter-spacing: 0.5px;
+    margin-bottom: 20px;
+  }
+
+  .hero h1 {
+    font-family: 'Syne', sans-serif;
+    font-size: clamp(32px, 5vw, 52px);
+    font-weight: 800;
+    line-height: 1.1;
+    letter-spacing: -1px;
+    margin-bottom: 16px;
+  }
+
+  .hero h1 span { color: var(--accent); }
+
+  .hero p {
+    font-size: 16px;
+    color: var(--text2);
+    max-width: 480px;
+    margin: 0 auto;
+    line-height: 1.6;
+  }
+
+  /* Steps indicator */
+  .steps {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0;
+    margin-bottom: 48px;
+  }
+
+  .step {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: var(--text2);
+    font-weight: 500;
+  }
+
+  .step.active { color: var(--text); }
+  .step.done { color: var(--accent); }
+
+  .step-num {
+    width: 28px; height: 28px;
+    border-radius: 50%;
+    border: 1.5px solid var(--border);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px;
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    flex-shrink: 0;
+  }
+  .step.active .step-num { border-color: var(--accent); color: var(--accent); background: rgba(0,212,170,0.1); }
+  .step.done .step-num { border-color: var(--accent); background: var(--accent); color: #000; }
+
+  .step-line {
+    width: 40px; height: 1px;
+    background: var(--border);
+    margin: 0 8px;
+  }
+  .step-line.done { background: var(--accent); }
+
+  /* Cards layout */
+  .main-layout {
+    display: grid;
+    grid-template-columns: 1fr 380px;
+    gap: 32px;
+    align-items: start;
+  }
+
+  @media (max-width: 768px) {
+    .main-layout { grid-template-columns: 1fr; }
+  }
+
+  /* Plan cards */
+  .plans-section h2 {
+    font-family: 'Syne', sans-serif;
+    font-size: 18px;
+    font-weight: 700;
+    margin-bottom: 20px;
+    color: var(--text2);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    font-size: 12px;
+  }
+
+  .plan-card {
+    background: var(--surface);
+    border: 1.5px solid var(--border);
+    border-radius: 16px;
+    padding: 20px;
+    margin-bottom: 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .plan-card:hover {
+    border-color: rgba(0,212,170,0.3);
+    background: var(--surface2);
+  }
+
+  .plan-card.selected {
+    border-color: var(--accent);
+    background: rgba(0,212,170,0.05);
+  }
+
+  .plan-card.selected::before {
+    content: '✓';
+    position: absolute;
+    top: 16px; right: 16px;
+    width: 24px; height: 24px;
+    border-radius: 50%;
+    background: var(--accent);
+    color: #000;
+    font-weight: 800;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px;
+  }
+
+  .plan-card.popular {
+    border-color: rgba(124,58,237,0.4);
+  }
+
+  .plan-badge-popular {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 100px;
+    background: rgba(124,58,237,0.15);
+    border: 1px solid rgba(124,58,237,0.3);
+    font-size: 10px;
+    color: #a78bfa;
+    font-weight: 600;
+    margin-bottom: 10px;
+    letter-spacing: 0.5px;
+  }
+
+  .plan-top {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 12px;
+  }
+
+  .plan-emoji { font-size: 24px; }
+
+  .plan-name {
+    font-family: 'Syne', sans-serif;
+    font-size: 16px;
+    font-weight: 700;
+  }
+
+  .plan-price {
+    margin-left: auto;
+    text-align: right;
+  }
+
+  .plan-price-main {
+    font-family: 'Syne', sans-serif;
+    font-size: 20px;
+    font-weight: 800;
+    color: var(--accent);
+  }
+
+  .plan-price-sub {
+    font-size: 11px;
+    color: var(--text2);
+  }
+
+  .plan-features {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .plan-feature-tag {
+    font-size: 11px;
+    padding: 3px 8px;
+    border-radius: 6px;
+    background: rgba(255,255,255,0.04);
+    color: var(--text2);
+    border: 1px solid var(--border);
+  }
+
+  /* Trial card */
+  .trial-card {
+    background: linear-gradient(135deg, rgba(245,166,35,0.08), rgba(245,166,35,0.03));
+    border: 1.5px dashed rgba(245,166,35,0.3);
+    border-radius: 16px;
+    padding: 18px 20px;
+    cursor: pointer;
+    transition: all 0.2s;
+    margin-bottom: 12px;
+  }
+
+  .trial-card:hover, .trial-card.selected {
+    border-color: var(--gold);
+    background: rgba(245,166,35,0.08);
+  }
+
+  .trial-card.selected::after {
+    content: '✓ Sélectionné';
+    font-size: 11px;
+    color: var(--gold);
+    font-weight: 600;
+  }
+
+  .trial-top {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 8px;
+  }
+
+  .trial-title {
+    font-family: 'Syne', sans-serif;
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--gold);
+  }
+
+  .trial-desc {
+    font-size: 12px;
+    color: var(--text2);
+    line-height: 1.5;
+  }
+
+  /* Form panel */
+  .form-panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 28px;
+    position: sticky;
+    top: 20px;
+  }
+
+  .form-panel h3 {
+    font-family: 'Syne', sans-serif;
+    font-size: 16px;
+    font-weight: 700;
+    margin-bottom: 24px;
+  }
+
+  .selected-plan-preview {
+    background: var(--surface2);
+    border-radius: 10px;
+    padding: 12px 16px;
+    margin-bottom: 20px;
+    border: 1px solid var(--border);
+    font-size: 13px;
+    color: var(--text2);
+    display: none;
+  }
+
+  .selected-plan-preview.visible { display: block; }
+  .selected-plan-preview strong { color: var(--accent); }
+
+  .form-group {
+    margin-bottom: 16px;
+  }
+
+  .form-group label {
+    display: block;
+    font-size: 12px;
+    color: var(--text2);
+    margin-bottom: 6px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .form-input {
+    width: 100%;
+    padding: 11px 14px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    color: var(--text);
+    font-size: 14px;
+    font-family: 'DM Sans', sans-serif;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+
+  .form-input:focus { border-color: var(--accent); }
+  .form-input::placeholder { color: var(--text2); }
+
+  .phone-row {
+    display: flex;
+    gap: 8px;
+  }
+
+  .phone-prefix {
+    width: 80px;
+    flex-shrink: 0;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 11px 14px;
+    color: var(--text2);
+    font-size: 14px;
+    font-family: 'DM Sans', sans-serif;
+    outline: none;
+  }
+
+  /* OTP */
+  .otp-section { display: none; }
+  .otp-section.visible { display: block; }
+
+  .otp-inputs {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+    margin: 12px 0;
+  }
+
+  .otp-input {
+    width: 44px; height: 52px;
+    background: var(--surface2);
+    border: 1.5px solid var(--border);
+    border-radius: 10px;
+    color: var(--text);
+    font-size: 20px;
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    text-align: center;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+
+  .otp-input:focus { border-color: var(--accent); }
+
+  .btn-primary {
+    width: 100%;
+    padding: 13px;
+    background: var(--accent);
+    color: #000;
+    border: none;
+    border-radius: 12px;
+    font-family: 'Syne', sans-serif;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: opacity 0.15s, transform 0.1s;
+    letter-spacing: 0.3px;
+  }
+
+  .btn-primary:hover { opacity: 0.9; }
+  .btn-primary:active { transform: scale(0.98); }
+  .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  .btn-secondary {
+    width: 100%;
+    padding: 11px;
+    background: transparent;
+    color: var(--text2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13px;
+    cursor: pointer;
+    margin-top: 8px;
+    transition: border-color 0.15s;
+  }
+
+  .btn-secondary:hover { border-color: var(--text2); }
+
+  .divider {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 16px 0;
+    color: var(--text2);
+    font-size: 12px;
+  }
+  .divider::before, .divider::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  /* Toast */
+  .toast {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%) translateY(100px);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 12px 20px;
+    font-size: 13px;
+    z-index: 999;
+    transition: transform 0.3s;
+    white-space: nowrap;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+  }
+  .toast.show { transform: translateX(-50%) translateY(0); }
+  .toast.success { border-color: var(--accent); color: var(--accent); }
+  .toast.error { border-color: var(--red); color: var(--red); }
+
+  /* Success screen */
+  .success-screen {
+    display: none;
+    text-align: center;
+    padding: 60px 20px;
+  }
+  .success-screen.visible { display: block; }
+  .success-icon {
+    font-size: 64px;
+    margin-bottom: 24px;
+    animation: pop 0.5s ease;
+  }
+  @keyframes pop { from { transform: scale(0); } to { transform: scale(1); } }
+  .success-screen h2 { font-family: 'Syne', sans-serif; font-size: 28px; font-weight: 800; margin-bottom: 12px; }
+  .success-screen p { color: var(--text2); font-size: 15px; line-height: 1.6; max-width: 400px; margin: 0 auto 24px; }
+
+  /* Loading spinner */
+  .spinner {
+    display: inline-block;
+    width: 16px; height: 16px;
+    border: 2px solid rgba(0,0,0,0.3);
+    border-top-color: #000;
+    border-radius: 50%;
+    animation: spin 0.6s linear infinite;
+    vertical-align: middle;
+    margin-right: 6px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .warning-box {
+    background: rgba(245,166,35,0.08);
+    border: 1px solid rgba(245,166,35,0.25);
+    border-radius: 10px;
+    padding: 10px 14px;
+    font-size: 12px;
+    color: var(--gold);
+    margin-top: 8px;
+    line-height: 1.5;
+  }
+
+  .error-msg {
+    font-size: 12px;
+    color: var(--red);
+    margin-top: 6px;
+    display: none;
+  }
+  .error-msg.visible { display: block; }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+
+  <!-- Header -->
+  <div class="header">
+    <div class="logo">GestionPro 🚀</div>
+    <div class="login-link">Déjà un compte ? <a href="/">Se connecter</a></div>
+  </div>
+
+  <!-- Hero -->
+  <div class="hero" id="hero-section">
+    <div class="hero-badge">✨ Gérez votre commerce au Maroc</div>
+    <h1>Choisissez votre<br><span>plan GestionPro</span></h1>
+    <p>Essai gratuit 3 jours • Aucune carte requise • Activation immédiate</p>
+  </div>
+
+  <!-- Steps -->
+  <div class="steps" id="steps-section">
+    <div class="step active" id="step1">
+      <div class="step-num">1</div>
+      <span>Choisir un plan</span>
+    </div>
+    <div class="step-line" id="line1"></div>
+    <div class="step" id="step2">
+      <div class="step-num">2</div>
+      <span>Vos informations</span>
+    </div>
+    <div class="step-line" id="line2"></div>
+    <div class="step" id="step3">
+      <div class="step-num">3</div>
+      <span>Vérification SMS</span>
+    </div>
+  </div>
+
+  <!-- Main content -->
+  <div class="main-layout" id="main-layout">
+
+    <!-- Plans -->
+    <div class="plans-section">
+      <h2>Sélectionnez votre offre</h2>
+
+      <!-- Trial -->
+      <div class="trial-card" id="plan-trial" onclick="selectPlan('trial')">
+        <div class="trial-top">
+          <span style="font-size:24px;">🎁</span>
+          <div>
+            <div class="trial-title">Essai Gratuit — 3 jours</div>
+            <div style="font-size:11px;color:var(--gold);font-weight:500;">Accès Premium limité • 0 MAD</div>
+          </div>
+        </div>
+        <div class="trial-desc">Testez toutes les fonctionnalités Premium pendant 3 jours. 1 essai par numéro de téléphone.</div>
+      </div>
+
+      <div id="plans-container">
+        <div style="text-align:center;padding:40px;color:var(--text2);">Chargement des plans...</div>
+      </div>
+    </div>
+
+    <!-- Form -->
+    <div class="form-panel" id="form-panel">
+      <h3>📋 Créer votre compte</h3>
+
+      <div class="selected-plan-preview" id="selected-preview">
+        Plan sélectionné : <strong id="preview-plan-name">—</strong>
+      </div>
+
+      <!-- Step 1 : Info -->
+      <div id="form-step1">
+        <div class="form-group">
+          <label>Nom du commerce *</label>
+          <input type="text" id="f-nom" class="form-input" placeholder="Ex: Boutique Zikoo">
+        </div>
+        <div class="form-group">
+          <label>Code d'accès (unique) *</label>
+          <input type="text" id="f-code" class="form-input" placeholder="ex: zikoo123" oninput="this.value=this.value.toLowerCase().replace(/[^a-z0-9]/g,'')">
+          <div id="code-error" class="error-msg">Ce code est déjà utilisé</div>
+        </div>
+        <div class="form-group">
+          <label>Email administrateur *</label>
+          <input type="email" id="f-email" class="form-input" placeholder="votre@email.com">
+        </div>
+        <div class="form-group">
+          <label>Mot de passe *</label>
+          <input type="password" id="f-pwd" class="form-input" placeholder="Min. 8 caractères">
+        </div>
+        <div class="form-group">
+          <label>Numéro de téléphone *</label>
+          <div class="phone-row">
+            <input class="phone-prefix" value="+212" readonly>
+            <input type="tel" id="f-phone" class="form-input" placeholder="6XXXXXXXX" oninput="this.value=this.value.replace(/[^0-9]/g,'').substring(0,9)">
+          </div>
+          <div id="phone-error" class="error-msg">Ce numéro a déjà utilisé un essai gratuit</div>
+          <div class="warning-box" id="trial-warning" style="display:none;">
+            ⚠️ L'essai gratuit est limité à 1 utilisation par numéro de téléphone. En cas de fraude, votre compte sera suspendu.
+          </div>
+        </div>
+
+        <button class="btn-primary" onclick="goToOTP()" id="btn-next">
+          Continuer →
+        </button>
+      </div>
+
+      <!-- Step 2 : OTP -->
+      <div id="form-step2" class="otp-section">
+        <div style="text-align:center;margin-bottom:20px;">
+          <div style="font-size:32px;margin-bottom:8px;">📱</div>
+          <div style="font-weight:600;margin-bottom:6px;">Code de vérification envoyé</div>
+          <div style="font-size:13px;color:var(--text2);">Entrez le code reçu au <span id="otp-phone-display" style="color:var(--text);font-weight:500;"></span></div>
+        </div>
+
+        <div class="otp-inputs">
+          <input type="tel" class="otp-input" maxlength="1" oninput="otpNext(this,0)" onkeydown="otpBack(event,this,0)">
+          <input type="tel" class="otp-input" maxlength="1" oninput="otpNext(this,1)" onkeydown="otpBack(event,this,1)">
+          <input type="tel" class="otp-input" maxlength="1" oninput="otpNext(this,2)" onkeydown="otpBack(event,this,2)">
+          <input type="tel" class="otp-input" maxlength="1" oninput="otpNext(this,3)" onkeydown="otpBack(event,this,3)">
+          <input type="tel" class="otp-input" maxlength="1" oninput="otpNext(this,4)" onkeydown="otpBack(event,this,4)">
+          <input type="tel" class="otp-input" maxlength="1" oninput="otpNext(this,5)" onkeydown="otpBack(event,this,5)">
+        </div>
+
+        <button class="btn-primary" onclick="verifyOTP()" id="btn-verify">
+          ✅ Vérifier et créer mon compte
+        </button>
+        <button class="btn-secondary" onclick="resendOTP()">Renvoyer le code</button>
+        <button class="btn-secondary" onclick="backToStep1()">← Retour</button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Success -->
+  <div class="success-screen" id="success-screen">
+    <div class="success-icon">🎉</div>
+    <h2>Compte créé avec succès !</h2>
+    <p id="success-msg">Votre compte GestionPro est prêt. Vous allez être redirigé vers l'application.</p>
+    <button class="btn-primary" style="max-width:280px;margin:0 auto;" onclick="window.location.href='/'">
+      Accéder à GestionPro →
+    </button>
+  </div>
+
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+const SUPABASE_URL  = 'https://xyaispmikggrgjczyghk.supabase.co';
+const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh5YWlzcG1pa2dncmdqY3p5Z2hrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE3OTc4NjUsImV4cCI6MjA4NzM3Mzg2NX0.ohiqpHyEuzMyhPLoktFe7SakgfnRRj2TT4ysuQOER3o';
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+
+let SELECTED_PLAN = null;
+let USER_IP = null;
+
+// ── Plans features map ──
+const PLAN_FEATURES = {
+  starter:  ['Caisse', 'Stock', 'Clients', 'Dépenses', 'Alertes', '3 utilisateurs'],
+  business: ['+ Employés', '+ Congés', '+ Locaux', '+ Commandes', '10 utilisateurs'],
+  premium:  ['+ Conteneurs', '+ Livraisons', '+ Documents RH', '+ Docs Admin', 'Utilisateurs illimités']
+};
+
+const PLAN_EMOJIS = { starter:'🥉', business:'🥈', premium:'🥇' };
+
+// ── Init ──
+async function init() {
+  // Récupérer IP
+  try {
+    const r = await fetch('https://api.ipify.org?format=json');
+    const d = await r.json();
+    USER_IP = d.ip;
+  } catch(e) { USER_IP = 'unknown'; }
+
+  // Charger plans
+  const { data: plans } = await sb.from('gp_plans').select('*').eq('actif', true).order('prix_mensuel');
+  renderPlans(plans || []);
+}
+
+function renderPlans(plans) {
+  const el = document.getElementById('plans-container');
+  el.innerHTML = plans.map(p => `
+    <div class="plan-card ${p.id === 'business' ? 'popular' : ''}" id="plan-${p.id}" onclick="selectPlan('${p.id}')">
+      ${p.id === 'business' ? '<div class="plan-badge-popular">⭐ POPULAIRE</div>' : ''}
+      <div class="plan-top">
+        <span class="plan-emoji">${PLAN_EMOJIS[p.id] || '📦'}</span>
+        <span class="plan-name">${p.nom}</span>
+        <div class="plan-price">
+          <div class="plan-price-main">${p.prix_mensuel} MAD</div>
+          <div class="plan-price-sub">/mois</div>
+        </div>
+      </div>
+      <div class="plan-features">
+        ${(PLAN_FEATURES[p.id] || []).map(f => `<span class="plan-feature-tag">${f}</span>`).join('')}
+      </div>
+    </div>
+  `).join('');
+}
+
+function selectPlan(planId) {
+  SELECTED_PLAN = planId;
+
+  // Remove all selections
+  document.querySelectorAll('.plan-card, .trial-card').forEach(el => el.classList.remove('selected'));
+
+  // Select current
+  const el = document.getElementById('plan-' + planId);
+  if (el) el.classList.add('selected');
+
+  // Preview
+  const names = { trial:'🎁 Essai gratuit 3 jours', starter:'🥉 Starter', business:'🥈 Business', premium:'🥇 Premium' };
+  document.getElementById('preview-plan-name').textContent = names[planId] || planId;
+  document.getElementById('selected-preview').classList.add('visible');
+
+  // Trial warning
+  document.getElementById('trial-warning').style.display = planId === 'trial' ? 'block' : 'none';
+}
+
+// ── OTP helpers ──
+function otpNext(input, idx) {
+  input.value = input.value.replace(/[^0-9]/g, '');
+  if (input.value && idx < 5) {
+    document.querySelectorAll('.otp-input')[idx + 1].focus();
+  }
+  // Auto-verify when all 6 digits entered
+  const vals = [...document.querySelectorAll('.otp-input')].map(i => i.value);
+  if (vals.every(v => v)) verifyOTP();
+}
+
+function otpBack(e, input, idx) {
+  if (e.key === 'Backspace' && !input.value && idx > 0) {
+    document.querySelectorAll('.otp-input')[idx - 1].focus();
+  }
+}
+
+function backToStep1() {
+  document.getElementById('form-step1').style.display = 'block';
+  document.getElementById('form-step2').classList.remove('visible');
+  updateStep(1);
+}
+
+function updateStep(n) {
+  [1,2,3].forEach(i => {
+    const s = document.getElementById('step' + i);
+    s.classList.remove('active', 'done');
+    if (i < n) s.classList.add('done');
+    else if (i === n) s.classList.add('active');
+  });
+  [1,2].forEach(i => {
+    const l = document.getElementById('line' + i);
+    l.classList.toggle('done', i < n);
+  });
+}
+
+// ── Toast ──
+function toast(msg, type = 'success') {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = `toast ${type} show`;
+  setTimeout(() => el.classList.remove('show'), 3500);
+}
+
+// ── Step 1 → OTP ──
+async function goToOTP() {
+  const nom   = document.getElementById('f-nom').value.trim();
+  const code  = document.getElementById('f-code').value.trim();
+  const email = document.getElementById('f-email').value.trim();
+  const pwd   = document.getElementById('f-pwd').value;
+  const phone = document.getElementById('f-phone').value.trim();
+
+  if (!nom)   { toast('Nom du commerce requis', 'error'); return; }
+  if (!code || code.length < 3)  { toast('Code min. 3 caractères', 'error'); return; }
+  if (!email) { toast('Email requis', 'error'); return; }
+  if (!pwd || pwd.length < 8) { toast('Mot de passe min. 8 caractères', 'error'); return; }
+  if (!phone || phone.length < 9) { toast('Numéro de téléphone invalide', 'error'); return; }
+  if (!SELECTED_PLAN) { toast('Veuillez choisir un plan', 'error'); return; }
+
+  const btn = document.getElementById('btn-next');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>Vérification...';
+
+  try {
+    // Vérifier code unique
+    const { data: existCode } = await sb.from('gp_tenants').select('id').eq('code', code).maybeSingle();
+    if (existCode) {
+      document.getElementById('code-error').classList.add('visible');
+      btn.disabled = false;
+      btn.textContent = 'Continuer →';
+      return;
+    }
+    document.getElementById('code-error').classList.remove('visible');
+
+    // Vérifier email unique
+    const { data: existEmail } = await sb.from('gp_users').select('id').eq('email', email).maybeSingle();
+    if (existEmail) { toast('Email déjà utilisé', 'error'); btn.disabled = false; btn.textContent = 'Continuer →'; return; }
+
+    const fullPhone = '+212' + phone;
+
+    // Si essai gratuit : vérifier phone + IP
+    if (SELECTED_PLAN === 'trial') {
+      const { data: phoneBlock } = await sb.from('gp_trial_blocks').select('id').eq('type','phone').eq('value', fullPhone).maybeSingle();
+      if (phoneBlock) {
+        document.getElementById('phone-error').classList.add('visible');
+        btn.disabled = false;
+        btn.textContent = 'Continuer →';
+        return;
+      }
+      document.getElementById('phone-error').classList.remove('visible');
+
+      const { data: ipBlock } = await sb.from('gp_trial_blocks').select('id').eq('type','ip').eq('value', USER_IP || 'unknown').maybeSingle();
+      if (ipBlock) { toast('⚠️ Un essai gratuit a déjà été utilisé depuis cette adresse IP', 'error'); btn.disabled = false; btn.textContent = 'Continuer →'; return; }
+    }
+
+    // Envoyer OTP SMS via Supabase Auth
+    const { error: otpErr } = await sb.auth.signInWithOtp({
+      phone: fullPhone
+    });
+
+    if (otpErr) throw otpErr;
+
+    // Passer à step OTP
+    document.getElementById('form-step1').style.display = 'none';
+    document.getElementById('form-step2').classList.add('visible');
+    document.getElementById('otp-phone-display').textContent = fullPhone;
+    updateStep(3);
+    toast('Code SMS envoyé ✅');
+
+  } catch(e) {
+    toast('Erreur: ' + e.message, 'error');
+  }
+
+  btn.disabled = false;
+  btn.textContent = 'Continuer →';
+}
+
+async function resendOTP() {
+  const phone = '+212' + document.getElementById('f-phone').value.trim();
+  const { error } = await sb.auth.signInWithOtp({ phone });
+  if (error) { toast('Erreur: ' + error.message, 'error'); return; }
+  toast('Code renvoyé ✅');
+}
+
+// ── Verify OTP + Create tenant ──
+async function verifyOTP() {
+  const code = [...document.querySelectorAll('.otp-input')].map(i => i.value).join('');
+  if (code.length < 6) { toast('Entrez le code complet', 'error'); return; }
+
+  const nom    = document.getElementById('f-nom').value.trim();
+  const tCode  = document.getElementById('f-code').value.trim();
+  const email  = document.getElementById('f-email').value.trim();
+  const pwd    = document.getElementById('f-pwd').value;
+  const phone  = '+212' + document.getElementById('f-phone').value.trim();
+
+  const btn = document.getElementById('btn-verify');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>Création en cours...';
+
+  try {
+    // Vérifier OTP
+    const { data: authData, error: otpErr } = await sb.auth.verifyOtp({
+      phone,
+      token: code,
+      type: 'sms'
+    });
+    if (otpErr) throw new Error('Code invalide ou expiré');
+
+    // Calculer dates
+    const isTrial = SELECTED_PLAN === 'trial';
+    const planId  = isTrial ? 'premium' : SELECTED_PLAN;
+    const days    = isTrial ? 3 : 30;
+    const expireAt = new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString();
+
+    // Créer tenant
+    const { data: tenant, error: tenantErr } = await sb.from('gp_tenants').insert({
+      nom: nom,
+      code: tCode,
+      actif: true,
+      plan: planId,
+      expire_at: expireAt,
+      is_owner: false,
+      trial_used: isTrial,
+      trial_phone: isTrial ? phone : null,
+      trial_ip: isTrial ? USER_IP : null,
+      signup_ip: USER_IP
+    }).select().single();
+
+    if (tenantErr) throw tenantErr;
+
+    // Créer compte Auth via Edge Function
+    const efRes = await fetch(`${SUPABASE_URL}/functions/v1/create-tenant-user`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${SUPABASE_ANON}` },
+      body: JSON.stringify({ email, password: pwd, tenantId: tenant.id, nom })
+    });
+    const efData = await efRes.json();
+    if (!efRes.ok) throw new Error(efData.error || 'Erreur création compte');
+
+    // Subscription
+    await sb.from('gp_subscriptions').insert({
+      tenant_id: tenant.id,
+      plan_id: planId,
+      statut: isTrial ? 'trial' : 'pending',
+      date_debut: new Date().toISOString(),
+      date_fin: expireAt,
+      montant: 0,
+      methode: isTrial ? 'trial' : 'virement',
+      notes: isTrial ? 'Essai gratuit 3 jours' : 'En attente de virement'
+    });
+
+    // Bloquer phone + IP si essai
+    if (isTrial) {
+      await sb.from('gp_trial_blocks').insert([
+        { type: 'phone', value: phone, tenant_id: tenant.id },
+        { type: 'ip', value: USER_IP || 'unknown', tenant_id: tenant.id }
+      ]).throwOnError();
+    }
+
+    // Success
+    document.getElementById('main-layout').style.display = 'none';
+    document.getElementById('hero-section').style.display = 'none';
+    document.getElementById('steps-section').style.display = 'none';
+    const successMsg = isTrial
+      ? `Votre essai Premium de 3 jours est activé ! Connectez-vous avec ${email}.`
+      : `Votre compte est créé. Connectez-vous et effectuez le virement pour activer votre plan ${planId}.`;
+    document.getElementById('success-msg').textContent = successMsg;
+    document.getElementById('success-screen').classList.add('visible');
+
+  } catch(e) {
+    toast('Erreur: ' + e.message, 'error');
+    btn.disabled = false;
+    btn.textContent = '✅ Vérifier et créer mon compte';
+  }
+}
+
+init();
+</script>
+</body>
+</html>
