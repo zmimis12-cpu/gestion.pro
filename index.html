@@ -931,6 +931,9 @@ function escapeHTML(str) {
         <span class="icon">🔔</span> Alertes
         <span class="badge" id="alert-count">0</span>
       </div>
+      <div class="nav-item" onclick="navigate('abonnement')" data-nav-module="abonnement" id="nav-abonnement">
+        <span class="icon">💳</span> Mon Abonnement
+      </div>
       <div class="nav-item" onclick="navigate('settings')" data-nav-module="settings">
         <span class="icon">⚙️</span> Paramètres
       </div>
@@ -1634,6 +1637,97 @@ function escapeHTML(str) {
       </div>
 
       <!-- ═══════════════════════════════ PARAMÈTRES ═══════════════════════════════ -->
+      <div class="page" id="page-abonnement">
+        <div style="max-width:700px;margin:0 auto;display:flex;flex-direction:column;gap:20px;">
+
+          <!-- Plan actuel -->
+          <div class="card">
+            <div class="card-header">💳 Mon Abonnement</div>
+            <div class="card-body">
+              <div id="abo-current-plan" style="display:flex;align-items:center;gap:16px;padding:16px;background:var(--surface2);border-radius:12px;border:1px solid var(--border);">
+                <div style="font-size:36px;" id="abo-plan-badge">⏳</div>
+                <div>
+                  <div style="font-weight:700;font-size:18px;" id="abo-plan-nom">Chargement...</div>
+                  <div style="font-size:13px;color:var(--text2);" id="abo-plan-expire"></div>
+                  <div style="font-size:13px;margin-top:4px;" id="abo-plan-status"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Plans disponibles -->
+          <div class="card">
+            <div class="card-header">🚀 Changer de Plan</div>
+            <div class="card-body">
+              <div id="abo-plans-list" style="display:flex;flex-direction:column;gap:12px;">
+                <div style="text-align:center;color:var(--text2);padding:20px;">Chargement des plans...</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Comment payer -->
+          <div class="card" id="abo-how-to-pay" style="display:none;">
+            <div class="card-header">🏦 Comment Payer</div>
+            <div class="card-body">
+              <div style="background:var(--surface2);border-radius:12px;padding:16px;border:1px solid rgba(0,212,170,0.2);">
+                <div style="font-weight:700;margin-bottom:12px;color:var(--accent);">Virement Bancaire</div>
+                <div id="abo-bank-details" style="font-size:13px;line-height:2;"></div>
+                <div style="margin-top:16px;padding:12px;background:rgba(245,166,35,0.1);border-radius:8px;border:1px solid rgba(245,166,35,0.3);">
+                  <div style="font-weight:700;color:var(--gold);margin-bottom:6px;">⚠️ Important</div>
+                  <div style="font-size:12px;color:var(--text2);">Mentionnez votre code client <strong id="abo-ref-code"></strong> dans le libellé du virement. Votre abonnement sera activé dans 24h après confirmation.</div>
+                </div>
+                <button onclick="openAboRequest()" style="margin-top:14px;width:100%;padding:12px;border-radius:10px;background:var(--accent);color:#000;font-weight:700;border:none;cursor:pointer;font-size:14px;">
+                  ✅ J'ai effectué le virement
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Historique -->
+          <div class="card">
+            <div class="card-header">📋 Historique des Abonnements</div>
+            <div class="card-body">
+              <div id="abo-history" style="display:flex;flex-direction:column;gap:8px;">
+                <div style="text-align:center;color:var(--text2);padding:20px;">Aucun historique</div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Modal demande virement -->
+      <div class="modal" id="modal-abo-request">
+        <div class="modal-content" style="max-width:480px;">
+          <div class="modal-header">
+            <h3>📤 Confirmer mon Virement</h3>
+            <button class="modal-close" onclick="closeModal('modal-abo-request')">✕</button>
+          </div>
+          <div class="modal-body" style="display:flex;flex-direction:column;gap:14px;">
+            <div style="font-size:13px;color:var(--text2);">Remplissez ce formulaire après avoir effectué le virement. Nous vérifierons et activerons votre abonnement sous 24h.</div>
+            <div>
+              <label style="font-size:12px;color:var(--text2);display:block;margin-bottom:6px;">Plan souhaité</label>
+              <div id="abo-req-plan-label" style="font-weight:700;font-size:14px;padding:10px;background:var(--surface2);border-radius:8px;"></div>
+            </div>
+            <div>
+              <label style="font-size:12px;color:var(--text2);display:block;margin-bottom:6px;">Montant viré (MAD)</label>
+              <input id="abo-req-montant" type="number" class="input" placeholder="ex: 399" style="width:100%;">
+            </div>
+            <div>
+              <label style="font-size:12px;color:var(--text2);display:block;margin-bottom:6px;">Date du virement</label>
+              <input id="abo-req-date" type="date" class="input" style="width:100%;">
+            </div>
+            <div>
+              <label style="font-size:12px;color:var(--text2);display:block;margin-bottom:6px;">Notes (optionnel)</label>
+              <textarea id="abo-req-notes" class="input" rows="2" placeholder="Numéro de virement, banque..." style="width:100%;resize:vertical;"></textarea>
+            </div>
+            <button onclick="submitAboRequest()" style="padding:12px;border-radius:10px;background:var(--accent);color:#000;font-weight:700;border:none;cursor:pointer;font-size:14px;">
+              📤 Envoyer la demande
+            </button>
+          </div>
+        </div>
+      </div>
+
       <div class="page" id="page-settings">
         <div style="max-width:700px;margin:0 auto;display:flex;flex-direction:column;gap:20px;">
 
@@ -2005,6 +2099,17 @@ function escapeHTML(str) {
             <div class="stat-icon">💰</div>
             <div class="stat-value" id="oa-stat-revenue">0 MAD</div>
             <div class="stat-label">Revenus totaux</div>
+          </div>
+        </div>
+
+        <!-- Demandes de virement en attente -->
+        <div class="card" id="oa-pending-card" style="margin-bottom:16px;display:none;">
+          <div class="card-header" style="color:var(--gold);">
+            <span>⏳ Demandes de Virement en Attente</span>
+            <span id="oa-pending-count" style="background:var(--gold);color:#000;padding:2px 8px;border-radius:20px;font-size:12px;font-weight:700;">0</span>
+          </div>
+          <div class="card-body" style="padding:12px;">
+            <div id="oa-pending-list"></div>
           </div>
         </div>
 
@@ -4552,6 +4657,7 @@ function navigate(page) {
   if (page === 'commandes') renderCommandes();
   if (page === 'docscont') renderOrdres();
   if (page === 'dashboard') renderDashboard();
+  if (page === 'abonnement') loadAbonnement();
   if (page === 'settings') loadSettingsForm();
   if (page === 'superadmin') renderSuperAdmin();
   if (page === 'employes') renderEmployes();
@@ -7598,6 +7704,154 @@ function isOwner() {
   return isSuperAdmin() && GP_TENANT?.is_owner === true;
 }
 
+// ╔══════════════════════════════════════════════════════════════╗
+// ║              ABONNEMENT — PAGE CLIENT                        ║
+// ╚══════════════════════════════════════════════════════════════╝
+
+let ABO_SELECTED_PLAN = null;
+
+async function loadAbonnement() {
+  try {
+    // Charger plans
+    const { data: plans } = await sb.from('gp_plans').select('*').eq('actif', true).order('prix_mensuel');
+    // Charger historique subscriptions du tenant
+    const { data: subs } = await sb.from('gp_subscriptions')
+      .select('*').eq('tenant_id', GP_TENANT.id).order('created_at', { ascending: false });
+
+    renderAboPlanActuel();
+    renderAboPlans(plans || []);
+    renderAboHistory(subs || []);
+  } catch(e) {
+    console.warn('[ABO] loadAbonnement:', e.message);
+  }
+}
+
+function renderAboPlanActuel() {
+  const plan = GP_TENANT?.plan || 'starter';
+  const expire = GP_TENANT?.expire_at;
+  const badges = { starter:'🥉', business:'🥈', premium:'🥇' };
+  const noms   = { starter:'Starter', business:'Business', premium:'Premium' };
+  const now = new Date();
+  const expDate = expire ? new Date(expire) : null;
+  const expired = expDate && expDate < now;
+  const soon    = expDate && !expired && expDate < new Date(now.getTime() + 5*24*60*60*1000);
+
+  const badge = document.getElementById('abo-plan-badge');
+  const nom   = document.getElementById('abo-plan-nom');
+  const expEl = document.getElementById('abo-plan-expire');
+  const statEl= document.getElementById('abo-plan-status');
+
+  if (badge) badge.textContent = badges[plan] || '📦';
+  if (nom)   nom.textContent   = noms[plan] || plan;
+  if (expEl) expEl.textContent = expDate
+    ? (expDate.getFullYear() > 2090 ? 'Abonnement à vie ♾️' : 'Expire le ' + expDate.toLocaleDateString('fr-FR'))
+    : "Pas de date d'expiration";
+  if (statEl) {
+    if (expired)     { statEl.innerHTML = '<span style="color:var(--red);">❌ Abonnement expiré</span>'; }
+    else if (soon)   { statEl.innerHTML = '<span style="color:var(--gold);">⚠️ Expire bientôt</span>'; }
+    else             { statEl.innerHTML = '<span style="color:var(--accent);">✅ Actif</span>'; }
+  }
+}
+
+function renderAboPlans(plans) {
+  const el = document.getElementById('abo-plans-list');
+  if (!el) return;
+  if (!plans.length) { el.innerHTML = '<div style="color:var(--text2);text-align:center;">Aucun plan disponible</div>'; return; }
+
+  const currentPlan = GP_TENANT?.plan || 'starter';
+  const badges = { starter:'🥉', business:'🥈', premium:'🥇' };
+
+  el.innerHTML = plans.map(p => {
+    const isCurrent = p.id === currentPlan;
+    return `<div style="display:flex;align-items:center;gap:12px;padding:14px;background:var(--surface2);border-radius:12px;border:2px solid ${isCurrent ? 'var(--accent)' : 'var(--border)'};flex-wrap:wrap;">
+      <div style="font-size:28px;">${badges[p.id] || '📦'}</div>
+      <div style="flex:1;min-width:120px;">
+        <div style="font-weight:700;font-size:15px;">${p.nom} ${isCurrent ? '<span style="font-size:11px;background:var(--accent);color:#000;padding:2px 8px;border-radius:20px;margin-left:6px;">Actuel</span>' : ''}</div>
+        <div style="font-size:12px;color:var(--text2);margin-top:2px;">${Array.isArray(p.modules) ? p.modules.length : JSON.parse(p.modules||'[]').length} modules • max ${p.max_users > 50 ? '∞' : p.max_users} utilisateurs</div>
+      </div>
+      <div style="text-align:right;min-width:100px;">
+        <div style="font-weight:700;font-size:16px;color:var(--accent);">${p.prix_mensuel} MAD<span style="font-size:11px;font-weight:400;color:var(--text2);">/mois</span></div>
+        <div style="font-size:11px;color:var(--text2);">${p.prix_annuel} MAD/an</div>
+      </div>
+      ${!isCurrent ? `<button onclick="selectAboPlan('${p.id}','${p.nom}',${p.prix_mensuel},${p.prix_annuel})" style="padding:8px 16px;border-radius:8px;background:var(--accent);color:#000;font-weight:700;border:none;cursor:pointer;font-size:13px;">Choisir</button>` : ''}
+    </div>`;
+  }).join('');
+}
+
+function renderAboHistory(subs) {
+  const el = document.getElementById('abo-history');
+  if (!el) return;
+  if (!subs.length) { el.innerHTML = '<div style="text-align:center;color:var(--text2);padding:20px;">Aucun historique</div>'; return; }
+
+  const statutColors = { active:'var(--accent)', expired:'var(--red)', pending:'var(--gold)', cancelled:'var(--text2)', trial:'#a78bfa' };
+  const statutLabels = { active:'Actif', expired:'Expiré', pending:'⏳ En attente', cancelled:'Annulé', trial:'Essai' };
+
+  el.innerHTML = subs.map(s => `
+    <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--surface2);border-radius:10px;border:1px solid var(--border);flex-wrap:wrap;">
+      <div style="flex:1;min-width:120px;">
+        <div style="font-weight:700;font-size:13px;text-transform:capitalize;">${s.plan_id || '—'}</div>
+        <div style="font-size:11px;color:var(--text2);">${new Date(s.created_at).toLocaleDateString('fr-FR')}</div>
+      </div>
+      <div style="font-size:13px;font-weight:700;color:var(--accent);">${s.montant > 0 ? s.montant + ' MAD' : '—'}</div>
+      <div style="font-size:12px;font-weight:700;color:${statutColors[s.statut] || 'var(--text2)'};">${statutLabels[s.statut] || s.statut}</div>
+      ${s.notes ? `<div style="font-size:11px;color:var(--text2);width:100%;">${escapeHTML(s.notes)}</div>` : ''}
+    </div>`).join('');
+}
+
+function selectAboPlan(planId, planNom, prixMensuel, prixAnnuel) {
+  ABO_SELECTED_PLAN = { id: planId, nom: planNom, prix_mensuel: prixMensuel, prix_annuel: prixAnnuel };
+  // Afficher coordonnées bancaires
+  const bankDiv = document.getElementById('abo-bank-details');
+  const settings = GP_SETTINGS || {};
+  const storeName = settings.storeName || 'GestionPro';
+  if (bankDiv) {
+    bankDiv.innerHTML = `
+      <div><strong>Bénéficiaire :</strong> ${escapeHTML(storeName)}</div>
+      <div><strong>Plan :</strong> ${escapeHTML(planNom)}</div>
+      <div><strong>Mensuel :</strong> ${prixMensuel} MAD / <strong>Annuel :</strong> ${prixAnnuel} MAD</div>
+      <div style="margin-top:8px;font-size:12px;color:var(--text2);">Contactez-nous sur WhatsApp pour obtenir les coordonnées bancaires complètes.</div>`;
+  }
+  const refEl = document.getElementById('abo-ref-code');
+  if (refEl) refEl.textContent = GP_TENANT?.code || '';
+  const howToPay = document.getElementById('abo-how-to-pay');
+  if (howToPay) howToPay.style.display = 'block';
+  howToPay.scrollIntoView({ behavior: 'smooth' });
+}
+
+function openAboRequest() {
+  if (!ABO_SELECTED_PLAN) return;
+  document.getElementById('abo-req-plan-label').textContent = `${ABO_SELECTED_PLAN.nom} — ${ABO_SELECTED_PLAN.prix_mensuel} MAD/mois ou ${ABO_SELECTED_PLAN.prix_annuel} MAD/an`;
+  document.getElementById('abo-req-montant').value = ABO_SELECTED_PLAN.prix_mensuel;
+  document.getElementById('abo-req-date').value = new Date().toISOString().split('T')[0];
+  document.getElementById('abo-req-notes').value = '';
+  openModal('modal-abo-request');
+}
+
+async function submitAboRequest() {
+  const montant = parseFloat(document.getElementById('abo-req-montant').value) || 0;
+  const dateVir = document.getElementById('abo-req-date').value;
+  const notes   = document.getElementById('abo-req-notes').value.trim();
+  if (!montant || !dateVir) { toast('Montant et date obligatoires', 'error'); return; }
+
+  try {
+    // Créer subscription avec statut "pending"
+    await sb.from('gp_subscriptions').insert({
+      tenant_id: GP_TENANT.id,
+      plan_id: ABO_SELECTED_PLAN.id,
+      statut: 'pending',
+      date_debut: new Date().toISOString(),
+      montant,
+      methode: 'virement',
+      notes: `Virement du ${dateVir}. ${notes}`
+    });
+    closeModal('modal-abo-request');
+    toast('✅ Demande envoyée ! Activation sous 24h après vérification.');
+    await loadAbonnement();
+  } catch(e) {
+    toast('Erreur: ' + e.message, 'error');
+  }
+}
+
 // Charger tous les tenants depuis Supabase
 let OA_PLANS = [];        // plans disponibles
 let OA_SUBSCRIPTIONS = []; // historique subscriptions
@@ -7621,9 +7875,75 @@ async function loadOAData() {
     } catch(e) { OA_PAYMENTS = []; }
 
     renderOAStats();
+    renderOAPending();
     renderOATenants();
   } catch(e) {
     console.warn('[OA] loadOAData:', e.message);
+  }
+}
+
+function renderOAPending() {
+  const pending = OA_SUBSCRIPTIONS.filter(s => s.statut === 'pending');
+  const card = document.getElementById('oa-pending-card');
+  const list = document.getElementById('oa-pending-list');
+  const cnt  = document.getElementById('oa-pending-count');
+  if (!card || !list) return;
+
+  if (!pending.length) { card.style.display = 'none'; return; }
+  card.style.display = 'block';
+  if (cnt) cnt.textContent = pending.length;
+
+  list.innerHTML = pending.map(s => {
+    const tenant = OA_TENANTS.find(t => t.id === s.tenant_id);
+    return `<div style="display:flex;align-items:center;gap:12px;padding:12px;background:var(--surface2);border-radius:10px;margin-bottom:8px;border:1px solid rgba(245,166,35,0.3);flex-wrap:wrap;">
+      <div style="flex:1;min-width:150px;">
+        <div style="font-weight:700;font-size:14px;">${escapeHTML(tenant?.nom || 'Client inconnu')}</div>
+        <div style="font-size:12px;color:var(--text2);">Plan: <strong>${s.plan_id}</strong> • ${s.montant} MAD</div>
+        <div style="font-size:11px;color:var(--text2);">${new Date(s.created_at).toLocaleDateString('fr-FR')} ${s.notes ? '• ' + escapeHTML(s.notes.substring(0,60)) : ''}</div>
+      </div>
+      <div style="display:flex;gap:6px;">
+        <button onclick="confirmVirement('${s.id}','${s.tenant_id}','${s.plan_id}',${s.montant})" style="padding:7px 14px;border-radius:8px;background:var(--accent);color:#000;font-weight:700;border:none;cursor:pointer;font-size:12px;">✅ Confirmer</button>
+        <button onclick="rejectVirement('${s.id}')" style="padding:7px 14px;border-radius:8px;border:1px solid var(--red);background:transparent;color:var(--red);font-weight:700;cursor:pointer;font-size:12px;">❌ Refuser</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function confirmVirement(subId, tenantId, planId, montant) {
+  if (!confirm("Confirmer ce virement et activer l'abonnement ?")) return;
+  try {
+    const duree = 30; // 1 mois par défaut
+    const expireAt = new Date(Date.now() + duree * 24 * 60 * 60 * 1000).toISOString();
+
+    // Mettre à jour subscription
+    await sb.from('gp_subscriptions').update({
+      statut: 'active',
+      date_debut: new Date().toISOString(),
+      date_fin: expireAt
+    }).eq('id', subId);
+
+    // Mettre à jour tenant
+    await sb.from('gp_tenants').update({
+      plan: planId,
+      actif: true,
+      expire_at: expireAt
+    }).eq('id', tenantId);
+
+    toast('✅ Abonnement activé !');
+    await loadOAData();
+  } catch(e) {
+    toast('Erreur: ' + e.message, 'error');
+  }
+}
+
+async function rejectVirement(subId) {
+  if (!confirm("Refuser cette demande ?")) return;
+  try {
+    await sb.from('gp_subscriptions').update({ statut: 'cancelled' }).eq('id', subId);
+    toast('Demande refusée');
+    await loadOAData();
+  } catch(e) {
+    toast('Erreur: ' + e.message, 'error');
   }
 }
 
