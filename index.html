@@ -908,7 +908,10 @@ function escapeHTML(str) {
       <button type="submit" class="lb" id="l-btn">Se connecter</button>
       </form>
       <div class="lerr" id="l-err"></div>
-      <div style="text-align:center;margin-top:16px;font-size:13px;color:#888;">
+      <div style="text-align:center;margin-top:12px;">
+        <a onclick="openForgotPassword()" style="font-size:12px;color:#888;cursor:pointer;text-decoration:none;">🔑 Mot de passe oublié ?</a>
+      </div>
+      <div style="text-align:center;margin-top:10px;font-size:13px;color:#888;">
         Pas encore de compte ? 
         <a href="/signup" style="color:var(--accent);text-decoration:none;font-weight:600;">Créer un compte gratuitement →</a>
       </div>
@@ -11297,6 +11300,74 @@ function showLicenceExpired(tenant) {
   `;
 }
 
+async function confirmNewPassword() {
+  const pwd  = document.getElementById('new-pwd')?.value;
+  const pwd2 = document.getElementById('new-pwd2')?.value;
+  const msg  = document.getElementById('reset-msg');
+
+  if (!pwd || pwd.length < 8) { toast('Minimum 8 caractères', 'error'); return; }
+  if (pwd !== pwd2) { toast('Les mots de passe ne correspondent pas', 'error'); return; }
+
+  try {
+    const { error } = await sb.auth.updateUser({ password: pwd });
+    if (error) throw error;
+
+    if (msg) {
+      msg.style.display = 'block';
+      msg.style.background = 'rgba(0,212,170,0.1)';
+      msg.style.color = 'var(--accent)';
+      msg.textContent = '✅ Mot de passe mis à jour ! Redirection...';
+    }
+    setTimeout(() => {
+      window.location.href = '/';
+    }, 2000);
+  } catch(e) {
+    toast('Erreur: ' + e.message, 'error');
+  }
+}
+
+function openForgotPassword() {
+  document.getElementById('forgot-email').value = '';
+  const msg = document.getElementById('forgot-msg');
+  msg.style.display = 'none';
+  openModal('modal-forgot-pwd');
+}
+
+async function sendResetEmail() {
+  const email = document.getElementById('forgot-email').value.trim();
+  const msg   = document.getElementById('forgot-msg');
+  const btn   = document.getElementById('btn-reset-pwd');
+
+  if (!email) { toast('Email requis', 'error'); return; }
+
+  btn.disabled = true;
+  btn.textContent = 'Envoi...';
+
+  try {
+    const { error } = await sb.auth.resetPasswordForEmail(email, {
+      redirectTo: window.location.origin + '/?reset=1'
+    });
+
+    if (error) throw error;
+
+    msg.style.display = 'block';
+    msg.style.background = 'rgba(0,212,170,0.1)';
+    msg.style.border = '1px solid rgba(0,212,170,0.3)';
+    msg.style.color = 'var(--accent)';
+    msg.textContent = '✅ Email envoyé ! Vérifiez votre boîte mail.';
+    btn.textContent = 'Envoyé ✅';
+
+  } catch(e) {
+    msg.style.display = 'block';
+    msg.style.background = 'rgba(224,49,49,0.1)';
+    msg.style.border = '1px solid rgba(224,49,49,0.3)';
+    msg.style.color = 'var(--red)';
+    msg.textContent = 'Erreur: ' + e.message;
+    btn.disabled = false;
+    btn.textContent = 'Envoyer le lien';
+  }
+}
+
 function showLoginErr(msg) {
   const el = document.getElementById('l-err');
   el.textContent = msg;
@@ -13202,6 +13273,35 @@ function deleteSARole(key) {
 // ║              AUTO-LOGIN & SESSION                            ║
 // ╚══════════════════════════════════════════════════════════════╝
 (async () => {
+  // ── Gestion reset mot de passe ──
+  const hash = window.location.hash;
+  if (hash.includes('type=recovery') || new URLSearchParams(window.location.search).get('reset')) {
+    // Supabase redirige avec #access_token=...&type=recovery
+    const { data: { session } } = await sb.auth.getSession();
+    if (session) {
+      // Afficher formulaire nouveau mot de passe
+      const loginBox = document.querySelector('.lc');
+      if (loginBox) {
+        loginBox.innerHTML = `
+          <div class="lc-logo">
+            <div class="lc-logo-icon">🔑</div>
+            <h1>Nouveau mot de passe</h1>
+          </div>
+          <div class="lf">
+            <label>Nouveau mot de passe</label>
+            <input type="password" id="new-pwd" placeholder="Min. 8 caractères" class="input">
+          </div>
+          <div class="lf">
+            <label>Confirmer</label>
+            <input type="password" id="new-pwd2" placeholder="Répéter le mot de passe" class="input">
+          </div>
+          <div id="reset-msg" style="display:none;margin-bottom:12px;font-size:13px;padding:10px;border-radius:8px;"></div>
+          <button onclick="confirmNewPassword()" class="lb">✅ Enregistrer le mot de passe</button>`;
+      }
+      return;
+    }
+  }
+
   const saved = localStorage.getItem('gp_session');
   if (saved) {
     try {
@@ -13239,6 +13339,25 @@ function deleteSARole(key) {
   }
 })();
 </script>
+
+<!-- Modal mot de passe oublié -->
+<div class="modal-overlay" id="modal-forgot-pwd">
+  <div class="modal" style="max-width:420px;">
+    <div class="modal-title">🔑 Réinitialiser le mot de passe</div>
+    <div style="display:flex;flex-direction:column;gap:14px;margin-top:16px;">
+      <div style="font-size:13px;color:var(--text2);line-height:1.5;">Entrez votre email — vous recevrez un lien pour réinitialiser votre mot de passe.</div>
+      <div class="form-group">
+        <label>Email</label>
+        <input type="email" id="forgot-email" class="input" placeholder="votre@email.com">
+      </div>
+      <div id="forgot-msg" style="display:none;font-size:13px;padding:10px 14px;border-radius:8px;"></div>
+      <div style="display:flex;gap:8px;">
+        <button onclick="closeModal('modal-forgot-pwd')" style="flex:1;padding:11px;border-radius:10px;border:1px solid var(--border);background:transparent;color:var(--text2);cursor:pointer;font-size:13px;">Annuler</button>
+        <button onclick="sendResetEmail()" id="btn-reset-pwd" style="flex:2;padding:11px;border-radius:10px;background:var(--accent);color:#000;font-weight:700;border:none;cursor:pointer;font-size:14px;">Envoyer le lien</button>
+      </div>
+    </div>
+  </div>
+</div>
 
 <!-- Modal demande virement (global) -->
 <div class="modal-overlay" id="modal-abo-request">
