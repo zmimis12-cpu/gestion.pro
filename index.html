@@ -4516,7 +4516,7 @@ function navigate(page) {
 
   if (page === 'caisse') { renderProductGrid(); renderCategoryFilters(); updateCartTvaUI(); }
   if (page === 'stock') renderStockTable();
-  if (page === 'locaux') renderLocaux();
+  if (page === 'locaux') { loadSAData().then(() => renderLocaux()); }
   if (page === 'clients') renderClients();
   if (page === 'alerts') renderAlerts();
   if (page === 'fonds') renderFonds();
@@ -12520,6 +12520,8 @@ async function saveSALocal() {
   renderSALocaux();
   renderSADash();
   updateSALocalSwitcher();
+  // Rafraîchir la page locaux si active
+  if (document.getElementById('page-locaux')?.classList.contains('active')) renderLocaux();
 }
 
 async function deleteSALocal(id) {
