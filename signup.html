@@ -720,7 +720,7 @@ async function createAccount() {
   const fullPhone = '+212' + phone;
 
   try {
-    // 1. Vérifier code unique
+    // 1. Vérifier code unique (lecture anon OK)
     const { data: existCode } = await sb.from('gp_tenants').select('id').eq('code', code).maybeSingle();
     if (existCode) {
       document.getElementById('code-error').classList.add('visible');
@@ -729,13 +729,9 @@ async function createAccount() {
     }
     document.getElementById('code-error').classList.remove('visible');
 
-    // 2. Vérifier email unique
-    const { data: existEmail } = await sb.from('gp_users').select('id').eq('email', email).maybeSingle();
-    if (existEmail) { toast('Email déjà utilisé', 'error'); btn.disabled = false; btn.textContent = 'Créer mon compte →'; return; }
-
-    // 3. Anti-fraude essai gratuit
-    if (SELECTED_PLAN === 'trial') {
-      // Vérifier téléphone
+    // 2. Anti-fraude essai gratuit
+    const isTrial = SELECTED_PLAN === 'trial';
+    if (isTrial) {
       const { data: phoneBlock } = await sb.from('gp_trial_blocks').select('id').eq('type','phone').eq('value', fullPhone).maybeSingle();
       if (phoneBlock) {
         document.getElementById('phone-error').classList.add('visible');
@@ -743,64 +739,61 @@ async function createAccount() {
         return;
       }
       document.getElementById('phone-error').classList.remove('visible');
-      // Vérifier IP
       const { data: ipBlock } = await sb.from('gp_trial_blocks').select('id').eq('type','ip').eq('value', USER_IP || 'unknown').maybeSingle();
       if (ipBlock) { toast('⚠️ Un essai gratuit a déjà été utilisé depuis cette adresse IP', 'error'); btn.disabled = false; btn.textContent = 'Créer mon compte →'; return; }
     }
 
-    // 4. Créer tenant
-    const isTrial  = SELECTED_PLAN === 'trial';
+    // 3. Tout passer à l'Edge Function (bypass RLS via service_role)
     const planId   = isTrial ? 'premium' : SELECTED_PLAN;
     const days     = isTrial ? 3 : 30;
     const expireAt = new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString();
 
-    const { data: tenant, error: tenantErr } = await sb.from('gp_tenants').insert({
-      nom, code, actif: true, plan: planId, expire_at: expireAt,
-      is_owner: false, trial_used: isTrial,
-      trial_phone: isTrial ? fullPhone : null,
-      trial_ip: isTrial ? USER_IP : null,
-      signup_ip: USER_IP
-    }).select().single();
-    if (tenantErr) throw tenantErr;
-
-    // 5. Créer compte Auth via Edge Function
     const efRes = await fetch(`${SUPABASE_URL}/functions/v1/create-tenant-user`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${SUPABASE_ANON}` },
-      body: JSON.stringify({ email, password: pwd, tenantId: tenant.id, nom })
+      body: JSON.stringify({
+        email, password: pwd, nom,
+        createTenant: true,
+        tenantData: {
+          nom, code, actif: true, plan: planId, expire_at: expireAt,
+          is_owner: false, trial_used: isTrial,
+          trial_phone: isTrial ? fullPhone : null,
+          trial_ip: isTrial ? USER_IP : null,
+          signup_ip: USER_IP,
+          subscriptionData: {
+            plan_id: planId,
+            statut: isTrial ? 'trial' : 'pending',
+            date_debut: new Date().toISOString(),
+            date_fin: expireAt,
+            montant: 0,
+            methode: isTrial ? 'trial' : 'virement',
+            notes: isTrial ? 'Essai gratuit 3 jours' : 'En attente de virement'
+          },
+          trialBlocks: isTrial ? [
+            { type: 'phone', value: fullPhone },
+            { type: 'ip', value: USER_IP || 'unknown' }
+          ] : null
+        }
+      })
     });
+
     const efData = await efRes.json();
-    console.log('[Signup] Edge Function response:', efData, 'status:', efRes.status);
-    if (!efRes.ok || !efData.success) {
-      // Supprimer le tenant créé pour éviter les orphelins
-      await sb.from('gp_tenants').delete().eq('id', tenant.id);
-      throw new Error(efData.error || 'Erreur création compte Auth');
-    }
+    console.log('[Signup] Edge Function response:', efData);
+    if (!efRes.ok || !efData.success) throw new Error(efData.error || 'Erreur création compte');
 
-    // 6. Subscription
-    await sb.from('gp_subscriptions').insert({
-      tenant_id: tenant.id, plan_id: planId,
-      statut: isTrial ? 'trial' : 'pending',
-      date_debut: new Date().toISOString(), date_fin: expireAt,
-      montant: 0, methode: isTrial ? 'trial' : 'virement',
-      notes: isTrial ? 'Essai gratuit 3 jours' : 'En attente de virement'
-    });
-
-    // 7. Bloquer phone + IP si essai
-    if (isTrial) {
-      await sb.from('gp_trial_blocks').insert([
-        { type: 'phone', value: fullPhone, tenant_id: tenant.id },
-        { type: 'ip',    value: USER_IP || 'unknown', tenant_id: tenant.id }
-      ]);
-    }
-
-    // 8. Succès
+    // 4. Succès — afficher le code d'accès
     document.getElementById('main-layout').style.display = 'none';
     document.getElementById('hero-section').style.display = 'none';
     document.getElementById('steps-section').style.display = 'none';
-    document.getElementById('success-msg').textContent = isTrial
-      ? `Votre essai Premium de 3 jours est activé ! Connectez-vous avec ${email}.`
-      : `Votre compte est créé. Connectez-vous et effectuez le virement pour activer votre plan ${planId}.`;
+    document.getElementById('success-msg').innerHTML = isTrial
+      ? `Votre essai Premium de 3 jours est activé !<br><br>
+         📧 Email : <strong>${email}</strong><br>
+         🔑 Code d'accès : <strong style="color:#00d4aa;">${code}</strong><br><br>
+         Connectez-vous sur la page principale.`
+      : `Votre compte est créé !<br><br>
+         📧 Email : <strong>${email}</strong><br>
+         🔑 Code d'accès : <strong style="color:#00d4aa;">${code}</strong><br><br>
+         Connectez-vous et effectuez le virement pour activer votre plan.`;
     document.getElementById('success-screen').classList.add('visible');
 
   } catch(e) {
