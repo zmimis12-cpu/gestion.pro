@@ -961,6 +961,9 @@ function escapeHTML(str) {
         <span class="icon">🔔</span> Alertes
         <span class="badge" id="alert-count">0</span>
       </div>
+      <div class="nav-item" onclick="navigate('utilisateurs')" data-nav-module="utilisateurs" id="nav-utilisateurs">
+        <span class="icon">👥</span> Utilisateurs
+      </div>
       <div class="nav-item" onclick="navigate('abonnement')" data-nav-module="abonnement" id="nav-abonnement">
         <span class="icon">💳</span> Mon Abonnement
       </div>
@@ -1865,6 +1868,27 @@ function escapeHTML(str) {
       </div>
 
       <!-- ═══════════════════════════════ SUPER ADMIN ═══════════════════════════════ -->
+
+      <!-- Page Utilisateurs (pour clients super_admin) -->
+      <div class="page" id="page-utilisateurs">
+        <div style="max-width:800px;margin:0 auto;display:flex;flex-direction:column;gap:20px;">
+          <div class="card">
+            <div class="card-header">
+              <span>👥 Gestion des Utilisateurs</span>
+              <button class="btn btn-primary btn-sm" onclick="openSettingsUserModal()">➕ Nouvel utilisateur</button>
+            </div>
+            <div class="card-body" style="padding:12px;">
+              <table>
+                <thead><tr>
+                  <th>Nom</th><th>Email</th><th>Rôle</th><th>Statut</th><th>Actions</th>
+                </tr></thead>
+                <tbody id="settings-users-table"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <div class="page" id="page-superadmin">
         <!-- Tabs -->
         <div style="display:flex;gap:4px;margin-bottom:20px;background:var(--surface2);padding:4px;border-radius:10px;width:fit-content;">
@@ -4575,6 +4599,14 @@ updateDate();
 function navigate(page) {
   // ─── SECURITY : vérification des permissions d'accès à la page ───
   const publicPages = ['login', 'dashboard'];
+
+  // Superadmin réservé au owner uniquement
+  if (page === 'superadmin' && !isOwner()) {
+    toast('⛔ Accès refusé', 'error');
+    navigate('dashboard');
+    return;
+  }
+
   if (!publicPages.includes(page) && !isOwner()) {
     // Vérifier accès plan
     if (!hasModuleAccess(page)) {
@@ -4655,6 +4687,7 @@ function navigate(page) {
   if (page === 'commandes') renderCommandes();
   if (page === 'docscont') renderOrdres();
   if (page === 'dashboard') renderDashboard();
+  if (page === 'utilisateurs') loadSettingsUsers();
   if (page === 'abonnement') loadAbonnement();
   if (page === 'settings') loadSettingsForm();
   if (page === 'superadmin') renderSuperAdmin();
@@ -7661,16 +7694,16 @@ function renderMonthChart() {
 // ╚══════════════════════════════════════════════════════════════╝
 const PLAN_MODULES = {
   starter: [
-    'dashboard', 'caisse', 'stock', 'clients', 'alerts', 'settings', 'depenses'
+    'dashboard', 'caisse', 'stock', 'clients', 'alerts', 'settings', 'depenses', 'utilisateurs', 'abonnement'
   ],
   business: [
     'dashboard', 'caisse', 'stock', 'clients', 'alerts', 'settings',
-    'locaux', 'employes', 'conges', 'fonds', 'commandes', 'depenses'
+    'locaux', 'employes', 'conges', 'fonds', 'commandes', 'depenses', 'utilisateurs', 'abonnement'
   ],
   premium: [
     'dashboard', 'caisse', 'stock', 'clients', 'alerts', 'settings',
     'locaux', 'employes', 'conges', 'fonds', 'commandes',
-    'conteneurs', 'docscont', 'livraisons', 'docs-rh', 'docs_rh', 'docs-admin', 'docs_admin', 'superadmin', 'depenses'
+    'conteneurs', 'docscont', 'livraisons', 'docs-rh', 'docs_rh', 'docs-admin', 'docs_admin', 'superadmin', 'depenses', 'utilisateurs', 'abonnement'
   ]
 };
 
@@ -7707,6 +7740,82 @@ function isOwner() {
 // ╚══════════════════════════════════════════════════════════════╝
 
 let ABO_SELECTED_PLAN = null;
+
+// ╔══════════════════════════════════════════════════════════════╗
+// ║         GESTION UTILISATEURS — PAGE CLIENT                   ║
+// ╚══════════════════════════════════════════════════════════════╝
+
+let SETTINGS_USERS = [];
+
+async function loadSettingsUsers() {
+  try {
+    const { data, error } = await sb.from('gp_users')
+      .select('id,nom,email,role,actif,created_at')
+      .eq('tenant_id', GP_TENANT.id)
+      .order('created_at');
+    if (error) throw error;
+    SETTINGS_USERS = data || [];
+    renderSettingsUsers();
+  } catch(e) {
+    console.warn('[Users] load error:', e.message);
+  }
+}
+
+function renderSettingsUsers() {
+  const tbody = document.getElementById('settings-users-table');
+  if (!tbody) return;
+  if (!SETTINGS_USERS.length) {
+    tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;color:var(--text2);padding:20px;">Aucun utilisateur</td></tr>`;
+    return;
+  }
+  const roleLabels = { super_admin:'👑 Super Admin', admin:'🔧 Admin', caissier:'💰 Caissier', magasinier:'📦 Magasinier', livreur:'🚚 Livreur' };
+  tbody.innerHTML = SETTINGS_USERS.map(u => `
+    <tr>
+      <td>${escapeHTML(u.nom || '—')}</td>
+      <td style="font-size:12px;">${escapeHTML(u.email)}</td>
+      <td><span style="font-size:12px;">${roleLabels[u.role] || u.role}</span></td>
+      <td><span style="color:${u.actif ? 'var(--accent)' : 'var(--red)'};">${u.actif ? '✅ Actif' : '❌ Inactif'}</span></td>
+      <td>
+        <button onclick="toggleSettingsUser('${u.id}',${u.actif})" style="padding:4px 10px;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--text2);font-size:11px;cursor:pointer;">
+          ${u.actif ? 'Désactiver' : 'Activer'}
+        </button>
+        ${u.id !== GP_USER.id ? `<button onclick="deleteSettingsUser('${u.id}','${escapeHTML(u.nom)}')" style="padding:4px 10px;border-radius:6px;border:1px solid rgba(224,49,49,0.3);background:transparent;color:var(--red);font-size:11px;cursor:pointer;margin-left:4px;">🗑️</button>` : ''}
+      </td>
+    </tr>`).join('');
+}
+
+function openSettingsUserModal() {
+  // Réutiliser le modal existant du Super Admin
+  document.getElementById('sau-id').value = '';
+  document.getElementById('sau-nom').value = '';
+  document.getElementById('sau-email').value = '';
+  document.getElementById('sau-role').value = 'caissier';
+  document.getElementById('sau-pwd').value = '';
+  const pwdGroup = document.getElementById('sau-pwd-group');
+  if (pwdGroup) pwdGroup.style.display = 'block';
+  openModal('modal-sa-user');
+}
+
+async function toggleSettingsUser(userId, currentActif) {
+  try {
+    await sb.from('gp_users').update({ actif: !currentActif }).eq('id', userId);
+    await loadSettingsUsers();
+    toast(currentActif ? 'Utilisateur désactivé' : 'Utilisateur activé ✅');
+  } catch(e) {
+    toast('Erreur: ' + e.message, 'error');
+  }
+}
+
+async function deleteSettingsUser(userId, nom) {
+  if (!confirm(`Supprimer "${nom}" ?`)) return;
+  try {
+    await sb.from('gp_users').delete().eq('id', userId);
+    await loadSettingsUsers();
+    toast(`🗑️ ${nom} supprimé`);
+  } catch(e) {
+    toast('Erreur: ' + e.message, 'error');
+  }
+}
 
 async function loadAbonnement() {
   try {
@@ -10914,6 +11023,7 @@ function applyNavPermissions() {
     document.querySelectorAll('.nav-item[data-nav-module]').forEach(el => {
       const mod = el.dataset.navModule;
       if (mod === 'owner-admin') return; // géré séparément
+      if (mod === 'utilisateurs') { el.style.display = 'none'; return; } // réservé super_admin
       const inPlan = hasModuleAccess(mod);
       const canRead = hasPermission(mod, 'read');
       el.style.display = (inPlan && canRead) ? '' : 'none';
@@ -11575,9 +11685,9 @@ function applyRBACUI() {
     }
   }
 
-  // Afficher/masquer nav Super Admin
+  // Afficher/masquer nav Super Admin — réservé au owner uniquement
   const navSA = document.getElementById('nav-superadmin');
-  if (navSA) navSA.style.display = isSuperAdmin() ? 'flex' : 'none';
+  if (navSA) navSA.style.display = (isSuperAdmin() && isOwner()) ? 'flex' : 'none';
 
   // Appliquer RBAC sur les items nav
   const navRules = {
