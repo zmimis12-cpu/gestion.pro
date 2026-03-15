@@ -4600,8 +4600,8 @@ function navigate(page) {
   // ─── SECURITY : vérification des permissions d'accès à la page ───
   const publicPages = ['login', 'dashboard'];
 
-  // Superadmin réservé au owner uniquement
-  if (page === 'superadmin' && !isOwner()) {
+  // Superadmin réservé au owner pour "Mes Clients" uniquement
+  if (page === 'owner-admin' && !isOwner()) {
     toast('⛔ Accès refusé', 'error');
     navigate('dashboard');
     return;
@@ -11685,9 +11685,9 @@ function applyRBACUI() {
     }
   }
 
-  // Afficher/masquer nav Super Admin — réservé au owner uniquement
+  // Afficher/masquer nav Super Admin — pour tous les super_admin
   const navSA = document.getElementById('nav-superadmin');
-  if (navSA) navSA.style.display = (isSuperAdmin() && isOwner()) ? 'flex' : 'none';
+  if (navSA) navSA.style.display = isSuperAdmin() ? 'flex' : 'none';
 
   // Appliquer RBAC sur les items nav
   const navRules = {
