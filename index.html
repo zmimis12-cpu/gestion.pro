@@ -12506,17 +12506,20 @@ async function saveSALocal() {
   }
   locaux = GP_LOCAUX_ALL;
   // Supabase upsert
-  sb.from('gp_locaux').upsert({
+  const { error: sbErr } = await sb.from('gp_locaux').upsert({
     id: obj.id, nom: obj.nom,
     description: obj.description || null,
     adresse: obj.adresse || null, telephone: obj.telephone || null,
     responsable: obj.responsable || null,
     couleur: obj.couleur || 'accent', actif: obj.actif !== false
-  }).then(({error}) => { if(error) console.warn('[SB] saveSALocal:', error.message); });
+  });
+  if (sbErr) console.warn('[SB] saveSALocal:', sbErr.message);
   closeModal('modal-sa-local');
   toast(`✅ Local "${nom}" ${id ? 'mis à jour' : 'créé'}`);
+  await loadSAData();
   renderSALocaux();
   renderSADash();
+  updateSALocalSwitcher();
 }
 
 async function deleteSALocal(id) {
