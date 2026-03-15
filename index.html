@@ -75,6 +75,15 @@ function escapeHTML(str) {
   .nav::-webkit-scrollbar { width: 3px; }
   .nav::-webkit-scrollbar-track { background: transparent; }
   .nav::-webkit-scrollbar { width:5px; } .nav::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  .nav-label {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: var(--text2);
+    opacity: 0.6;
+    padding: 10px 12px 3px;
+  }
   .nav-item {
     display: flex; align-items: center; gap: 10px;
     padding: 9px 12px;
@@ -893,29 +902,15 @@ function escapeHTML(str) {
       <div class="logo-sub" id="sidebar-tenant-name">Système de gestion commerce</div>
     </div>
     <nav class="nav">
+      <div class="nav-label">Principal</div>
       <div class="nav-item active" onclick="navigate('dashboard')" data-nav-module="dashboard">
         <span class="icon">📊</span> Tableau de bord
       </div>
       <div class="nav-item" onclick="navigate('caisse')" data-nav-module="caisse">
         <span class="icon">🧾</span> Caisse & Ventes
       </div>
-      <div class="nav-item" onclick="navigate('conteneurs')" data-nav-module="conteneurs">
-        <span class="icon">🚢</span> Conteneurs
-      </div>
-      <div class="nav-item" onclick="navigate('commandes')" data-nav-module="commandes">
-        <span class="icon">📋</span> Ordres (Ventes)
-      </div>
-      <div class="nav-item" onclick="navigate('docscont')" data-nav-module="docscont">
-        <span class="icon">📑</span> Docs Conteneurs
-      </div>
-      <div class="nav-item" onclick="navigate('fonds')" data-nav-module="fonds">
-        <span class="icon">💵</span> Fonds de caisse
-      </div>
       <div class="nav-item" onclick="navigate('stock')" data-nav-module="stock">
         <span class="icon">📦</span> Stock
-      </div>
-      <div class="nav-item" onclick="navigate('locaux')" data-nav-module="locaux">
-        <span class="icon">🏪</span> Locaux / Zones
       </div>
       <div class="nav-item" onclick="navigate('clients')" data-nav-module="clients">
         <span class="icon">👥</span> Clients
@@ -923,20 +918,28 @@ function escapeHTML(str) {
       <div class="nav-item" onclick="navigate('depenses')" data-nav-module="depenses">
         <span class="icon">💸</span> Dépenses
       </div>
-      <div class="nav-item" id="nav-alerts" onclick="navigate('alerts')" data-nav-module="alerts">
-        <span class="icon">🔔</span> Alertes
-        <span class="badge" id="alert-count">0</span>
+
+      <div class="nav-label">Logistique</div>
+      <div class="nav-item" onclick="navigate('locaux')" data-nav-module="locaux">
+        <span class="icon">🏪</span> Locaux / Zones
       </div>
-      <div class="nav-item" onclick="navigate('settings')" data-nav-module="settings">
-        <span class="icon">⚙️</span> Paramètres
+      <div class="nav-item" onclick="navigate('livraisons')" data-nav-module="livraisons">
+        <span class="icon">🚚</span> Bons de livraison
       </div>
-      <div class="nav-item" id="nav-superadmin" style="display:none;border-top:1px solid rgba(255,209,102,0.3);margin-top:4px;padding-top:8px;" onclick="navigate('superadmin')">
-        <span class="icon">👑</span> <span style="color:var(--gold);">Super Admin</span>
+      <div class="nav-item" onclick="navigate('commandes')" data-nav-module="commandes">
+        <span class="icon">📋</span> Ordres (Ventes)
       </div>
-      <div class="nav-item" id="nav-owner-admin" style="display:none;border-top:1px solid rgba(0,200,150,0.3);margin-top:4px;padding-top:8px;" onclick="navigate('owner-admin')">
-        <span class="icon">🏢</span> <span style="color:var(--accent);">Mes Clients</span>
+      <div class="nav-item" onclick="navigate('conteneurs')" data-nav-module="conteneurs">
+        <span class="icon">🚢</span> Conteneurs
       </div>
-      <div style="height:1px;background:var(--border);margin:6px 0;"></div>
+      <div class="nav-item" onclick="navigate('docscont')" data-nav-module="docscont">
+        <span class="icon">📑</span> Docs Conteneurs
+      </div>
+      <div class="nav-item" onclick="navigate('fonds')" data-nav-module="fonds">
+        <span class="icon">💵</span> Fonds de caisse
+      </div>
+
+      <div class="nav-label">Équipe</div>
       <div class="nav-item" onclick="navigate('employes')" data-nav-module="employes">
         <span class="icon">👨‍💼</span> Employés
       </div>
@@ -944,14 +947,31 @@ function escapeHTML(str) {
         <span class="icon">🏖️</span> Congés
         <span class="badge" id="badge-conges" style="display:none">0</span>
       </div>
-      <div class="nav-item" onclick="navigate('livraisons')" data-nav-module="livraisons">
-        <span class="icon">🚚</span> Bons de livraison
-      </div>
       <div class="nav-item" onclick="navigate('docs-rh')" data-nav-module="docs_rh">
         <span class="icon">📋</span> Documents RH
       </div>
       <div class="nav-item" onclick="navigate('docs-admin')" data-nav-module="docs_admin">
         <span class="icon">🏢</span> Docs Administratifs
+      </div>
+
+      <div class="nav-label">Système</div>
+      <div class="nav-item" id="nav-alerts" onclick="navigate('alerts')" data-nav-module="alerts">
+        <span class="icon">🔔</span> Alertes
+        <span class="badge" id="alert-count">0</span>
+      </div>
+      <div class="nav-item" onclick="navigate('settings')" data-nav-module="settings">
+        <span class="icon">⚙️</span> Paramètres
+      </div>
+      <div class="nav-item" id="nav-superadmin" style="display:none;" onclick="navigate('superadmin')">
+        <span class="icon">👑</span> <span style="color:var(--gold);">Super Admin</span>
+      </div>
+      <div class="nav-item" id="nav-owner-admin" style="display:none;" onclick="navigate('owner-admin')">
+        <span class="icon">🏢</span> <span style="color:var(--accent);">Mes Clients</span>
+      </div>
+
+      <div style="height:1px;background:var(--border);margin:8px 0;"></div>
+      <div class="nav-item" onclick="doLogout()" style="color:var(--red);">
+        <span class="icon">🚪</span> Déconnexion
       </div>
     </nav>
     <div class="sb-user" id="sb-user-block">
