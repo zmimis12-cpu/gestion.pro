@@ -4318,7 +4318,7 @@ function updateSALocalSwitcher() {
     const cur = sel.value;
     sel.innerHTML = '<option value="">— Accès global —</option>' +
       GP_LOCAUX_ALL.filter(l => l.actif !== false).map(l =>
-        `<option value="${l.id}" ${l.id === cur ? 'selected' : ''}>${l.nom}</option>`
+        `<option value="${l.id}" ${l.id === cur ? 'selected' : ''}>${escapeHTML(l.nom)}</option>`
       ).join('');
     if (SA_ACTIVE_LOCAL) sel.value = SA_ACTIVE_LOCAL;
   } else {
@@ -4354,8 +4354,12 @@ async function sbSync(table, data, localIdCol = 'local_id', lid) {
 }
 
 async function sbDelete(table, id) {
-  const { error } = await sb.from(table).delete().eq('id', id);
-  if (error) console.warn(`[SB] Delete ${table}:`, error.message);
+  try {
+    const { error } = await sb.from(table).delete().eq('id', id);
+    if (error) console.warn(`[SB] Delete ${table}:`, error.message);
+  } catch(e) {
+    console.warn(`[SB] Delete ${table} exception:`, e.message);
+  }
 }
 
 async function _doSave() {
@@ -4486,6 +4490,11 @@ updateDate();
 
 // ─── NAVIGATION ───
 function navigate(page) {
+  // Vérifier session active (sauf page login)
+  if (page !== 'login' && page !== 'dashboard' && !GP_USER) {
+    console.warn('[Nav] Tentative accès sans session:', page);
+    return;
+  }
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   document.getElementById('page-' + page).classList.add('active');
@@ -4591,7 +4600,7 @@ function populateLocalSelect(selId, addEmpty = true, curValue = '') {
   if (!sel) return;
   const list = isSuperAdmin() ? GP_LOCAUX_ALL : GP_LOCAUX_ALL.filter(l => !GP_USER?.local_id || l.id === GP_USER.local_id);
   sel.innerHTML = (addEmpty ? '<option value="">— Sélectionner un local —</option>' : '') +
-    list.map(l => `<option value="${l.nom}"${l.nom === curValue ? ' selected' : ''}>${l.nom}</option>`).join('');
+    list.map(l => `<option value="${l.nom}"${l.nom === curValue ? ' selected' : ''}>${escapeHTML(l.nom)}</option>`).join('');
 }
 
 function populateProductLocalSelects(curValue = '') {
@@ -4668,11 +4677,11 @@ function openTransfertModal() {
 
   const trFrom = document.getElementById('tr-from');
   if (trFrom) trFrom.innerHTML = '<option value="">— Local source —</option>' +
-    GP_LOCAUX_ALL.filter(l=>l.actif!==false).map(l => `<option value="${l.id}">${l.nom}</option>`).join('');
+    GP_LOCAUX_ALL.filter(l=>l.actif!==false).map(l => `<option value="${l.id}">${escapeHTML(l.nom)}</option>`).join('');
 
   const trTo = document.getElementById('tr-to');
   if (trTo) trTo.innerHTML = '<option value="">— Local destination —</option>' +
-    GP_LOCAUX_ALL.filter(l=>l.actif!==false).map(l => `<option value="${l.id}">${l.nom}</option>`).join('');
+    GP_LOCAUX_ALL.filter(l=>l.actif!==false).map(l => `<option value="${l.id}">${escapeHTML(l.nom)}</option>`).join('');
 
   const qEl = document.getElementById('tr-qty');
   const nEl = document.getElementById('tr-note');
@@ -4709,14 +4718,17 @@ function updateTransfertQtyMax() {
 }
 
 function executeTransfert() {
+  if (!isSuperAdmin() && !hasPermission('stock', 'update')) {
+    toast('⛔ Permission refusée pour les transferts', 'error'); return;
+  }
   const prodId  = document.getElementById('tr-produit')?.value;
   const qty     = parseFloat(document.getElementById('tr-qty')?.value);
-  const fromLid = document.getElementById('tr-from')?.value;   // local_id source
-  const toLid   = document.getElementById('tr-to')?.value;     // local_id destination
+  const fromLid = document.getElementById('tr-from')?.value;
+  const toLid   = document.getElementById('tr-to')?.value;
   const note    = document.getElementById('tr-note')?.value?.trim() || '';
 
   if (!prodId) { toast('Sélectionnez un produit', 'error'); return; }
-  if (!qty || qty <= 0) { toast('Quantité invalide', 'error'); return; }
+  if (!qty || qty <= 0 || !isFinite(qty)) { toast('Quantité invalide', 'error'); return; }
   if (!fromLid || !toLid) { toast('Sélectionnez les locaux source et destination', 'error'); return; }
   if (fromLid === toLid) { toast('Source et destination identiques', 'error'); return; }
 
@@ -4991,6 +5003,9 @@ function getSizesFromGrid(gridId) {
 }
 
 function saveProduct() {
+  if (!isSuperAdmin() && !hasPermission('stock', 'create')) {
+    toast('⛔ Permission refusée', 'error'); return;
+  }
   const lid = getLocalId(); // null si SA accès global — autorisé
   const name = document.getElementById('prod-name').value.trim();
   const price = parseFloat(document.getElementById('prod-price').value);
@@ -5118,6 +5133,9 @@ function editProduct(id) {
 }
 
 function updateProduct() {
+  if (!isSuperAdmin() && !hasPermission('stock', 'update')) {
+    toast('⛔ Permission refusée', 'error'); return;
+  }
   const id = document.getElementById('edit-prod-id').value;
   const idx = products.findIndex(x => x.id === id);
   if (idx < 0) return;
@@ -5157,6 +5175,9 @@ function updateProduct() {
 }
 
 function deleteProduct(id) {
+  if (!isSuperAdmin() && !hasPermission('stock', 'delete')) {
+    toast('⛔ Permission refusée', 'error'); return;
+  }
   if (!confirm('Supprimer ce produit ?')) return;
   products = products.filter(x => x.id !== id);
   sbDelete('gp_products', id);
@@ -5325,7 +5346,7 @@ function renderStockTable(resetPage) {
     return `<tr>
       <td>${photo}</td>
       <td>
-        <div style="font-weight:600;font-size:13px;">${g.name}</div>
+        <div style="font-weight:600;font-size:13px;">${escapeHTML(g.name)}</div>
         <div style="font-size:11px;color:var(--text2);">${g.code||'—'}${contSrc?` · <span style="color:var(--accent3);cursor:pointer;" onclick="document.getElementById('stock-filter-cont').value='${contSrc.id}';renderStockTable()">📦${contSrc.numero}</span>`:''}
         </div>
       </td>
@@ -5485,7 +5506,7 @@ function renderProductGrid(resetPage) {
     return `<div class="product-card ${isOutOfStock ? 'out-of-stock' : ''}" onclick="addToCart('${p.id}')">
       <div class="product-stock-badge">${p.type==='tailles' ? '👕' : p.type==='couleurs' ? '🎨' : p.type==='kg' ? '⚖️' : p.stock}</div>
       ${photo}
-      <div class="product-name">${p.name}</div>
+      <div class="product-name">${escapeHTML(p.name)}</div>
       <div class="product-price">${p.price.toFixed(2)} MAD${p.type==='kg' ? '<span style="font-size:10px;color:var(--text2);"> /kg</span>' : ''}</div>
     </div>`;
   }).join('');
@@ -5841,7 +5862,7 @@ function renderCart() {
         <div class="cart-item" style="flex-direction:column;align-items:stretch;gap:8px;">
           <div style="display:flex;align-items:center;gap:8px;">
             <span style="font-size:14px;">⚖️</span>
-            <div class="cart-item-name" style="flex:1;">${item.name}</div>
+            <div class="cart-item-name" style="flex:1;">${escapeHTML(item.name)}</div>
             <button class="remove-btn" onclick="removeFromCartByKey('${ck}')">✕</button>
           </div>
           <div style="display:flex;align-items:center;gap:8px;">
@@ -5874,7 +5895,7 @@ function renderCart() {
     return `
     <div class="cart-item" style="flex-direction:column;align-items:stretch;gap:8px;">
       <div style="display:flex;align-items:center;gap:8px;">
-        <div class="cart-item-name" style="flex:1;">${item.name}</div>
+        <div class="cart-item-name" style="flex:1;">${escapeHTML(item.name)}</div>
         <button class="remove-btn" onclick="removeFromCartByKey('${ck}')">✕</button>
       </div>
       <div style="display:flex;align-items:center;gap:8px;">
@@ -6008,10 +6029,13 @@ function onClientChange() {
 function populateClientSelect() {
   const sel = document.getElementById('cart-client');
   sel.innerHTML = '<option value="">Client de passage</option>' +
-    clients.map(c => `<option value="${c.id}">${c.name}${c.creditUsed > 0 ? ` (Dette: ${fmt(c.creditUsed)})` : ''}</option>`).join('');
+    clients.map(c => `<option value="${c.id}">${escapeHTML(c.name)}${c.creditUsed > 0 ? ` (Dette: ${fmt(c.creditUsed)})` : ''}</option>`).join('');
 }
 
 function checkout(docType) {
+  if (!isSuperAdmin() && !hasPermission('caisse', 'create')) {
+    toast('⛔ Permission refusée', 'error'); return;
+  }
   if (!cart.length) { toast(t('toast_cart_empty'), 'warn'); return; }
   const fin = calcCartFinancials();
 
@@ -6231,7 +6255,7 @@ function buildInvoiceHTML(sale) {
           const lineTVA = sale.tva > 0 ? lineHT * sale.tva / 100 : 0;
           const lineTTC = lineHT + lineTVA;
           return `<tr style="background:${idx%2===0?'#fff':'#f7f9fc'};">
-            <td style="padding:9px 12px;border-bottom:1px solid #e8e8e8;">${item.name}</td>
+            <td style="padding:9px 12px;border-bottom:1px solid #e8e8e8;">${escapeHTML(item.name)}</td>
             <td style="padding:9px 12px;text-align:center;border-bottom:1px solid #e8e8e8;">${item.qty}</td>
             <td style="padding:9px 12px;text-align:center;border-bottom:1px solid #e8e8e8;">${unit}</td>
             <td style="padding:9px 12px;text-align:right;border-bottom:1px solid #e8e8e8;">${item.price.toFixed(2)} ${currency}</td>
@@ -6416,6 +6440,9 @@ function printReceipt() { printInvoice(); }
 
 // ─── CLIENTS ───
 function saveClient() {
+  if (!isSuperAdmin() && !hasPermission('clients', 'create')) {
+    toast('⛔ Permission refusée', 'error'); return;
+  }
   const lid = getLocalId();
   const name = document.getElementById('cli-name').value.trim();
   if (!name) { toast(t('toast_name_required'), 'error'); return; }
@@ -6464,7 +6491,7 @@ function renderClients() {
         <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px;">
           <div class="client-avatar">${c.name.charAt(0).toUpperCase()}</div>
           <div>
-            <div class="client-name">${c.name}</div>
+            <div class="client-name">${escapeHTML(c.name)}</div>
             <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
               <div class="client-phone">${c.phone || 'Pas de tél.'}</div>
               ${(c.creditUsed > 0) ? `<button onclick="sendWARappelCredit('${c.id}');event.stopPropagation();"
@@ -6515,7 +6542,7 @@ function viewClient(id) {
     <div style="display:flex;align-items:center;gap:16px;margin-bottom:24px;">
       <div class="client-avatar" style="width:60px;height:60px;font-size:26px;">${client.name.charAt(0).toUpperCase()}</div>
       <div>
-        <div style="font-size:20px;font-weight:800;">${client.name}</div>
+        <div style="font-size:20px;font-weight:800;">${escapeHTML(client.name)}</div>
         <div style="font-size:13px;color:var(--text2);">📞 ${client.phone || '—'} · 📍 ${client.city || '—'}</div>
         <div style="font-size:12px;color:var(--text3);margin-top:3px;">Client depuis ${fmtDate(client.createdAt)}</div>
       </div>
@@ -6554,7 +6581,7 @@ function viewClient(id) {
           <div class="transaction-item">
             <span class="transaction-icon">${tx.type === 'debit' ? '🔴' : '🟢'}</span>
             <div class="transaction-info">
-              <div>${tx.note || (tx.type === 'debit' ? 'Achat à crédit' : 'Remboursement')}</div>
+              <div>${escapeHTML(tx.note || (tx.type === 'debit' ? 'Achat à crédit' : 'Remboursement'))}</div>
               <div class="transaction-date">${fmtDate(tx.date)}</div>
             </div>
             <span class="transaction-amount ${tx.type === 'debit' ? 'debit' : 'credit-pay'}">${tx.type === 'debit' ? '−' : '+'}${fmt(tx.amount)}</span>
@@ -6674,7 +6701,7 @@ function renderAlerts() {
       <div class="alert-item ${urgent ? 'urgent' : 'warn'}">
         <div class="alert-icon">${urgent ? '🔴' : '🟡'}</div>
         <div class="alert-info">
-          <div class="alert-name">${p.name}</div>
+          <div class="alert-name">${escapeHTML(p.name)}</div>
           <div class="alert-detail">
             ${t('alert_current_stock')} : <strong>${p.stock} ${p.unit}</strong> —
             ${t('alert_min_req')} : <strong>${p.minStock} ${p.unit}</strong> —
@@ -6805,7 +6832,7 @@ function renderDashboard() {
       <div style="display:flex;align-items:center;gap:12px;padding:10px;background:var(--surface2);border-radius:8px;margin-bottom:8px;">
         <span style="font-size:18px;">${p.stock === 0 ? '🔴' : '🟡'}</span>
         <div style="flex:1;">
-          <div style="font-size:13px;font-weight:600;">${p.name}</div>
+          <div style="font-size:13px;font-weight:600;">${escapeHTML(p.name)}</div>
           <div style="font-size:11px;color:var(--text2);">Stock: ${p.stock} / Min: ${p.minStock}</div>
         </div>
         <span class="chip ${p.stock === 0 ? 'chip-red' : 'chip-orange'}">${p.stock === 0 ? t('stat_rupture') : t('stat_bas')}</span>
@@ -6912,7 +6939,7 @@ function renderDepenses() {
       <div style="flex:1;min-width:0;">
         <div style="font-size:13px;font-weight:700;">${d.label || d.cat}</div>
         <div style="font-size:11px;color:var(--text2);">${d.cat} · ${dateStr} ${recIcon ? '· ' + recIcon : ''}</div>
-        ${d.notes ? `<div style="font-size:11px;color:var(--text2);font-style:italic;">${d.notes}</div>` : ''}
+        ${d.notes ? `<div style="font-size:11px;color:var(--text2);font-style:italic;">${escapeHTML(d.notes)}</div>` : ''}
       </div>
       <div style="font-family:'JetBrains Mono',monospace;font-weight:800;font-size:15px;color:var(--red);flex-shrink:0;">- ${fmt(d.montant)}</div>
       <div style="display:flex;gap:6px;flex-shrink:0;">
@@ -6924,6 +6951,12 @@ function renderDepenses() {
 }
 
 async function saveDep() {
+  if (!isSuperAdmin() && !hasPermission('depenses', 'create')) {
+    toast('⛔ Permission refusée', 'error'); return;
+  }
+  if (!isSuperAdmin() && !hasPermission('depenses', 'create')) {
+    toast('⛔ Permission refusée', 'error'); return;
+  }
   const tid     = GP_TENANT?.id;
   const id      = document.getElementById('dep-edit-id').value;
   const cat     = document.getElementById('dep-cat').value;
@@ -6981,6 +7014,9 @@ function editDep(id) {
 }
 
 async function deleteDep(id) {
+  if (!isSuperAdmin() && !hasPermission('depenses', 'delete')) {
+    toast('⛔ Permission refusée', 'error'); return;
+  }
   if (!confirm('Supprimer cette dépense ?')) return;
   try {
     await sb.from('gp_depenses').delete().eq('id', id);
@@ -7138,7 +7174,7 @@ function showWACreditPopup(sale, client) {
     <div style="background:rgba(37,211,102,0.08);border-radius:10px;padding:10px 12px;margin-bottom:14px;font-size:12px;">
       <div style="display:flex;justify-content:space-between;margin-bottom:4px;">
         <span style="color:var(--text2);">Client</span>
-        <span style="font-weight:700;">${client?.name || sale.clientName}</span>
+        <span style="font-weight:700;">${escapeHTML(client?.name || sale.clientName)}</span>
       </div>
       <div style="display:flex;justify-content:space-between;margin-bottom:4px;">
         <span style="color:var(--text2);">Cette vente</span>
@@ -7430,7 +7466,7 @@ function renderRapports() {
         return `<div style="display:flex;align-items:center;gap:10px;padding:10px 16px;border-bottom:1px solid var(--border);">
           <div style="width:24px;text-align:center;font-size:16px;">${icon}</div>
           <div style="flex:1;min-width:0;">
-            <div style="font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${p.name}</div>
+            <div style="font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHTML(p.name)}</div>
             <div style="height:5px;background:var(--surface2);border-radius:3px;margin-top:5px;overflow:hidden;">
               <div style="height:100%;width:${bar}%;background:linear-gradient(90deg,var(--accent),rgba(0,212,170,0.5));border-radius:3px;transition:width 0.4s;"></div>
             </div>
@@ -7470,7 +7506,7 @@ function renderRapports() {
         return `<div style="display:flex;align-items:center;gap:10px;padding:10px 16px;border-bottom:1px solid var(--border);">
           <div style="width:24px;text-align:center;font-size:16px;">${icon}</div>
           <div style="flex:1;min-width:0;">
-            <div style="font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${c.name}</div>
+            <div style="font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHTML(c.name)}</div>
             <div style="height:5px;background:var(--surface2);border-radius:3px;margin-top:5px;overflow:hidden;">
               <div style="height:100%;width:${bar}%;background:linear-gradient(90deg,var(--gold),rgba(245,166,35,0.5));border-radius:3px;transition:width 0.4s;"></div>
             </div>
@@ -7666,7 +7702,7 @@ function renderOATenants() {
     return `<div style="display:flex;align-items:center;gap:12px;padding:14px;background:var(--surface2);border-radius:10px;margin-bottom:8px;border:1px solid ${expired?'rgba(224,49,49,0.2)':soon?'rgba(245,166,35,0.2)':'var(--border)'};flex-wrap:wrap;">
       <div style="width:40px;height:40px;border-radius:10px;background:rgba(0,212,170,0.1);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;">${planBadge}</div>
       <div style="flex:1;min-width:150px;">
-        <div style="font-weight:700;font-size:14px;">${t.nom}</div>
+        <div style="font-weight:700;font-size:14px;">${escapeHTML(t.nom)}</div>
         <div style="font-size:11px;color:var(--text2);font-family:'JetBrains Mono',monospace;">code: ${t.code}</div>
       </div>
       <div style="text-align:center;min-width:80px;">
@@ -7993,7 +8029,11 @@ function importProductsJSON(e) {
             Object.assign(existing, { ...imp, id: existing.id, photo });
             // Sauvegarder la photo immédiatement dans localStorage
             if (photo) {
-              try { localStorage.setItem('gp_photo_' + existing.id, photo); } catch(err) {}
+              try { 
+                if (photo && photo.length < 500000) { // Max 500KB par photo
+                  localStorage.setItem('gp_photo_' + existing.id, photo); 
+                }
+              } catch(err) { console.warn('[Photo] localStorage full:', err.message); }
             } else {
               localStorage.removeItem('gp_photo_' + existing.id);
             }
@@ -8446,6 +8486,9 @@ function previewRepartition() {
 }
 
 function saveConteneur() {
+  if (!isSuperAdmin() && !hasPermission('conteneurs', 'create')) {
+    toast('⛔ Permission refusée', 'error'); return;
+  }
   const numero = document.getElementById('c-numero')?.value.trim();
   if (!numero) { toast('N° conteneur obligatoire', 'error'); return; }
   const refs = getRefsFromForm();
@@ -8532,6 +8575,9 @@ function editConteneur(id) {
 }
 
 function deleteConteneur(id) {
+  if (!isSuperAdmin() && !hasPermission('conteneurs', 'delete')) {
+    toast('⛔ Permission refusée', 'error'); return;
+  }
   if (!confirm('Supprimer ce conteneur ?')) return;
   // Supprimer les ordres liés aussi
   const ordresLies = ordres.filter(o => o.conteneurId === id);
@@ -9202,6 +9248,9 @@ function cloturerCaisse() {
 }
 
 function deleteCaisseOp(id) {
+  if (!isSuperAdmin() && !hasPermission('fonds', 'delete')) {
+    toast('⛔ Permission refusée', 'error'); return;
+  }
   if (!confirm('Supprimer cette opération ?')) return;
   caisseOps = caisseOps.filter(o => o.id !== id);
   sbDelete('gp_caisse_ops', id);
@@ -9357,7 +9406,7 @@ function viewLocal(id) {
     const benef = p.price - cost;
     const statusCls = p.stock===0?'chip-red':p.stock<p.minStock?'chip-orange':'chip-green';
     return `<tr style="background:${i%2===0?'var(--surface)':'var(--surface2)'}">
-      <td style="padding:8px 10px;border-bottom:1px solid var(--border);font-weight:600;font-size:12px;">${p.name}</td>
+      <td style="padding:8px 10px;border-bottom:1px solid var(--border);font-weight:600;font-size:12px;">${escapeHTML(p.name)}</td>
       <td style="padding:8px 10px;border-bottom:1px solid var(--border);font-size:11px;color:var(--text2);">${p.code||'—'}</td>
       <td style="padding:8px 10px;border-bottom:1px solid var(--border);font-size:11px;"><span class="chip chip-purple">${p.category||'—'}</span></td>
       <td style="padding:8px 10px;border-bottom:1px solid var(--border);text-align:center;font-weight:700;font-family:'JetBrains Mono',monospace;">${p.stock} ${p.unit||''}</td>
@@ -9501,7 +9550,7 @@ function renderLocaux() {
       <!-- Header -->
       <div style="background:${col.bg};padding:16px 18px;border-bottom:1px solid ${col.border};display:flex;justify-content:space-between;align-items:center;">
         <div>
-          <div style="font-size:18px;font-weight:800;color:${col.text};">🏪 ${l.nom}</div>
+          <div style="font-size:18px;font-weight:800;color:${col.text};">🏪 ${escapeHTML(l.nom)}</div>
           ${l.desc?`<div style="font-size:12px;color:var(--text2);margin-top:2px;">📍 ${l.desc}</div>`:''}
           ${l.responsable?`<div style="font-size:11px;color:var(--text2);">👤 ${l.responsable}</div>`:''}
         </div>
@@ -9574,7 +9623,7 @@ function renderFonds() {
   if (localSel) {
     const cur = localSel.value;
     localSel.innerHTML = '<option value="">🌐 Tous les locaux</option>' +
-      GP_LOCAUX_ALL.map(l => `<option value="${l.id}"${l.id===cur?' selected':''}>${l.nom}</option>`).join('');
+      GP_LOCAUX_ALL.map(l => `<option value="${l.id}"${l.id===cur?' selected':''}>${escapeHTML(l.nom)}</option>`).join('');
     if (cur) localSel.value = cur;
     // Si user a un local assigné, filtrer dessus par défaut
     if (!cur && GP_USER?.local_id) localSel.value = GP_USER.local_id;
@@ -9769,7 +9818,7 @@ function renderEmployes() {
   }
   const statutBadge = {actif:'<span style="background:rgba(0,212,170,.12);color:var(--accent);padding:2px 8px;border-radius:12px;font-size:11px;font-weight:700;">✅ Actif</span>', conge:'<span style="background:rgba(255,209,102,.12);color:var(--gold);padding:2px 8px;border-radius:12px;font-size:11px;font-weight:700;">🏖️ Congé</span>', inactif:'<span style="background:rgba(255,71,87,.12);color:var(--red);padding:2px 8px;border-radius:12px;font-size:11px;font-weight:700;">❌ Inactif</span>'};
   tbody.innerHTML = filtered.map(e => `<tr>
-    <td><strong>${e.name}</strong>${e.prenom?' '+e.prenom:''}</td>
+    <td><strong>${escapeHTML(e.name)}</strong>${e.prenom?' '+e.prenom:''}</td>
     <td style="color:var(--text2);">${e.poste||'—'}</td>
     <td style="color:var(--text2);">${e.dept||'—'}</td>
     <td>${e.tel||'—'}</td>
@@ -9810,6 +9859,9 @@ function openEmployeModal(id) {
 }
 
 function saveEmploye() {
+  if (!isSuperAdmin() && !hasPermission('employes', 'create')) {
+    toast('⛔ Permission refusée', 'error'); return;
+  }
   const name = document.getElementById('emp-name').value.trim();
   if (!name) { toast('Nom requis', 'error'); return; }
   const id = document.getElementById('emp-editing-id').value;
@@ -9843,6 +9895,9 @@ function saveEmploye() {
 }
 
 function deleteEmploye(id) {
+  if (!isSuperAdmin() && !hasPermission('employes', 'delete')) {
+    toast('⛔ Permission refusée', 'error'); return;
+  }
   if (!confirm('Supprimer cet employé ?')) return;
   employes = employes.filter(x => x.id !== id);
   sbDelete('gp_employes', id);
@@ -9867,14 +9922,14 @@ function updateEmployeSelects() {
     const cur = sel.value;
     sel.innerHTML = `<option value="">Sélectionner un employé</option>` +
       employes.filter(e => e.statut !== 'inactif').map(e =>
-        `<option value="${e.id}" ${e.id===cur?'selected':''}>${e.name}${e.prenom?' '+e.prenom:''} — ${e.poste||'N/A'}</option>`
+        `<option value="${e.id}" ${e.id===cur?'selected':''}>${escapeHTML(e.name)}${e.prenom?' '+e.prenom:''} — ${e.poste||'N/A'}</option>`
       ).join('');
   });
   // BL product select
   const blSel = document.getElementById('bl-prod-select');
   if (blSel) {
     blSel.innerHTML = `<option value="">Sélectionner un produit...</option>` +
-      products.map(p => `<option value="${p.id}">${p.name} (Stock: ${p.stock} ${p.unit||''})</option>`).join('');
+      products.map(p => `<option value="${p.id}">${escapeHTML(p.name)} (Stock: ${p.stock} ${p.unit||''})</option>`).join('');
   }
 }
 
@@ -9921,7 +9976,7 @@ function renderConges() {
   tbody.innerHTML = filtered.map(c => {
     const emp = employes.find(e => e.id === c.empId);
     return `<tr>
-      <td><strong>${emp?.name||'—'}</strong>${emp?.poste?`<br><small style="color:var(--text2);">${emp.poste}</small>`:''}</td>
+      <td><strong>${emp?.name||'—'}</strong>${emp?.poste?`<br><small style="color:var(--text2);">${escapeHTML(emp.poste)}</small>`:''}</td>
       <td>${typeLabel[c.type]||c.type}</td>
       <td>${c.debut||'—'}</td>
       <td>${c.fin||'—'}</td>
@@ -9960,6 +10015,9 @@ function openCongeModal(id) {
 }
 
 function saveConge() {
+  if (!isSuperAdmin() && !hasPermission('conges', 'create')) {
+    toast('⛔ Permission refusée', 'error'); return;
+  }
   const empId = document.getElementById('conge-emp').value;
   const debut = document.getElementById('conge-debut').value;
   const fin   = document.getElementById('conge-fin').value;
@@ -9989,6 +10047,9 @@ function updateCongeStatut(id, statut) {
 }
 
 function deleteConge(id) {
+  if (!isSuperAdmin() && !hasPermission('conges', 'delete')) {
+    toast('⛔ Permission refusée', 'error'); return;
+  }
   if (!confirm('Supprimer cette demande ?')) return;
   conges = conges.filter(x => x.id !== id);
   sbDelete('gp_conges', id);
@@ -10036,7 +10097,7 @@ function renderLivraisons() {
   tbody.innerHTML = filtered.map(bl => `<tr>
     <td><strong style="font-family:'JetBrains Mono',monospace;">${bl.numero}</strong></td>
     <td style="font-size:12px;color:var(--text2);">${bl.date||'—'}</td>
-    <td><strong>${bl.client||'—'}</strong>${bl.adresse?`<br><small style="color:var(--text2);">${bl.adresse}</small>`:''}</td>
+    <td><strong>${bl.client||'—'}</strong>${bl.adresse?`<br><small style="color:var(--text2);">${escapeHTML(bl.adresse)}</small>`:''}</td>
     <td>${bl.chauffeur||'—'}</td>
     <td>${(bl.articles||[]).length} articles</td>
     <td style="font-family:'JetBrains Mono',monospace;font-weight:700;color:var(--accent);">${(bl.valeur||0).toLocaleString('fr-MA',{maximumFractionDigits:2})} MAD</td>
@@ -10076,7 +10137,7 @@ function openBLModal(id) {
   // populate product select
   const sel = document.getElementById('bl-prod-select');
   sel.innerHTML = `<option value="">Sélectionner un produit...</option>` +
-    products.map(p=>`<option value="${p.id}">${p.name}</option>`).join('');
+    products.map(p=>`<option value="${p.id}">${escapeHTML(p.name)}</option>`).join('');
   renderBLArticlesTemp();
   openModal('modal-bl');
 }
@@ -10101,7 +10162,7 @@ function renderBLArticlesTemp() {
   if (!blArticlesTemp.length) { container.innerHTML='<div style="color:var(--text2);font-size:12px;padding:8px;">Aucun article ajouté</div>'; return; }
   container.innerHTML = blArticlesTemp.map((a,i)=>`
     <div style="display:flex;align-items:center;gap:8px;padding:7px 10px;background:var(--surface2);border-radius:8px;margin-bottom:5px;">
-      <span style="flex:1;font-size:13px;font-weight:600;">${a.name}</span>
+      <span style="flex:1;font-size:13px;font-weight:600;">${escapeHTML(a.name)}</span>
       <input type="number" value="${a.qty}" min="0.001" step="0.001" style="width:72px;background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:4px 8px;color:var(--text);font-family:'JetBrains Mono',monospace;font-size:13px;"
         onchange="blArticlesTemp[${i}].qty=parseFloat(this.value)||0;renderBLArticlesTemp()">
       <span style="font-size:11px;color:var(--text2);">${a.unit}</span>
@@ -10111,6 +10172,9 @@ function renderBLArticlesTemp() {
 }
 
 function saveBL() {
+  if (!isSuperAdmin() && !hasPermission('livraisons', 'create')) {
+    toast('⛔ Permission refusée', 'error'); return;
+  }
   const client = document.getElementById('bl-client').value.trim();
   if (!client) { toast('Client requis', 'error'); return; }
   const id = document.getElementById('bl-editing-id').value;
@@ -10138,6 +10202,9 @@ function saveBL() {
 }
 
 function deleteBL(id) {
+  if (!isSuperAdmin() && !hasPermission('livraisons', 'delete')) {
+    toast('⛔ Permission refusée', 'error'); return;
+  }
   if (!confirm('Supprimer ce bon de livraison ?')) return;
   livraisons = livraisons.filter(x=>x.id!==id);
   sbDelete('gp_livraisons', id);
@@ -10170,14 +10237,14 @@ function printBL(id) {
   <div class="header"><div>${logo}<div class="bl-title">Bon de Livraison</div><div style="font-size:22px;font-weight:800;color:#555;margin-top:4px;">${bl.numero}</div></div>
   <div style="text-align:right;"><div style="font-size:15px;font-weight:700;">${store}</div><div style="font-size:12px;color:#888;">${settings.storeAddress||''}</div><div style="font-size:12px;color:#888;">${settings.storePhone||''}</div></div></div>
   <div class="info-grid">
-    <div class="info-block"><label>Client / Destinataire</label><span>${bl.client}</span>${bl.tel?`<br><small>${bl.tel}</small>`:''}<br>${bl.adresse||''}</div>
+    <div class="info-block"><label>Client / Destinataire</label><span>${escapeHTML(bl.client)}</span>${bl.tel?`<br><small>${bl.tel}</small>`:''}<br>${bl.adresse||''}</div>
     <div class="info-block"><label>Livraison</label><span>${bl.date||'—'}</span><br><small>Chauffeur: ${bl.chauffeur||'—'}</small><br><small>Véhicule: ${bl.vehicule||'—'}</small><br><span class="statut st-${bl.statut}">${{en_cours:'🔄 En cours',livre:'✅ Livré',retour:'↩️ Retour'}[bl.statut]||bl.statut}</span></div>
   </div>
   <h3>Articles</h3>
   <table><thead><tr><th>Désignation</th><th>Qté</th><th>Unité</th><th>Prix unit.</th><th>Total</th></tr></thead>
-  <tbody>${(bl.articles||[]).map(a=>`<tr><td>${a.name}</td><td style="font-weight:700;">${a.qty}</td><td>${a.unit||''}</td><td>${a.prixU?.toFixed(2)||'—'} MAD</td><td style="font-weight:700;">${(a.prixU*a.qty).toFixed(2)} MAD</td></tr>`).join('')}
+  <tbody>${(bl.articles||[]).map(a=>`<tr><td>${escapeHTML(a.name)}</td><td style="font-weight:700;">${a.qty}</td><td>${a.unit||''}</td><td>${a.prixU?.toFixed(2)||'—'} MAD</td><td style="font-weight:700;">${(a.prixU*a.qty).toFixed(2)} MAD</td></tr>`).join('')}
   <tr class="total-row"><td colspan="4" style="text-align:right;">TOTAL</td><td>${bl.valeur?.toFixed(2)||'0.00'} MAD</td></tr></tbody></table>
-  ${bl.notes?`<div style="background:#f8f8f8;padding:12px;border-radius:8px;font-size:13px;margin-bottom:20px;"><strong>Notes:</strong> ${bl.notes}</div>`:''}
+  ${bl.notes?`<div style="background:#f8f8f8;padding:12px;border-radius:8px;font-size:13px;margin-bottom:20px;"><strong>Notes:</strong> ${escapeHTML(bl.notes)}</div>`:''}
   <div class="sig-area"><div class="sig-box">Signature expéditeur :<br><br><br></div><div class="sig-box">Signature destinataire :<br><br><br></div></div>
   <script>window.print();<\/script></body></html>`;
   const _blob = new Blob([html], {type:'text/html;charset=utf-8'});
@@ -10255,7 +10322,7 @@ function imprimerDocRH(doc, emp) {
     corps = `
       <p>Je soussigné(e), la Direction de <strong>${store}</strong>, certifie par la présente que :</p>
       <div class="emp-card">
-        <div><strong>M. / Mme :</strong> ${emp.name} ${emp.prenom||''}</div>
+        <div><strong>M. / Mme :</strong> ${escapeHTML(emp.name)} ${escapeHTML(emp.prenom||'')}</div>
         <div><strong>CIN :</strong> ${emp.cin||'—'}</div>
         <div><strong>Poste :</strong> ${emp.poste||'—'}</div>
         <div><strong>Département :</strong> ${emp.dept||'—'}</div>
@@ -10269,7 +10336,7 @@ function imprimerDocRH(doc, emp) {
     corps = `
       <p>Je soussigné(e), la Direction de <strong>${store}</strong>, atteste que :</p>
       <div class="emp-card">
-        <div><strong>M. / Mme :</strong> ${emp.name} ${emp.prenom||''}</div>
+        <div><strong>M. / Mme :</strong> ${escapeHTML(emp.name)} ${escapeHTML(emp.prenom||'')}</div>
         <div><strong>Poste :</strong> ${emp.poste||'—'}</div>
         <div><strong>Salaire net mensuel :</strong> <strong style="font-size:18px;">${emp.salaire?Number(emp.salaire).toLocaleString('fr-MA'):'—'} MAD</strong></div>
         <div><strong>Type de contrat :</strong> ${emp.contrat||'CDI'}</div>
@@ -10279,7 +10346,7 @@ function imprimerDocRH(doc, emp) {
     corps = `
       <p>C'est avec plaisir que nous témoignons de notre entière satisfaction quant au travail accompli par :</p>
       <div class="emp-card">
-        <div><strong>M. / Mme :</strong> ${emp.name} ${emp.prenom||''}</div>
+        <div><strong>M. / Mme :</strong> ${escapeHTML(emp.name)} ${escapeHTML(emp.prenom||'')}</div>
         <div><strong>Poste occupé :</strong> ${emp.poste||'—'}</div>
         <div><strong>Période :</strong> du ${dateEmb} à ce jour</div>
       </div>
@@ -10432,6 +10499,20 @@ function genererDocAdmin() {
 const SUPABASE_URL  = 'https://xyaispmikggrgjczyghk.supabase.co';
 const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh5YWlzcG1pa2dncmdqY3p5Z2hrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE3OTc4NjUsImV4cCI6MjA4NzM3Mzg2NX0.ohiqpHyEuzMyhPLoktFe7SakgfnRRj2TT4ysuQOER3o';
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+
+// Gérer expiration/invalidation de session Auth automatiquement
+sb.auth.onAuthStateChange((event, session) => {
+  if (event === 'SIGNED_OUT' || event === 'TOKEN_REFRESHED') {
+    if (event === 'SIGNED_OUT' && GP_USER) {
+      // Session expirée - déconnecter proprement
+      GP_USER = null; GP_TENANT = null;
+      localStorage.removeItem('gp_session');
+      if (!document.getElementById('login-screen')?.classList.contains('hidden') === false) {
+        location.reload();
+      }
+    }
+  }
+});
 
 // ╔══════════════════════════════════════════════════════════════╗
 // ║           RBAC — SYSTÈME DE RÔLES & PERMISSIONS             ║
@@ -10624,6 +10705,7 @@ async function loadRoles() {
 }
 
 async function saveRoles() {
+  if (!isSuperAdmin()) { toast('⛔ Accès refusé', 'error'); return; }
   try {
     const rows = Object.entries(GP_ROLES).map(([role_key, v]) => ({
       role_key,
@@ -10702,10 +10784,12 @@ async function loadSAData() {
 }
 
 async function saveSAData() {
+  if (!isSuperAdmin()) { toast('⛔ Accès refusé', 'error'); return; }
   await saveGPLocaux();
 }
 
 async function saveGPLocaux() {
+  if (!isSuperAdmin()) { toast('⛔ Accès refusé', 'error'); return; }
   try {
     await sbUpsert('gp_locaux', GP_LOCAUX_ALL.map(l => ({
       id: l.id, nom: l.nom,
@@ -10800,7 +10884,29 @@ async function doLogin() {
 
     GP_USER   = foundUser;
     GP_TENANT = tenant;
-    localStorage.setItem('gp_session', JSON.stringify({ user: GP_USER, tenant: GP_TENANT }));
+    // Stocker seulement le minimum nécessaire en session
+    const sessionData = {
+      user: {
+        id: GP_USER.id,
+        nom: GP_USER.nom,
+        email: GP_USER.email,
+        role: GP_USER.role,
+        local_id: GP_USER.local_id,
+        actif: GP_USER.actif,
+        tenant_id: GP_USER.tenant_id,
+        auth_id: GP_USER.auth_id
+        // password JAMAIS stocké en session
+      },
+      tenant: {
+        id: GP_TENANT?.id,
+        nom: GP_TENANT?.nom,
+        code: GP_TENANT?.code,
+        plan: GP_TENANT?.plan,
+        expire_at: GP_TENANT?.expire_at,
+        is_owner: GP_TENANT?.is_owner
+      }
+    };
+    localStorage.setItem('gp_session', JSON.stringify(sessionData));
     await startApp();
   } catch(e) {
     _loginAttempts.count++;
@@ -11082,7 +11188,7 @@ function applyRBACUI() {
     } else if (GP_USER.local_id) {
       const loc = GP_LOCAUX_ALL.find(l => l.id === GP_USER.local_id);
       if (loc) {
-        localInfo.innerHTML = `<span style="font-size:10px;color:${loc.couleur||'var(--accent)'};font-weight:700;">📍 ${loc.nom}</span>`;
+        localInfo.innerHTML = `<span style="font-size:10px;color:${loc.couleur||'var(--accent)'};font-weight:700;">📍 ${escapeHTML(loc.nom)}</span>`;
         localInfo.style.display = 'block';
       } else {
         localInfo.style.display = 'none';
@@ -11144,6 +11250,7 @@ async function loadUserData() {
   // SÉCURITÉ : si pas de tenant_id connu → bloquer le chargement
   if (!tid) {
     console.warn('[Security] No tenant_id — refusing to load data');
+    toast('⚠️ Session invalide — veuillez vous reconnecter', 'error');
     products = []; sales = []; clients = []; employes = []; caisseOps = []; depenses = [];
     conteneurs = []; ordres = []; livraisons = []; conges = []; docsRHHistory = [];
     return;
@@ -11356,7 +11463,7 @@ function filterRestockList() {
     const targetId = g._variants[0].id;
     return `<div onclick="selectRestockProduct('${targetId}')" style="display:flex;align-items:center;gap:12px;padding:10px 14px;cursor:pointer;border-bottom:1px solid var(--border);transition:.1s;" onmouseover="this.style.background='var(--surface2)'" onmouseout="this.style.background=''">
       <div style="flex:1;">
-        <div style="font-weight:600;font-size:13px;">${g.name}</div>
+        <div style="font-weight:600;font-size:13px;">${escapeHTML(g.name)}</div>
         <div style="font-size:11px;color:var(--text2);">${g.code||''} ${localInfo ? '· '+localInfo : ''} · ${g.category||''}</div>
       </div>
       <div style="text-align:right;">
@@ -11425,6 +11532,9 @@ function selectRestockProduct(id) {
 }
 
 async function confirmRestock() {
+  if (!isSuperAdmin() && !hasPermission('stock', 'update')) {
+    toast('⛔ Permission refusée', 'error'); return;
+  }
   const id = document.getElementById('reappro-prod-id').value;
   if (!id) { toast('Sélectionnez un produit', 'error'); return; }
 
@@ -11473,7 +11583,7 @@ function openContratModal(empId) {
   // Peupler la liste des employés
   const sel = document.getElementById('ct-emp');
   sel.innerHTML = '<option value="">— Sélectionner —</option>' +
-    employes.map(e => `<option value="${e.id}" ${e.id===empId?'selected':''}>${e.name}${e.prenom?' '+e.prenom:''} — ${e.poste||'N/A'}</option>`).join('');
+    employes.map(e => `<option value="${e.id}" ${e.id===empId?'selected':''}>${escapeHTML(e.name)}${e.prenom?' '+e.prenom:''} — ${e.poste||'N/A'}</option>`).join('');
 
   // Pré-remplir depuis les données employé
   if (empId) {
@@ -11639,7 +11749,7 @@ function genererContrat() {
     </div>
     <div class="partie-box">
       <strong>Le Salarié</strong>
-      <div><strong>Nom & Prénom :</strong> ${emp.name} ${emp.prenom||''}</div>
+      <div><strong>Nom & Prénom :</strong> ${escapeHTML(emp.name)} ${escapeHTML(emp.prenom||'')}</div>
       <div><strong>CIN :</strong> ${emp.cin||'—'}</div>
       <div><strong>Tél :</strong> ${emp.tel||'—'}</div>
       <div><strong>Email :</strong> ${emp.email||'—'}</div>
@@ -11718,7 +11828,7 @@ ${avantagesHtml}
   </div>
   <div class="sig-box">
     <div style="font-weight:700;">LE SALARIÉ</div>
-    <div style="color:#555;font-size:11px;">${emp.name} ${emp.prenom||''}</div>
+    <div style="color:#555;font-size:11px;">${escapeHTML(emp.name)} ${escapeHTML(emp.prenom||'')}</div>
     <div style="font-size:10px;color:#888;margin-top:4px;">(Précédé de la mention manuscrite « Lu et approuvé »)</div>
     <div class="sig-line">Signature</div>
   </div>
@@ -12116,7 +12226,9 @@ function renderSuperAdmin() {
 }
 
 function resetAllRolePerms() {
-  if (!confirm('Réinitialiser TOUTES les permissions de tous les rôles aux valeurs par défaut ?')) return;
+  if (!isSuperAdmin()) { toast('⛔ Accès refusé', 'error'); return; }
+  if (!confirm('Réinitialiser TOUTES les permissions aux valeurs par défaut ?')) return;
+  if (!confirm('Dernière confirmation — cette action écrase vos permissions personnalisées.')) return;
   GP_ROLES = {};
   saveRoles();
   toast('✅ Toutes les permissions réinitialisées aux valeurs par défaut');
@@ -12145,6 +12257,10 @@ async function saveSAUser() {
   const existing = GP_USERS_ALL.find(u => u.email === email && u.id !== id);
   if (existing) { toast('Email déjà utilisé', 'error'); return; }
 
+  const saveBtnEl = document.querySelector('#modal-sa-user .btn-primary');
+  if (saveBtnEl) { saveBtnEl.disabled = true; saveBtnEl.textContent = '⏳ Enregistrement...'; }
+  const restoreBtn = () => { if (saveBtnEl) { saveBtnEl.disabled = false; saveBtnEl.textContent = '✅ Enregistrer'; } };
+
   if (!id) {
     // ── Nouvel utilisateur → Edge Function (crée Auth + gp_users) ──
     try {
@@ -12172,6 +12288,7 @@ async function saveSAUser() {
       renderSADash();
     } catch(e) {
       toast('❌ Erreur: ' + e.message, 'error');
+      restoreBtn();
     }
     return;
   }
@@ -12207,6 +12324,7 @@ async function saveSAUser() {
 }
 
 async function deleteSAUser(id) {
+  if (!isSuperAdmin()) { toast('⛔ Accès refusé', 'error'); return; }
   const u = GP_USERS_ALL.find(x => x.id === id);
   if (!confirm(`Supprimer l'utilisateur "${u?.nom || u?.name}" ?`)) return;
   const { error } = await sb.from('gp_users').delete().eq('id', id);
@@ -12225,7 +12343,7 @@ async function renderSAVue() {
   if (sel) {
     const cur = sel.value;
     sel.innerHTML = '<option value="all">🌐 Tous les locaux</option>' +
-      GP_LOCAUX_ALL.map(l => `<option value="${l.id}" ${cur===l.id?'selected':''}>${l.nom}</option>`).join('');
+      GP_LOCAUX_ALL.map(l => `<option value="${l.id}" ${cur===l.id?'selected':''}>${escapeHTML(l.nom)}</option>`).join('');
   }
 
   const locsToShow = localSel === 'all' ? GP_LOCAUX_ALL : GP_LOCAUX_ALL.filter(l => l.id === localSel);
@@ -12260,7 +12378,7 @@ async function renderSAVue() {
           const st = p.stock === 0 ? '🔴 Rupture' : p.stock < p.min_stock ? '🟡 Bas' : '🟢 OK';
           return `<tr>
             <td><span style="color:${p._loc.couleur||'var(--accent)'};">● ${p._loc.nom}</span></td>
-            <td><strong>${p.name}</strong></td><td>${p.category||'—'}</td>
+            <td><strong>${escapeHTML(p.name)}</strong></td><td>${p.category||'—'}</td>
             <td style="font-family:'JetBrains Mono',monospace;">${p.stock}</td>
             <td style="font-family:'JetBrains Mono',monospace;">${(p.price||0).toFixed(2)} MAD</td>
             <td>${st}</td></tr>`;
@@ -12393,6 +12511,7 @@ async function renderSADash() {
 }
 
 async function fixOrphanData() {
+  if (!isSuperAdmin()) { toast('⛔ Accès refusé', 'error'); return; }
   const lid = document.getElementById('orphan-target-local')?.value;
   if (!lid) { toast('Sélectionnez un local cible', 'error'); return; }
   const locName = GP_LOCAUX_ALL.find(l=>l.id===lid)?.nom || lid;
@@ -12418,10 +12537,14 @@ function saSelectLocal(lid) {
 }
 
 async function saResetAllData() {
+  // Sécurité : réservé au super_admin uniquement
+  if (!isSuperAdmin()) { toast('⛔ Accès refusé', 'error'); return; }
   const confirm1 = confirm('⚠️ ATTENTION — Supprimer TOUTES les données (produits, ventes, clients, employés, caisse, livraisons, congés) ?\n\nCette action est IRRÉVERSIBLE.');
   if (!confirm1) return;
-  const confirm2 = prompt('Tapez "RESET" pour confirmer la suppression complète :');
-  if (confirm2 !== 'RESET') { toast('Reset annulé', 'warn'); return; }
+  const confirm2 = prompt('Tapez "SUPPRIMER" pour confirmer la suppression complète :');
+  if (confirm2 !== 'SUPPRIMER') { toast('Reset annulé', 'warn'); return; }
+  const confirm3 = confirm('Dernière confirmation — Êtes-vous absolument certain ?');
+  if (!confirm3) return;
 
   toast('🗑️ Suppression en cours...', 'warn');
   const tables = [
@@ -12546,6 +12669,7 @@ async function saveSALocal() {
 }
 
 async function deleteSALocal(id) {
+  if (!isSuperAdmin()) { toast('⛔ Accès refusé', 'error'); return; }
   const loc = GP_LOCAUX_ALL.find(l => l.id === id);
   if (!confirm(`Supprimer le local "${loc?.nom}" ? Toutes les données associées seront perdues.`)) return;
   GP_LOCAUX_ALL = GP_LOCAUX_ALL.filter(l => l.id !== id);
@@ -12571,7 +12695,7 @@ function renderSAUsers() {
   if (localSel) {
     const cur = localSel.value;
     localSel.innerHTML = '<option value="all">Tous les locaux</option>' +
-      GP_LOCAUX_ALL.map(l => `<option value="${l.id}" ${cur===l.id?'selected':''}>${l.nom}</option>`).join('');
+      GP_LOCAUX_ALL.map(l => `<option value="${l.id}" ${cur===l.id?'selected':''}>${escapeHTML(l.nom)}</option>`).join('');
   }
 
   // Populate role filter — toujours repopuler pour inclure nouveaux rôles
@@ -12596,10 +12720,10 @@ function renderSAUsers() {
       const loc = GP_LOCAUX_ALL.find(l => l.id === u.local_id);
       const role = getRole(u.role);
       return `<tr>
-        <td><strong>${u.nom||'—'}</strong><div style="font-size:11px;color:var(--text2);">${u.prenom||''}</div></td>
+        <td><strong>${escapeHTML(u.nom||'—')}</strong><div style="font-size:11px;color:var(--text2);">${escapeHTML(u.prenom||'')}</td>
         <td style="font-size:12px;">${u.email||'—'}</td>
         <td><span class="chip" style="background:rgba(${role?.color||'#888'},0.12);color:${role?.color||'var(--text2)'};">${role?.label||u.role||'—'}</span></td>
-        <td>${loc ? `<span style="color:${loc.couleur||'var(--accent)'};">● ${loc.nom}</span>` : '<span style="color:var(--text2);">—</span>'}</td>
+        <td>${loc ? `<span style="color:${loc.couleur||'var(--accent)'};">● ${escapeHTML(loc.nom)}</span>` : '<span style="color:var(--text2);">—</span>'}</td>
         <td>${u.telephone||'—'}</td>
         <td><span class="chip ${u.actif?'chip-green':'chip-red'}">${u.actif?'Actif':'Inactif'}</span></td>
         <td>
@@ -12628,7 +12752,7 @@ function openSAUserModal(id) {
   const localSel = document.getElementById('sau-local');
   if (localSel) {
     localSel.innerHTML = '<option value="">— Aucun local —</option>' +
-      GP_LOCAUX_ALL.map(l => `<option value="${l.id}" ${u?.local_id===l.id?'selected':''}>${l.nom}</option>`).join('');
+      GP_LOCAUX_ALL.map(l => `<option value="${l.id}" ${u?.local_id===l.id?'selected':''}>${escapeHTML(l.nom)}</option>`).join('');
   }
   // Populate role select
   const roleSel = document.getElementById('sau-role');
