@@ -9337,6 +9337,7 @@ function payCredit() {
 }
 
 function saveCreditLimit() {
+  if (!isSuperAdmin() && !hasPermission('clients', 'update')) { toast('⛔ Permission refusée', 'error'); return; }
   const newLimit = parseFloat(document.getElementById('new-credit-limit')?.value);
   if (!newLimit || newLimit <= 0) { toast('Limite invalide', 'error'); return; }
   const client = clients.find(c => c.id === viewingClientId);
@@ -10928,6 +10929,7 @@ function updateTvaExample() {
 }
 
 function saveAllSettings() {
+  if (!GP_USER) { toast("⛔ Non connecté", "error"); return; }
   settings.storeName = document.getElementById('set-store-name').value.trim() || 'GestionPro';
   settings.storePhone = document.getElementById('set-store-phone').value.trim();
   settings.storeAddress = document.getElementById('set-store-address').value.trim();
@@ -12009,6 +12011,7 @@ function editLocal(id) {
 }
 
 function saveLocal() {
+  if (!isSuperAdmin() && !hasPermission('locaux', 'create')) { toast('⛔ Permission refusée', 'error'); return; }
   const nom = document.getElementById('local-nom').value.trim();
   if (!nom) { toast(t('toast_name_required'), 'error'); return; }
   const editId = document.getElementById('local-edit-id').value;
@@ -12043,6 +12046,7 @@ function saveLocal() {
 }
 
 function deleteLocal(id) {
+  if (!isSuperAdmin() && !hasPermission('locaux', 'delete')) { toast('⛔ Permission refusée', 'error'); return; }
   const l = GP_LOCAUX_ALL.find(x => x.id === id);
   if (!l) return;
   const prods = getLocalProducts(l.nom);
@@ -13722,6 +13726,8 @@ function showLoginErr(msg) {
 }
 
 function doLogout() {
+  // Déconnecter session Supabase Auth
+  if (sb?.auth) sb.auth.signOut().catch(() => {});
   // Reset état complet
   GP_USER  = null;
   SA_SELECTED_ROLE = null;
@@ -13989,7 +13995,7 @@ async function loadUserData() {
     }));
 
     // ── Clients ───────────────────────────────────────────────
-    const { data: cls } = await filter(sb.from('gp_clients').select('*').order('name'));
+    const { data: cls } = await filter(sb.from('gp_clients').select('*').eq('tenant_id', tid).order('name'));
     clients = (cls || []).map(c => ({
       id: c.id, local_id: c.local_id,
       name: c.name, phone: c.phone || '', email: c.email || '',
@@ -13999,7 +14005,7 @@ async function loadUserData() {
     }));
 
     // ── Ventes ────────────────────────────────────────────────
-    const { data: sls } = await filter(sb.from('gp_sales').select('*').order('date', {ascending: false}).limit(500));
+    const { data: sls } = await filter(sb.from('gp_sales').select('*').eq('tenant_id', tid).order('date', {ascending: false}).limit(500));
     sales = (sls || []).map(s => ({
       id: s.id, local_id: s.local_id,
       clientId: s.client_id, clientName: s.client_name,
@@ -14021,7 +14027,7 @@ async function loadUserData() {
     } catch(e) { depenses = []; }
 
     // ── Caisse ────────────────────────────────────────────────
-    const { data: ops } = await filter(sb.from('gp_caisse_ops').select('*').order('date', {ascending: false}).limit(500));
+    const { data: ops } = await filter(sb.from('gp_caisse_ops').select('*').eq('tenant_id', tid).order('date', {ascending: false}).limit(500));
     caisseOps = (ops || []).map(o => ({
       id: o.id, local_id: o.local_id,
       type: o.type, amount: o.amount,
@@ -14031,7 +14037,7 @@ async function loadUserData() {
     }));
 
     // ── Conteneurs ────────────────────────────────────────────
-    const { data: conts } = await filter(sb.from('gp_conteneurs').select('*').order('created_at', {ascending: false}));
+    const { data: conts } = await filter(sb.from('gp_conteneurs').select('*').eq('tenant_id', tid).order('created_at', {ascending: false}));
     conteneurs = (conts || []).map(c => ({
       id: c.id, local_id: c.local_id,
       numero: c.numero, fournisseur: c.fournisseur || '',
@@ -14050,7 +14056,7 @@ async function loadUserData() {
     }));
 
     // ── Ordres ────────────────────────────────────────────────
-    const { data: ords } = await filter(sb.from('gp_ordres').select('*').order('created_at', {ascending: false}));
+    const { data: ords } = await filter(sb.from('gp_ordres').select('*').eq('tenant_id', tid).order('created_at', {ascending: false}));
     ordres = (ords || []).map(o => ({
       id: o.id, local_id: o.local_id,
       conteneurId: o.conteneur_id, numero: o.numero,
@@ -14060,7 +14066,7 @@ async function loadUserData() {
     }));
 
     // ── Employés ──────────────────────────────────────────────
-    const { data: emps } = await filter(sb.from('gp_employes').select('*').order('name'));
+    const { data: emps } = await filter(sb.from('gp_employes').select('*').eq('tenant_id', tid).order('name'));
     employes = (emps || []).map(e => ({
       id: e.id, local_id: e.local_id,
       name: e.name, prenom: e.prenom || '',
@@ -14073,7 +14079,7 @@ async function loadUserData() {
     }));
 
     // ── Congés ────────────────────────────────────────────────
-    const { data: cgs } = await filter(sb.from('gp_conges').select('*').order('debut', {ascending: false}));
+    const { data: cgs } = await filter(sb.from('gp_conges').select('*').eq('tenant_id', tid).order('debut', {ascending: false}));
     conges = (cgs || []).map(c => ({
       id: c.id, local_id: c.local_id,
       empId: c.emp_id, type: c.type,
@@ -14082,7 +14088,7 @@ async function loadUserData() {
     }));
 
     // ── Livraisons ────────────────────────────────────────────
-    const { data: bls } = await filter(sb.from('gp_livraisons').select('*').order('created_at', {ascending: false}));
+    const { data: bls } = await filter(sb.from('gp_livraisons').select('*').eq('tenant_id', tid).order('created_at', {ascending: false}));
     livraisons = (bls || []).map(l => ({
       id: l.id, local_id: l.local_id,
       numero: l.numero, date: l.date,
@@ -14095,7 +14101,7 @@ async function loadUserData() {
 
     // ── Docs RH ───────────────────────────────────────────────
     try {
-      const { data: drhs } = await filter(sb.from('gp_docs_rh').select('*').order('created_at', {ascending: false}));
+      const { data: drhs } = await filter(sb.from('gp_docs_rh').select('*').eq('tenant_id', tid).order('created_at', {ascending: false}));
       docsRHHistory = (drhs || []).map(d => ({
         id: d.id, local_id: d.local_id,
         empId: d.emp_id, empName: d.emp_name,
@@ -14945,6 +14951,7 @@ function resetAllRolePerms() {
 }
 
 async function saveSAUser() {
+  if (!isSuperAdmin()) { toast("⛔ Accès refusé", "error"); return; }
   const id      = document.getElementById('sau-id').value;
   const nom     = document.getElementById('sau-nom').value.trim();
   const email   = document.getElementById('sau-email').value.trim().toLowerCase();
@@ -15010,12 +15017,23 @@ async function saveSAUser() {
     actif
   };
 
-  // Mettre à jour mot de passe Auth si nouveau pwd
+  // Mettre à jour mot de passe Auth si nouveau pwd fourni
   if (pwd) {
     const user = GP_USERS_ALL.find(u => u.id === id);
     if (user?.auth_id) {
-      // Via Edge Function update password
-      obj.password = await hashPassword(pwd);
+      try {
+        const pwdRes = await fetch(`${SUPABASE_URL}/functions/v1/create-tenant-user`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${SUPABASE_ANON}` },
+          body: JSON.stringify({ action: 'updatePassword', auth_id: user.auth_id, password: pwd, tenantId: GP_TENANT.id })
+        });
+        const pwdData = await pwdRes.json();
+        if (!pwdRes.ok || !pwdData.success) {
+          toast('⚠️ Profil mis à jour mais mot de passe non changé: ' + (pwdData.error || 'Erreur Edge Function'), 'warn');
+        }
+      } catch(e) {
+        toast('⚠️ Profil mis à jour mais mot de passe non changé: ' + e.message, 'warn');
+      }
     }
   }
 
@@ -15065,7 +15083,7 @@ async function renderSAVue() {
     if (locIds.length === 0) { container.innerHTML = '<div style="padding:40px;text-align:center;color:var(--text2);">Aucun local</div>'; return; }
 
     if (module === 'ventes') {
-      const { data: rows } = await sb.from('gp_sales').select('*').in('local_id', locIds).order('date', {ascending: false}).limit(100);
+      const { data: rows } = await sb.from('gp_sales').select('*').eq('tenant_id', tid).in('local_id', locIds).order('date', {ascending: false}).limit(100);
       const enriched = (rows||[]).map(v => ({ ...v, _loc: GP_LOCAUX_ALL.find(l => l.id === v.local_id) || {nom:'—',couleur:'var(--accent)'} }));
       container.innerHTML = `<div class="card"><div class="card-header">💰 Ventes — ${enriched.length} transaction(s)</div>
         <table><thead><tr><th>Local</th><th>Date</th><th>Client</th><th>Mode</th><th>Total</th></tr></thead>
@@ -15078,7 +15096,7 @@ async function renderSAVue() {
         </tbody></table></div>`;
 
     } else if (module === 'stock') {
-      const { data: rows } = await sb.from('gp_products').select('*').in('local_id', locIds).order('name').limit(200);
+      const { data: rows } = await sb.from('gp_products').select('*').eq('tenant_id', tid).in('local_id', locIds).order('name').limit(200);
       const enriched = (rows||[]).map(p => ({ ...p, _loc: GP_LOCAUX_ALL.find(l => l.id === p.local_id) || {nom:'—',couleur:'var(--accent)'} }));
       container.innerHTML = `<div class="card"><div class="card-header">📦 Stock Global — ${enriched.length} produit(s)</div>
         <table><thead><tr><th>Local</th><th>Produit</th><th>Catégorie</th><th>Stock</th><th>Prix</th><th>Statut</th></tr></thead>
@@ -15094,7 +15112,7 @@ async function renderSAVue() {
         </tbody></table></div>`;
 
     } else if (module === 'employes') {
-      const { data: rows } = await sb.from('gp_employes').select('*').in('local_id', locIds).order('name');
+      const { data: rows } = await sb.from('gp_employes').select('*').eq('tenant_id', tid).in('local_id', locIds).order('name');
       const enriched = (rows||[]).map(e => ({ ...e, _loc: GP_LOCAUX_ALL.find(l => l.id === e.local_id) || {nom:'—',couleur:'var(--accent)'} }));
       container.innerHTML = `<div class="card"><div class="card-header">👨‍💼 Employés Global — ${enriched.length} employé(s)</div>
         <table><thead><tr><th>Local</th><th>Nom</th><th>Poste</th><th>Téléphone</th><th>CIN</th><th>Statut</th></tr></thead>
@@ -15144,9 +15162,9 @@ async function renderSADash() {
   // Stats globales depuis Supabase
   let totalSales = 0, totalProds = 0;
   try {
-    const { data: salesData } = await sb.from('gp_sales').select('total');
+    const { data: salesData } = await sb.from('gp_sales').select('total').eq('tenant_id', GP_TENANT?.id);
     totalSales = (salesData||[]).reduce((acc, v) => acc + (v.total||0), 0);
-    const { count } = await sb.from('gp_products').select('*', { count: 'exact', head: true });
+    const { count } = await sb.from('gp_products').select('*', { count: 'exact', head: true }).eq('tenant_id', GP_TENANT?.id);
     totalProds = count || 0;
   } catch(e) { console.warn('[SB] renderSADash stats:', e); }
 
@@ -15333,6 +15351,7 @@ function openSALocalModal(id) {
 }
 
 async function saveSALocal() {
+  if (!isSuperAdmin()) { toast("⛔ Accès refusé", "error"); return; }
   const id   = document.getElementById('sal-id').value;
   const nom  = document.getElementById('sal-nom').value.trim();
   if (!nom) { toast('Nom du local obligatoire', 'error'); return; }
@@ -15605,6 +15624,7 @@ function togglePermission(cb) {
 }
 
 function resetRolePerms(key) {
+  if (!isSuperAdmin()) { toast("⛔ Accès refusé", "error"); return; }
   if (!confirm(`Réinitialiser les permissions de "${getRoleLabel(key)}" aux valeurs par défaut ?`)) return;
   delete GP_ROLES[key];
   saveRoles();
@@ -15623,6 +15643,7 @@ function openSARoleModal(id) {
 }
 
 function saveSARole() {
+  if (!isSuperAdmin()) { toast("⛔ Accès refusé", "error"); return; }
   const id    = document.getElementById('sar-id').value;
   const label = document.getElementById('sar-nom').value.trim();
   const color = document.getElementById('sar-color').value;
@@ -15640,6 +15661,7 @@ function saveSARole() {
 }
 
 function deleteSARole(key) {
+  if (!isSuperAdmin()) { toast("⛔ Accès refusé", "error"); return; }
   const role = getAllRoles()[key];
   if (role?.isSystem) { toast('Impossible de supprimer un rôle système', 'error'); return; }
   if (!confirm(`Supprimer le rôle "${role?.label}" ?`)) return;
