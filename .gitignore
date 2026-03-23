@@ -1,7 +1,22 @@
+# OS
 .DS_Store
 Thumbs.db
+
+# Editors
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Logs
 *.log
+
+# Environment (ne jamais versionner les clés API)
 .env
 .env.local
+*.env
+
+# Node (si tu ajoutes un bundler plus tard)
 node_modules/
-.vercel/
+dist/
+.cache/
