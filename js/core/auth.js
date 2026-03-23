@@ -565,7 +565,7 @@ function doLogout() {
 }
 
 // ─── DÉMARRAGE APP ─────────────────────────────────────────────
-async function startApp() {
+async async function startApp() {
   document.getElementById('login-screen').classList.add('hidden');
 
   // Afficher loader
