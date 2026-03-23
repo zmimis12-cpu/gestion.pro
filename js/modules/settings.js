@@ -1,9 +1,9 @@
 /* ================================================================
    GestionPro — modules/settings.js
-   Paramètres : exportProductsJSON, importProductsJSON,
-   downloadSampleCSV, openLightbox, handleLogoUpload,
-   renderCategoryFilters, selectCategory, loadSettingsForm,
-   toggleTva, saveAllSettings, addCaisseOp (fonds)
+   Paramètres, logo, catégories, TVA, import/export :
+   exportProductsJSON, importProductsJSON, openLightbox,
+   renderCategoryFilters, loadSettingsForm, saveAllSettings,
+   getFondsLocalId, addCaisseOp
 ================================================================ */
 
 function importProductsJSON(e) {

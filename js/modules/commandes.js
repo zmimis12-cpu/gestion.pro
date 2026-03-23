@@ -1,7 +1,8 @@
 /* ================================================================
    GestionPro — modules/commandes.js
-   Commandes / Ordres ventes : renderCommandes, showSaleDoc,
-   printRapport, ouvrirCaisse, cloturerCaisse, deleteCaisseOp
+   Commandes/Ventes, Fonds de caisse :
+   renderCommandes, showSaleDoc, printRapport,
+   ouvrirCaisse, cloturerCaisse, deleteCaisseOp
 ================================================================ */
 
 // ════════════════════════════════════════════

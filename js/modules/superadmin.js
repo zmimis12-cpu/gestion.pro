@@ -1,13 +1,13 @@
 /* ================================================================
    GestionPro — modules/superadmin.js
-   Super Admin Panel : renderSuperAdmin, renderSADash, saTab,
-   fixOrphanData, saSelectLocal, saResetAllData,
-   renderSALocaux, openSALocalModal, saveSALocal, deleteSALocal,
-   renderSAUsers, updateSAUserLocalVisibility, openSAUserModal,
-   saveSAUser, deleteSAUser, renderSARoles, _renderSARolesList,
-   selectSARole, _renderSAPermsPanel, togglePermission,
-   resetRolePerms, openSARoleModal, saveSARole, deleteSARole,
-   resetAllRolePerms, saveSAData, renderSAVue
+   Super Admin — Panneau Central :
+   renderSuperAdmin, resetAllRolePerms, saveSAUser, deleteSAUser,
+   renderSAVue, saTab, renderSADash, fixOrphanData,
+   saSelectLocal, saResetAllData, renderSALocaux,
+   openSALocalModal, saveSALocal, deleteSALocal,
+   renderSAUsers, openSAUserModal, renderSARoles,
+   selectSARole, togglePermission, resetRolePerms,
+   openSARoleModal, saveSARole, deleteSARole
 ================================================================ */
 
 function renderSuperAdmin() {

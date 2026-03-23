@@ -1,9 +1,9 @@
 /* ================================================================
    GestionPro — modules/locaux.js
-   Gestion locaux/zones & fonds de caisse :
-   getLocalProducts, getUniqueLocalProducts, openNewLocal,
-   editLocal, saveLocal, deleteLocal, viewLocal,
-   renderLocaux, renderFonds
+   Locaux/Zones, Fonds de caisse :
+   getLocalProducts, getUniqueLocalProducts,
+   openNewLocal, editLocal, saveLocal, deleteLocal,
+   viewLocal, renderLocaux, renderFonds
 ================================================================ */
 
 // ════════════════════════════════════════════════════════

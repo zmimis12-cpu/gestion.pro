@@ -1,11 +1,11 @@
 /* ================================================================
    GestionPro — modules/employes.js
-   RH complet : renderEmployes, openEmployeModal, saveEmploye,
-   deleteEmploye, voirEmploye, updateEmployeSelects,
-   renderConges, openCongeModal, saveConge, deleteConge,
+   Employés, Congés, Livraisons BL, Documents RH, Contrats :
+   renderEmployes, saveEmploye, deleteEmploye, voirEmploye,
+   renderConges, saveConge, updateCongeStatut, deleteConge,
    renderLivraisons, saveBL, deleteBL, printBL,
-   renderDocsRH, genererDocRH, regenDocRH, imprimerDocRH,
-   openDocAdmin, genererDocAdmin, openContratModal, genererContrat
+   renderDocsRH, genererDocRH, openDocAdmin, genererDocAdmin,
+   openContratModal, genererContrat, calcIGR
 ================================================================ */
 
 // ═══════════════════════════════════════════════════════════

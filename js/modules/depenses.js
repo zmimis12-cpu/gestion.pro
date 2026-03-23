@@ -1,8 +1,9 @@
 /* ================================================================
    GestionPro — modules/depenses.js
-   Gestion dépenses : initDepMonthFilter, getFilteredDepenses,
-   renderDepenses, saveDep, editDep, deleteDep, resetDepForm,
-   renderVentes, WhatsApp credit, Rapports financiers, Charts
+   Dépenses, Rapports, WhatsApp :
+   renderDepenses, saveDep, editDep, deleteDep,
+   renderVentes, sendWARappelCredit, sendWhatsAppCredit,
+   setRapportPeriod, calcFinancialKPIs, renderRapports, renderMonthChart
 ================================================================ */
 
 function initDepMonthFilter() {

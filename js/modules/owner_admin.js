@@ -1,8 +1,8 @@
 /* ================================================================
    GestionPro — modules/owner_admin.js
-   Module Owner Admin (gestion tenants GestionPro) :
-   getPlanModules, hasModuleAccess, isOwner, loadOAData,
-   renderOAStats, renderOATenants, saveOATenant, etc.
+   Owner Admin (gestion tenants) :
+   isOwner, loadOAData, renderOAStats, renderOATenants,
+   saveOATenant, renewOATenant, toggleOATenant, deleteOATenant
 ================================================================ */
 
 function getPlanModules() {

@@ -1,13 +1,12 @@
 /* ================================================================
    GestionPro — core/auth.js
-   Authentification, session, permissions, RBAC :
+   Authentification & Autorisation :
    PERMISSIONS_DEF, DEFAULT_ROLES, isSuperAdmin, hasPermission,
-   getRole, normalizeRole, getAllRoles, loadRoles, saveRoles,
-   loadSAData, saveSAData, saveGPLocaux, hashPassword,
-   doLogin, doLogout, checkTenantAccess, forceLogout,
-   showLicenceExpired, startApp, applyPageRBAC, applyRBACUI,
-   loadUserData, saveSettings, openRestockModal, confirmRestock,
-   openContratModal, calcIGR
+   loadRoles, saveRoles, getAllRoles, loadSAData, saveSAData,
+   hashPassword, doLogin, checkTenantAccess, forceLogout,
+   showLicenceExpired, doLogout, startApp,
+   applyPageRBAC, applyRBACUI, loadUserData, saveSettings,
+   openRestockModal, openContratModal, setupRealtime hooks
 ================================================================ */
 
 // ═══════════════════════════════════════════════════════════
@@ -597,6 +596,7 @@ async function startApp() {
   if (loader) loader.style.display = 'none';
   if (appWrap) appWrap.style.cssText = 'display:flex;width:100%;height:100%;';
 
+  if (!GP_USER) { console.warn('[startApp] GP_USER null — abort'); return; }
   const firstPage = applyRBACUI();
   populateClientSelect();
   updateAlertCount();
@@ -685,13 +685,18 @@ function applyPageRBAC() {
 }
 
 function applyRBACUI() {
+  // Guard — ne pas exécuter si pas de user connecté
+  if (!GP_USER) return;
+
   // Normaliser le rôle dès le départ
-  if (GP_USER && GP_USER.role) GP_USER._normalizedRole = normalizeRole(GP_USER.role);
+  if (GP_USER.role) GP_USER._normalizedRole = normalizeRole(GP_USER.role);
 
   // Sidebar user info — gérer les deux formats (Supabase: name, Local: nom)
   const displayName = GP_USER.name || GP_USER.nom || '?';
-  document.getElementById('sb-avatar').textContent = displayName[0].toUpperCase();
-  document.getElementById('sb-name').textContent   = displayName;
+  const avatarEl = document.getElementById('sb-avatar');
+  const nameEl   = document.getElementById('sb-name');
+  if (avatarEl) avatarEl.textContent = displayName.charAt(0).toUpperCase();
+  if (nameEl)   nameEl.textContent   = displayName;
 
   const roleLabel = getRoleLabel(GP_USER.role);
   const roleColor = getRoleColor(GP_USER.role);
@@ -1402,69 +1407,3 @@ let _lastSaveIds    = new Set(); // IDs sauvegardés récemment (pour ignorer no
 
 // ── SUPABASE REALTIME ─────────────────────────────────────────
 let _rtChannels = [];
-
-
-/* ── Mot de passe oublié ── */
-function openForgotPassword() {
-  document.getElementById('forgot-email').value = '';
-  document.getElementById('forgot-msg').style.display = 'none';
-  openModal('modal-forgot-pwd');
-}
-
-async function sendResetEmail() {
-  const email = document.getElementById('forgot-email').value.trim();
-  const msg   = document.getElementById('forgot-msg');
-  const btn   = document.getElementById('btn-reset-pwd');
-  if (!email) { toast('Email requis', 'error'); return; }
-  btn.disabled = true; btn.textContent = 'Envoi...';
-  try {
-    const { error } = await sb.auth.resetPasswordForEmail(email, {
-      redirectTo: window.location.origin + '/?reset=1'
-    });
-    if (error) throw error;
-    msg.style.display = 'block';
-    msg.style.background = 'rgba(37,99,235,0.1)';
-    msg.style.border = '1px solid rgba(37,99,235,0.3)';
-    msg.style.color = 'var(--accent)';
-    msg.textContent = '✅ Email envoyé ! Vérifiez votre boîte mail.';
-    btn.textContent = 'Envoyé ✅';
-  } catch(e) {
-    msg.style.display = 'block';
-    msg.style.background = 'rgba(224,49,49,0.1)';
-    msg.style.border = '1px solid rgba(224,49,49,0.3)';
-    msg.style.color = 'var(--red)';
-    msg.textContent = 'Erreur: ' + e.message;
-    btn.disabled = false; btn.textContent = 'Envoyer le lien';
-  }
-}
-
-async function confirmNewPassword() {
-  const pwd  = document.getElementById('new-pwd')?.value;
-  const pwd2 = document.getElementById('new-pwd2')?.value;
-  if (!pwd || pwd.length < 8) { toast('Minimum 8 caractères', 'error'); return; }
-  if (pwd !== pwd2) { toast('Les mots de passe ne correspondent pas', 'error'); return; }
-  try {
-    const { error } = await sb.auth.updateUser({ password: pwd });
-    if (error) throw error;
-    toast('✅ Mot de passe mis à jour ! Redirection...');
-    setTimeout(() => window.location.href = '/', 2000);
-  } catch(e) { toast('Erreur: ' + e.message, 'error'); }
-}
-
-// Gérer reset password via lien email
-(async () => {
-  const hash = window.location.hash;
-  if (hash.includes('type=recovery')) {
-    const { data: { session } } = await sb.auth.getSession();
-    if (session) {
-      const loginBox = document.querySelector('.lc');
-      if (loginBox) {
-        loginBox.innerHTML = `
-          <div class="lc-logo"><div class="lc-logo-icon">🔑</div><h1>Nouveau mot de passe</h1></div>
-          <div class="lf"><label>Nouveau mot de passe</label><input type="password" id="new-pwd" class="lf input" placeholder="Min. 8 caractères"></div>
-          <div class="lf"><label>Confirmer</label><input type="password" id="new-pwd2" class="lf input" placeholder="Répéter le mot de passe"></div>
-          <button onclick="confirmNewPassword()" class="lb">✅ Enregistrer</button>`;
-      }
-    }
-  }
-})();

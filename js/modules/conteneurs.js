@@ -1,7 +1,8 @@
 /* ================================================================
    GestionPro — modules/conteneurs.js
-   Gestion conteneurs & ordres : setRetardMode, addRefLine,
-   saveConteneur, editConteneur, deleteConteneur, viewConteneur,
+   Conteneurs, Ordres :
+   setRetardMode, autoCalcJoursRetard, addRefLine, saveConteneur,
+   editConteneur, deleteConteneur, viewConteneur,
    addToStockFromConteneur, renderConteneurs,
    openNewOrdre, showOrdrePDF, printOrdre, renderOrdres
 ================================================================ */
