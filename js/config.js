@@ -4,6 +4,18 @@
    Chargé en PREMIER avant tous les autres scripts
 ================================================================ */
 
+/* ── Fonction critique — disponible immédiatement ── */
+function escapeHTML(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+
 
 // ─── VERSION : change ce numéro pour vider le cache localStorage automatiquement ───
 const GP_APP_VERSION = '3.5.0';
