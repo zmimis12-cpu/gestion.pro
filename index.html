@@ -167,10 +167,6 @@
         <span class="icon">🏢</span> <span style="color:var(--accent);">Mes Clients</span>
       </div>
 
-      <div style="height:1px;background:var(--border);margin:8px 0;"></div>
-      <div class="nav-item" onclick="doLogout()" style="color:var(--red);">
-        <span class="icon">🚪</span> Déconnexion
-      </div>
     </nav>
     <div class="sb-user" id="sb-user-block">
       <div class="sb-av" id="sb-avatar">?</div>
@@ -179,7 +175,9 @@
         <div class="sb-role" id="sb-role">—</div>
         <div id="sb-local-info" style="display:none;margin-top:2px;"></div>
       </div>
-      <button class="sb-logout" onclick="doLogout()" title="Déconnexion">🚪</button>
+      <button class="sb-logout" onclick="doLogout()" title="Se déconnecter" style="background:transparent;border:none;cursor:pointer;padding:4px 6px;border-radius:5px;color:var(--text3);font-size:14px;transition:color 0.1s,background 0.1s;" onmouseover="this.style.color='var(--red)';this.style.background='var(--red-light)'" onmouseout="this.style.color='var(--text3)';this.style.background='transparent'">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+      </button>
     </div>
   </aside>
 
