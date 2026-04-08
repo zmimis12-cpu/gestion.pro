@@ -672,7 +672,7 @@ function checkout(docType) {
     totalHT:      fin.caHT,          // Alias pour compatibilité
     payment:      selectedPayment,
     clientId:     currentClientId,
-    clientName:   currentClientId ? (clients.find(c => c.id === currentClientId)?.name || '') : 'Client de passage',
+    clientName:   currentClientId ? (clients.find(c => c.id === currentClientId)?.name || clients.find(c => c.id === currentClientId)?.nom || 'Client inconnu') : 'Client de passage',
     isCreditSale: selectedPayment === 'Crédit',
   };
   sales.unshift(sale);
@@ -682,7 +682,7 @@ function checkout(docType) {
     caisseOps.unshift({
       id: uid(), local_id: lid, type: 'vente',
       amount: fin.totalTTC,
-      label: `Vente (${sale.items.length} article${sale.items.length>1?'s':''}) — ${sale.clientName}`,
+      label: `Vente (${sale.items.length} article${sale.items.length>1?'s':''}) — ${sale.clientName || 'Client de passage'}`,
       date: sale.date,
       payment: sale.payment
     });
@@ -691,7 +691,7 @@ function checkout(docType) {
     caisseOps.unshift({
       id: uid(), local_id: lid, type: 'credit_vente',
       amount: fin.totalTTC,
-      label: `Crédit client — ${sale.clientName} (${sale.items.length} art.)`,
+      label: `Crédit client — ${sale.clientName || 'Client de passage'} (${sale.items.length} art.)`,
       date: sale.date,
       payment: 'Crédit'
     });
@@ -771,7 +771,7 @@ function buildInvoiceHTML(sale) {
       </div>
       <div>
         <div style="font-size:11px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">Client</div>
-        <div style="font-weight:700;font-size:13px;">${sale.clientName}</div>
+        <div style="font-weight:700;font-size:13px;">${sale.clientName || 'Client de passage'}</div>
         <div style="font-size:12px;color:#555;line-height:1.7;margin-top:2px;">
           ${client && client.phone ? 'Tél : ' + client.phone + '<br>' : ''}
           ${clientAddr}
@@ -942,7 +942,7 @@ function buildReceiptHTML(sale) {
         </div>
         <div class="receipt-meta-item">
           <div class="receipt-meta-label">👤 Client</div>
-          <div class="receipt-meta-value">${sale.clientName}</div>
+          <div class="receipt-meta-value">${sale.clientName || 'Client de passage'}</div>
         </div>
         <div class="receipt-meta-item">
           <div class="receipt-meta-label">${sale.payment === 'Espèces' ? '💵' : sale.payment === 'Carte' ? '💳' : '📋'} Paiement</div>

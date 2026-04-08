@@ -142,7 +142,7 @@ function renderDashboard() {
         ${recentSales.map(s => `
           <tr>
             <td style="font-size:12px;color:var(--text2);">${new Date(s.date).toLocaleString('fr-FR', {day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})}</td>
-            <td>${s.clientName}</td>
+            <td>${s.clientName && s.clientName !== 'undefined' ? escapeHTML(s.clientName) : s.clientId ? (clients.find(c => c.id === s.clientId)?.name || '—') : 'Client de passage'}</td>
             <td style="font-family:var(--font-mono),monospace;font-weight:700;">${s.total.toFixed(2)}</td>
             <td><span class="chip ${s.payment === 'Crédit' ? 'chip-gold' : s.payment === 'Carte' ? 'chip-purple' : 'chip-green'}">${s.payment === 'Espèces' ? t('pay_cash').replace('💵 ','') : s.payment === 'Carte' ? t('pay_card').replace('💳 ','') : t('pay_credit').replace('📋 ','')}</span></td>
           </tr>

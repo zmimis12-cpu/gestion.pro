@@ -217,7 +217,7 @@ function buildWhatsAppCreditMsg(sale, client) {
     `🏪 *${store}*`,
     `📋 *Vente à crédit confirmée*`,
     ``,
-    `👤 Client : *${client?.name || sale.clientName}*`,
+    `👤 Client : *${client?.name || sale.clientName || 'Client de passage'}*`,
     `📅 Date   : ${date} à ${heure}`,
     ``,
     `🛒 *Articles :*`,
@@ -327,7 +327,7 @@ function showWACreditPopup(sale, client) {
     <div style="background:rgba(37,211,102,0.08);border-radius:var(--radius);padding:10px 12px;margin-bottom:14px;font-size:12px;">
       <div style="display:flex;justify-content:space-between;margin-bottom:4px;">
         <span style="color:var(--text2);">Client</span>
-        <span style="font-weight:700;">${escapeHTML(client?.name || sale.clientName)}</span>
+        <span style="font-weight:700;">${escapeHTML(client?.name || sale.clientName || 'Client de passage')}</span>
       </div>
       <div style="display:flex;justify-content:space-between;margin-bottom:4px;">
         <span style="color:var(--text2);">Cette vente</span>

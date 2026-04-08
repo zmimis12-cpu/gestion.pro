@@ -86,7 +86,7 @@ function renderCommandes(resetPage) {
     return `<tr>
       <td style="font-family:var(--font-mono),monospace;font-weight:700;font-size:12px;">${num}</td>
       <td style="font-size:12px;color:var(--text2);">${dateStr}<br><span style="font-size:11px;">${timeStr}</span></td>
-      <td style="font-weight:600;">${s.clientName}</td>
+      <td style="font-weight:600;">${s.clientName && s.clientName !== 'undefined' ? escapeHTML(s.clientName) : s.clientId ? (clients.find(c=>c.id===s.clientId)?.name||'—') : 'Client de passage'}</td>
       <td style="font-size:12px;color:var(--text2);">${s.items.length} art. • ${s.items.reduce((a,i)=>a+i.qty,0)} pcs</td>
       <td style="text-align:right;font-family:var(--font-mono),monospace;">${ht}</td>
       <td style="text-align:right;font-family:var(--font-mono),monospace;color:var(--text2);">${tva !== '—' ? s.tva+'% ('+tva+')' : '—'}</td>
