@@ -16,7 +16,18 @@ function renderCommandes(resetPage) {
   const to     = document.getElementById('cmd-date-to')?.value;
 
   let filtered = [...sales];
-  if (q)    filtered = filtered.filter(s => s.clientName?.toLowerCase().includes(q) || s.id?.toLowerCase().includes(q));
+  if (q) {
+    filtered = filtered.filter(s => {
+      // Chercher dans clientName stocké
+      const storedName = (s.clientName && s.clientName !== 'undefined') ? s.clientName : '';
+      // Chercher dans clients[] par clientId (si clientName manquant ou corrompu)
+      const clientObj  = s.clientId ? clients.find(c => c.id === s.clientId) : null;
+      const resolvedName = storedName || clientObj?.name || clientObj?.nom || 'Client de passage';
+      return resolvedName.toLowerCase().includes(q)
+          || (s.id || '').toLowerCase().includes(q)
+          || (clientObj?.phone || '').includes(q);
+    });
+  }
   if (payF !== 'all') filtered = filtered.filter(s => s.payment === payF);
   if (from) filtered = filtered.filter(s => new Date(s.date) >= new Date(from));
   if (to)   filtered = filtered.filter(s => new Date(s.date) <= new Date(to + 'T23:59:59'));
