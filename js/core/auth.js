@@ -12,9 +12,7 @@
 // ═══════════════════════════════════════════════════════════
 //  SUPABASE CONFIG
 // ═══════════════════════════════════════════════════════════
-const SUPABASE_URL  = 'https://xyaispmikggrgjczyghk.supabase.co';
-const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh5YWlzcG1pa2dncmdqY3p5Z2hrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE3OTc4NjUsImV4cCI6MjA4NzM3Mzg2NX0.ohiqpHyEuzMyhPLoktFe7SakgfnRRj2TT4ysuQOER3o';
-const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+/* sb défini dans config.js */
 
 // Gérer expiration/invalidation de session Auth automatiquement
 sb.auth.onAuthStateChange((event, session) => {
@@ -565,7 +563,7 @@ function doLogout() {
 }
 
 // ─── DÉMARRAGE APP ─────────────────────────────────────────────
-async async function startApp() {
+async function startApp() {
   document.getElementById('login-screen').classList.add('hidden');
 
   // Afficher loader

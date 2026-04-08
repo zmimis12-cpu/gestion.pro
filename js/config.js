@@ -680,3 +680,8 @@ var TRANSLATIONS = {
     vip:'VIP', of:'من', page_label:'صفحة', results_label:'نتائج',
   }
 };
+
+/* ── Supabase client ── */
+const SUPABASE_URL  = 'https://xyaispmikggrgjczyghk.supabase.co';
+const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh5YWlzcG1pa2dncmdqY3p5Z2hrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE3OTc4NjUsImV4cCI6MjA4NzM3Mzg2NX0.ohiqpHyEuzMyhPLoktFe7SakgfnRRj2TT4ysuQOER3o';
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
