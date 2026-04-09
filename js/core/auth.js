@@ -907,6 +907,22 @@ async function loadUserData() {
       valeur: l.valeur || 0
     }));
 
+
+    // ── Retours ────────────────────────────────────────────────
+    try {
+      const { data: retsData } = await sb.from('gp_retours')
+        .select('*').eq('tenant_id', tid)
+        .order('date', {ascending: false}).limit(200);
+      retours = (retsData || []).map(r => ({
+        id: r.id, saleId: r.sale_id, date: r.date,
+        local_id: r.local_id, tenant_id: r.tenant_id,
+        clientId: r.client_id, clientName: r.client_name,
+        lines: r.lines || [], note: r.note || '',
+        statut: r.statut || 'conforme',
+        createdBy: r.created_by || null,
+      }));
+    } catch(e) { retours = []; }
+
     // ── Docs RH ───────────────────────────────────────────────
     try {
       const { data: drhs } = await filter(sb.from('gp_docs_rh').select('*').eq('tenant_id', tid).order('created_at', {ascending: false}));

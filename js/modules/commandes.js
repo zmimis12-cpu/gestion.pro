@@ -106,6 +106,7 @@ function renderCommandes(resetPage) {
       <td style="white-space:nowrap;">
         <button class="btn btn-secondary btn-sm" title="Reçu caisse" onclick="showSaleDoc('${s.id}','recu')">🧾</button>
         <button class="btn btn-primary btn-sm" title="Facture A4" onclick="showSaleDoc('${s.id}','facture')">📄</button>
+        <button class="btn btn-secondary btn-sm" title="Enregistrer un retour" onclick="openRetourModal('${s.id}')" style="border-color:rgba(180,83,9,0.3);color:var(--gold);">↩️</button>
       </td>
     </tr>`;
   }).join('');

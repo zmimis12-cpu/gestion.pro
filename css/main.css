@@ -3515,3 +3515,71 @@ select, textarea { font-size: 13.5px; padding: 8.5px 11px; }
 
 /* Content padding */
 .content        { padding: 20px 26px; }
+
+/* ════ Module Retours ════ */
+.retour-line {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px 14px;
+}
+
+.retour-line-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.retour-line-name {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.retour-line-meta {
+  font-size: 11.5px;
+  color: var(--text3);
+  white-space: nowrap;
+}
+
+.retour-line-inputs {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+
+.retour-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.retour-field label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text2);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.retour-input {
+  width: 100%;
+  padding: 7px 10px;
+  border: 1px solid var(--border2);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-mono);
+  font-size: 14px;
+  font-weight: 600;
+  text-align: center;
+  background: var(--surface);
+  color: var(--text);
+  outline: none;
+  transition: border-color 0.1s, box-shadow 0.1s;
+}
+
+.retour-input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(37,99,235,0.1);
+}

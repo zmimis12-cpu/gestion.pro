@@ -124,6 +124,9 @@
       <div class="nav-item" onclick="navigate('livraisons')" data-nav-module="livraisons">
         <span class="icon">🚚</span> Bons de livraison
       </div>
+      <div class="nav-item" onclick="navigate('retours')" data-nav-module="retours">
+        <span class="icon">↩️</span> Retours
+      </div>
       <div class="nav-item" onclick="navigate('commandes')" data-nav-module="commandes">
         <span class="icon">📋</span> Ordres (Ventes)
       </div>
@@ -2405,8 +2408,81 @@
   <script src="js/modules/locaux.js"></script>
   <script src="js/modules/employes.js"></script>
   <script src="js/modules/superadmin.js"></script>
+  <script src="js/modules/retours.js"></script>
 
   <!-- 11. Point d'entrée (DERNIER) -->
   <script src="js/app.js"></script>
+
+
+      <!-- ═══════════════════════════════ RETOURS ═══════════════════════════════ -->
+      <div class="page" id="page-retours">
+        <div class="section-header" style="margin-bottom:16px;">
+          <div class="section-title">↩️ Gestion des Retours</div>
+        </div>
+
+        <!-- Filtres -->
+        <div class="stock-header" style="margin-bottom:14px;">
+          <input type="text" id="retour-search" placeholder="🔍 Rechercher par client, référence..." oninput="renderRetours()" style="max-width:280px;">
+          <select id="retour-filter-statut" onchange="renderRetours()" style="padding:7px 10px;border:1px solid var(--border2);border-radius:var(--radius-sm);background:var(--surface);font-size:12.5px;">
+            <option value="all">Tous les statuts</option>
+            <option value="conforme">✅ Conforme</option>
+            <option value="endommage">💥 Endommagé</option>
+            <option value="manque">❓ Manquant</option>
+          </select>
+        </div>
+
+        <!-- Table -->
+        <div class="card">
+          <table>
+            <thead><tr>
+              <th>Date</th>
+              <th>Commande</th>
+              <th>Client</th>
+              <th>Articles</th>
+              <th>Quantités</th>
+              <th>Statut</th>
+              <th>Note</th>
+            </tr></thead>
+            <tbody id="retours-table">
+              <tr><td colspan="7"><div class="empty-state"><div class="emoji">↩️</div><p>Aucun retour enregistré</p></div></td></tr>
+            </tbody>
+          </table>
+          <div id="retours-pagination" class="pagination" style="padding:12px 0;"></div>
+        </div>
+      </div>
+
+
+<!-- ═══ MODAL RETOUR PRODUIT ═══ -->
+<div class="modal-overlay" id="modal-retour">
+  <div class="modal" style="max-width:600px;">
+    <div class="modal-title">↩️ Enregistrer un retour</div>
+
+    <!-- Infos vente liée -->
+    <div style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 14px;margin-bottom:18px;display:flex;gap:20px;font-size:13px;">
+      <div><span style="color:var(--text3);">Commande :</span> <strong id="retour-sale-ref">—</strong></div>
+      <div><span style="color:var(--text3);">Date :</span> <strong id="retour-sale-date">—</strong></div>
+      <div><span style="color:var(--text3);">Client :</span> <strong id="retour-sale-client">—</strong></div>
+    </div>
+    <input type="hidden" id="retour-sale-id">
+
+    <!-- Lignes de retour -->
+    <div style="font-size:12px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px;">Articles à retourner</div>
+    <div id="retour-lines" style="display:flex;flex-direction:column;gap:12px;max-height:320px;overflow-y:auto;padding-right:4px;"></div>
+
+    <!-- Note -->
+    <div style="margin-top:16px;">
+      <label style="font-size:12px;font-weight:600;color:var(--text2);display:block;margin-bottom:5px;">Note / Observation</label>
+      <textarea id="retour-note" placeholder="Ex: emballage ouvert, produit cassé, retour partiel..." rows="2" style="width:100%;padding:8px 10px;border:1px solid var(--border2);border-radius:var(--radius-sm);font-family:var(--font);font-size:13px;resize:none;"></textarea>
+    </div>
+
+    <!-- Erreur -->
+    <div id="retour-error" style="display:none;margin-top:10px;padding:8px 12px;background:var(--red-light);color:var(--red);border-radius:var(--radius-sm);font-size:12.5px;border:1px solid rgba(220,38,38,0.2);"></div>
+
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeModal('modal-retour')">Annuler</button>
+      <button class="btn btn-primary" onclick="confirmRetour()">✅ Confirmer le retour</button>
+    </div>
+  </div>
+</div>
 
 </body>
