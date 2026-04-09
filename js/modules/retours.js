@@ -181,19 +181,39 @@ async function confirmRetour() {
   if (hasDommagee) statut = 'endommage';
 
   // Créer l'objet retour
+  // Objet retour — snake_case pour Supabase
+  const retourId = uid();
   const retour = {
-    id:        uid(),
+    // Champs frontend (camelCase pour usage JS local)
+    id:          retourId,
     saleId,
-    date:      new Date().toISOString(),
-    local_id:  sale.local_id || getLocalId(),
-    tenant_id: GP_TENANT?.id,
-    clientId:   sale.clientId || null,
-    clientName: sale.clientName || 'Client de passage',
+    date:        new Date().toISOString(),
+    local_id:    sale.local_id || getLocalId(),
+    tenant_id:   GP_TENANT?.id,
+    clientId:    sale.clientId || null,
+    clientName:  sale.clientName || 'Client de passage',
     lines,
     note,
     statut,
-    createdBy: GP_USER?.id || null,
+    createdBy:   GP_USER?.id || null,
   };
+
+  // Objet Supabase — snake_case strict
+  const retourDB = {
+    id:          retourId,
+    sale_id:     saleId,
+    date:        retour.date,
+    local_id:    retour.local_id,
+    tenant_id:   retour.tenant_id,
+    client_id:   retour.clientId,
+    client_name: retour.clientName,
+    lines:       JSON.stringify(lines),
+    note:        note || null,
+    statut:      statut,
+    created_by:  retour.createdBy,
+  };
+
+  console.log('[Retour] Données envoyées à gp_retours:', retourDB);
 
   // Réintégrer stock pour les conformes
   let stockUpdated = 0;
@@ -209,19 +229,50 @@ async function confirmRetour() {
   retours.unshift(retour);
   save();
 
-  // Sync Supabase
-  if (typeof sbSync === 'function') {
-    sbSync('gp_retours', [retour]);
+  // ── Sync Supabase ──
+  let supabaseOk = true;
+
+  // 1. Enregistrer le retour
+  try {
+    const { error: retourErr } = await sb.from('gp_retours').upsert(retourDB, { onConflict: 'id' });
+    if (retourErr) {
+      console.error('[Retour] Erreur gp_retours:', retourErr.message, '| Data:', retourDB);
+      supabaseOk = false;
+    } else {
+      console.log('[Retour] gp_retours enregistré OK');
+    }
+  } catch(e) {
+    console.error('[Retour] Exception gp_retours:', e);
+    supabaseOk = false;
   }
-  if (stockUpdated > 0 && typeof sbSync === 'function') {
-    const updatedProds = lines
-      .filter(l => l.qteConforme > 0)
-      .map(l => products.find(p => p.id === l.productId))
-      .filter(Boolean);
-    sbSync('gp_products', updatedProds.map(p => ({
-      id: p.id, tenant_id: GP_TENANT?.id, stock: p.stock,
-      updated_at: new Date().toISOString()
-    })));
+
+  // 2. Mettre à jour le stock des produits conformes — UPDATE ciblé uniquement sur stock
+  if (stockUpdated > 0) {
+    for (const line of lines) {
+      if (line.qteConforme <= 0) continue;
+      const prod = products.find(p => p.id === line.productId);
+      if (!prod) continue;
+
+      console.log('[Retour] Update stock gp_products id:', prod.id, '| nouveau stock:', prod.stock);
+
+      try {
+        const { error: stockErr } = await sb
+          .from('gp_products')
+          .update({ stock: prod.stock, updated_at: new Date().toISOString() })
+          .eq('id', prod.id)
+          .eq('tenant_id', GP_TENANT?.id);
+
+        if (stockErr) {
+          console.error('[Retour] Erreur update stock produit', prod.id, ':', stockErr.message);
+          supabaseOk = false;
+        } else {
+          console.log('[Retour] Stock produit', prod.id, 'mis à jour OK');
+        }
+      } catch(e) {
+        console.error('[Retour] Exception update stock:', e);
+        supabaseOk = false;
+      }
+    }
   }
 
   // Marquer la vente comme ayant un retour
@@ -237,7 +288,11 @@ async function confirmRetour() {
   const totalDommagee  = lines.reduce((s, l) => s + l.qteDommagee, 0);
   const totalManquante = lines.reduce((s, l) => s + l.qteManquante, 0);
 
-  toast(`✅ Retour enregistré — ${totalConforme} pcs remis en stock${totalDommagee > 0 ? ` · ${totalDommagee} endommagé(s)` : ''}${totalManquante > 0 ? ` · ${totalManquante} manquant(s)` : ''}`, 'success');
+  if (supabaseOk) {
+    toast(`✅ Retour enregistré — ${totalConforme} pcs remis en stock${totalDommagee > 0 ? ` · ${totalDommagee} endommagé(s)` : ''}${totalManquante > 0 ? ` · ${totalManquante} manquant(s)` : ''}`, 'success');
+  } else {
+    toast(`⚠️ Retour sauvegardé localement — erreur synchronisation Supabase (vérifiez la console)`, 'warn');
+  }
 
   if (typeof renderCommandes === 'function') renderCommandes(false);
   if (typeof renderStockTable === 'function') renderStockTable(false);

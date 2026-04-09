@@ -914,12 +914,18 @@ async function loadUserData() {
         .select('*').eq('tenant_id', tid)
         .order('date', {ascending: false}).limit(200);
       retours = (retsData || []).map(r => ({
-        id: r.id, saleId: r.sale_id, date: r.date,
-        local_id: r.local_id, tenant_id: r.tenant_id,
-        clientId: r.client_id, clientName: r.client_name,
-        lines: r.lines || [], note: r.note || '',
-        statut: r.statut || 'conforme',
-        createdBy: r.created_by || null,
+        id:         r.id,
+        saleId:     r.sale_id,
+        date:       r.date,
+        local_id:   r.local_id,
+        tenant_id:  r.tenant_id,
+        clientId:   r.client_id,
+        clientName: r.client_name || 'Client de passage',
+        // lines peut être JSON string (Supabase) ou tableau (localStorage)
+        lines:      typeof r.lines === 'string' ? JSON.parse(r.lines || '[]') : (r.lines || []),
+        note:       r.note || '',
+        statut:     r.statut || 'conforme',
+        createdBy:  r.created_by || null,
       }));
     } catch(e) { retours = []; }
 
