@@ -325,7 +325,6 @@ async function confirmRetour() {
         const {error} = await sb.from('gp_clients')
           .update({
             credit_used: client.creditUsed,
-            updated_at:  new Date().toISOString(),
           })
           .eq('id', client.id)
           .eq('tenant_id', GP_TENANT?.id);
