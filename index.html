@@ -1,3 +1,5 @@
+<!DOCTY<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600&family=Cairo:wght@400;600;700;800;900&family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
+<html lang="fr">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -5,6 +7,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600&family=Cairo:wght@400;600;700;800;900&family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <link rel="stylesheet" href="css/main.css">
+
 
 </head>
 <body>
@@ -178,9 +181,7 @@
         <div class="sb-role" id="sb-role">—</div>
         <div id="sb-local-info" style="display:none;margin-top:2px;"></div>
       </div>
-      <button class="sb-logout" onclick="doLogout()" title="Se déconnecter" style="background:transparent;border:none;cursor:pointer;padding:4px 6px;border-radius:5px;color:var(--text3);font-size:14px;transition:color 0.1s,background 0.1s;" onmouseover="this.style.color='var(--red)';this.style.background='var(--red-light)'" onmouseout="this.style.color='var(--text3)';this.style.background='transparent'">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
-      </button>
+      <button class="sb-logout" onclick="doLogout()" title="Déconnexion">🚪</button>
     </div>
   </aside>
 
@@ -1286,7 +1287,50 @@
         </div>
       </div>
 
-    </div><!-- end content -->
+    
+
+      <!-- ═══════════════════════════════ RETOURS ═══════════════════════════════ -->
+      <div class="page" id="page-retours">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;gap:12px;flex-wrap:wrap;">
+          <div>
+            <div style="font-size:16px;font-weight:700;color:var(--text);letter-spacing:-0.3px;">↩️ Gestion des Retours</div>
+            <div style="font-size:12px;color:var(--text3);margin-top:2px;">Historique des retours produits liés aux ventes</div>
+          </div>
+        </div>
+        <div id="retours-kpi" style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px;"></div>
+        <div class="card">
+          <div class="card-header">
+            <span>Tous les retours</span>
+            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+              <input type="text" id="retour-search" placeholder="Rechercher..." oninput="renderRetours()" style="padding:6px 10px;border:1px solid var(--border2);border-radius:var(--radius-sm);font-size:12.5px;width:200px;outline:none;font-family:var(--font);">
+              <select id="retour-filter-statut" onchange="renderRetours()" style="padding:6px 10px;border:1px solid var(--border2);border-radius:var(--radius-sm);background:var(--surface);font-size:12.5px;font-family:var(--font);outline:none;">
+                <option value="all">Tous les statuts</option>
+                <option value="conforme">✅ Conforme</option>
+                <option value="endommage">💥 Endommagé</option>
+                <option value="manque">❓ Manquant</option>
+              </select>
+            </div>
+          </div>
+          <div style="overflow-x:auto;">
+            <table style="width:100%;min-width:700px;">
+              <thead><tr>
+                <th style="width:90px;">Date</th>
+                <th style="width:100px;">Commande</th>
+                <th>Client</th>
+                <th>Articles</th>
+                <th style="width:180px;">Quantités</th>
+                <th style="width:110px;">Statut</th>
+                <th>Note</th>
+              </tr></thead>
+              <tbody id="retours-table">
+                <tr><td colspan="7"><div class="empty-state"><div class="emoji">↩️</div><p>Aucun retour enregistré</p></div></td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div id="retours-pagination" class="pagination" style="padding:12px 16px;"></div>
+        </div>
+      </div>
+      </div><!-- end content -->
   </div><!-- end main -->
 
 <!-- ═══════════════════════════ MODALS ═══════════════════════════ -->
@@ -2363,39 +2407,57 @@
   </div>
 </div>
 
-  <!-- ═══════════════════════════════════════════════════
-       GestionPro — Scripts modulaires
-       Ordre de chargement critique — ne pas modifier
-  ═══════════════════════════════════════════════════ -->
 
-  <!-- 1. Configuration & constantes (PREMIER) -->
+
+
+
+<!-- ═══ MODAL RETOUR PRODUIT ═══ -->
+<div class="modal-overlay" id="modal-retour">
+  <div class="modal" style="max-width:600px;">
+    <div class="modal-title">↩️ Enregistrer un retour</div>
+    <div style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 14px;margin-bottom:18px;display:flex;gap:20px;font-size:13px;flex-wrap:wrap;">
+      <div><span style="color:var(--text3);">Commande :</span> <strong id="retour-sale-ref">—</strong></div>
+      <div><span style="color:var(--text3);">Date :</span> <strong id="retour-sale-date">—</strong></div>
+      <div><span style="color:var(--text3);">Client :</span> <strong id="retour-sale-client">—</strong></div>
+    </div>
+    <input type="hidden" id="retour-sale-id">
+    <div style="font-size:12px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px;">Articles à retourner</div>
+    <div id="retour-lines" style="display:flex;flex-direction:column;gap:12px;max-height:320px;overflow-y:auto;padding-right:4px;"></div>
+    <div style="margin-top:16px;">
+      <label style="font-size:12px;font-weight:600;color:var(--text2);display:block;margin-bottom:5px;">Note / Observation</label>
+      <textarea id="retour-note" placeholder="Ex: emballage ouvert, produit cassé..." rows="2" style="width:100%;padding:8px 10px;border:1px solid var(--border2);border-radius:var(--radius-sm);font-family:var(--font);font-size:13px;resize:none;outline:none;"></textarea>
+    </div>
+    <div id="retour-error" style="display:none;margin-top:10px;padding:8px 12px;background:var(--red-light);color:var(--red);border-radius:var(--radius-sm);font-size:12.5px;border:1px solid rgba(220,38,38,0.2);"></div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeModal('modal-retour')">Annuler</button>
+      <button class="btn btn-primary" onclick="confirmRetour()">✅ Confirmer le retour</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ MODAL CHOIX LOCAL CAISSE ═══ -->
+<div class="modal-overlay" id="modal-caisse-local" style="z-index:2000;">
+  <div class="modal" style="max-width:420px;text-align:center;">
+    <div style="font-size:40px;margin-bottom:12px;">🏪</div>
+    <div style="font-size:17px;font-weight:700;color:#111827;letter-spacing:-0.3px;margin-bottom:8px;">Choisir le local de vente</div>
+    <div style="font-size:13px;color:#6b7280;margin-bottom:20px;line-height:1.6;">
+      Sélectionnez le local depuis lequel vous effectuez cette vente.<br>
+      <strong>Le stock sera déduit uniquement de ce local.</strong>
+    </div>
+    <div id="caisse-local-choices" style="display:flex;flex-direction:column;gap:8px;margin-bottom:4px;"></div>
+  </div>
+</div>
+
+  <!-- GestionPro Scripts -->
   <script src="js/config.js"></script>
-
-  <!-- 2. Traductions -->
   <script src="js/i18n.js"></script>
-
-  <!-- 3. Utilitaires généraux (debounce, uid, fmt, escapeHTML, toast, modal) -->
   <script src="js/utils.js"></script>
-
-  <!-- 4. État global & persistance -->
   <script src="js/core/state.js"></script>
-
-  <!-- 5. API Supabase helpers -->
   <script src="js/core/api.js"></script>
-
-  <!-- 6. Authentification, session, permissions, RBAC -->
   <script src="js/core/auth.js"></script>
-
-  <!-- 7. Routeur / navigation -->
   <script src="js/core/router.js"></script>
-
-  <!-- 8. Helpers DOM -->
   <script src="js/core/dom_helpers.js"></script>
-
-  <!-- 9. Temps réel Supabase -->
   <script src="js/core/realtime.js"></script>
-
-  <!-- 10. Modules métier -->
   <script src="js/modules/stock.js"></script>
   <script src="js/modules/caisse.js"></script>
   <script src="js/modules/clients.js"></script>
@@ -2409,80 +2471,7 @@
   <script src="js/modules/employes.js"></script>
   <script src="js/modules/superadmin.js"></script>
   <script src="js/modules/retours.js"></script>
-
-  <!-- 11. Point d'entrée (DERNIER) -->
   <script src="js/app.js"></script>
 
-
-      <!-- ═══════════════════════════════ RETOURS ═══════════════════════════════ -->
-      <div class="page" id="page-retours">
-        <div class="section-header" style="margin-bottom:16px;">
-          <div class="section-title">↩️ Gestion des Retours</div>
-        </div>
-
-        <!-- Filtres -->
-        <div class="stock-header" style="margin-bottom:14px;">
-          <input type="text" id="retour-search" placeholder="🔍 Rechercher par client, référence..." oninput="renderRetours()" style="max-width:280px;">
-          <select id="retour-filter-statut" onchange="renderRetours()" style="padding:7px 10px;border:1px solid var(--border2);border-radius:var(--radius-sm);background:var(--surface);font-size:12.5px;">
-            <option value="all">Tous les statuts</option>
-            <option value="conforme">✅ Conforme</option>
-            <option value="endommage">💥 Endommagé</option>
-            <option value="manque">❓ Manquant</option>
-          </select>
-        </div>
-
-        <!-- Table -->
-        <div class="card">
-          <table>
-            <thead><tr>
-              <th>Date</th>
-              <th>Commande</th>
-              <th>Client</th>
-              <th>Articles</th>
-              <th>Quantités</th>
-              <th>Statut</th>
-              <th>Note</th>
-            </tr></thead>
-            <tbody id="retours-table">
-              <tr><td colspan="7"><div class="empty-state"><div class="emoji">↩️</div><p>Aucun retour enregistré</p></div></td></tr>
-            </tbody>
-          </table>
-          <div id="retours-pagination" class="pagination" style="padding:12px 0;"></div>
-        </div>
-      </div>
-
-
-<!-- ═══ MODAL RETOUR PRODUIT ═══ -->
-<div class="modal-overlay" id="modal-retour">
-  <div class="modal" style="max-width:600px;">
-    <div class="modal-title">↩️ Enregistrer un retour</div>
-
-    <!-- Infos vente liée -->
-    <div style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 14px;margin-bottom:18px;display:flex;gap:20px;font-size:13px;">
-      <div><span style="color:var(--text3);">Commande :</span> <strong id="retour-sale-ref">—</strong></div>
-      <div><span style="color:var(--text3);">Date :</span> <strong id="retour-sale-date">—</strong></div>
-      <div><span style="color:var(--text3);">Client :</span> <strong id="retour-sale-client">—</strong></div>
-    </div>
-    <input type="hidden" id="retour-sale-id">
-
-    <!-- Lignes de retour -->
-    <div style="font-size:12px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px;">Articles à retourner</div>
-    <div id="retour-lines" style="display:flex;flex-direction:column;gap:12px;max-height:320px;overflow-y:auto;padding-right:4px;"></div>
-
-    <!-- Note -->
-    <div style="margin-top:16px;">
-      <label style="font-size:12px;font-weight:600;color:var(--text2);display:block;margin-bottom:5px;">Note / Observation</label>
-      <textarea id="retour-note" placeholder="Ex: emballage ouvert, produit cassé, retour partiel..." rows="2" style="width:100%;padding:8px 10px;border:1px solid var(--border2);border-radius:var(--radius-sm);font-family:var(--font);font-size:13px;resize:none;"></textarea>
-    </div>
-
-    <!-- Erreur -->
-    <div id="retour-error" style="display:none;margin-top:10px;padding:8px 12px;background:var(--red-light);color:var(--red);border-radius:var(--radius-sm);font-size:12.5px;border:1px solid rgba(220,38,38,0.2);"></div>
-
-    <div class="modal-actions">
-      <button class="btn btn-secondary" onclick="closeModal('modal-retour')">Annuler</button>
-      <button class="btn btn-primary" onclick="confirmRetour()">✅ Confirmer le retour</button>
-    </div>
-  </div>
-</div>
-
 </body>
+</html>
