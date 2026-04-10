@@ -361,64 +361,73 @@ async function confirmRetour() {
 ════════════════════════════════════════ */
 function renderRetours(resetPage) {
   if (resetPage!==false) _pages['retours']=1;
-  const q     = (document.getElementById('retour-search')?.value||''). toLowerCase();
+  const q     = (document.getElementById('retour-search')?.value||'').toLowerCase();
   const statF = document.getElementById('retour-filter-statut')?.value||'all';
   const tbody = document.getElementById('retours-table');
   if (!tbody) return;
 
   let filtered = [...retours];
-  if (q) filtered=filtered.filter(r=>(r.clientName||''). toLowerCase().includes(q)||(r.note||''). toLowerCase().includes(q));
+  if (q) filtered=filtered.filter(r=>(r.clientName||'').toLowerCase().includes(q)||(r.note||'').toLowerCase().includes(q));
   if (statF!=='all') filtered=filtered.filter(r=>r.statut===statF);
 
   if (!filtered.length) {
-    tbody.innerHTML=`<tr><td colspan="7"><div class="empty-state"><div class="emoji">↩️</div><p>Aucun retour enregistré</p></div></td></tr>`;
-    const pag=document.getElementById('retours-pagination'); if(pag) pag.innerHTML=''; return;
+    tbody.innerHTML=`<tr><td colspan="8"><div class="empty-state"><div class="emoji">↩️</div><p>Aucun retour enregistré</p></div></td></tr>`;
+    const pag=document.getElementById('retours-pagination');
+    if (pag) pag.innerHTML='';
+    return;
   }
 
   const page=getPage('retours');
   const pageData=filtered.slice((page-1)*PAGE_SIZE, page*PAGE_SIZE);
-  const badge={conforme:'<span class="chip chip-green">✅ Conforme</span>',endommage:'<span class="chip chip-red">💥 Endommagé</span>',manque:'<span class="chip chip-orange">❓ Manquant</span>'};
+  const badge={
+    conforme:  '<span class="chip chip-green">✅ Conforme</span>',
+    endommage: '<span class="chip chip-red">💥 Endommagé</span>',
+    manque:    '<span class="chip chip-orange">❓ Manquant</span>',
+  };
 
-  tbody.innerHTML=pageData.map(r=>{
-    const sale=sales.find(s=>s.id===r.saleId);
-    const dateStr=new Date(r.date).toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit',year:'2-digit'});
-    const saleNum=sale?'ORD-'+String(sales.indexOf(sale)+1).padStart(4,'0'):'—';
-    const isCred=sale&&(sale.payment==='Crédit'||sale.isCreditSale);
-    const tCon=r.lines.reduce((s,l)=>s+(l.qteConforme||0),0);
-    const tDmg=r.lines.reduce((s,l)=>s+(l.qteDommagee||0),0);
-    const tMnq=r.lines.reduce((s,l)=>s+(l.qteManquante||0),0);
-    const ded=r.lines.reduce((s,l)=>s+(l.qteConforme||0)*(l.unitPrice||0),0);
-    const chg=r.lines.reduce((s,l)=>s+((l.qteDommagee||0)+(l.qteManquante||0))*(l.unitPrice||0),0);
-    const clientLabel=(r.clientName&&r.clientName!=='undefined')?escapeHTML(r.clientName):'Client de passage';
-    return `<tr style="cursor:pointer;" onclick="viewRetourDetail('${r.id}')">
-      <td style="font-size:12px;">${dateStr}</td>
-      <td style="font-family:var(--font-mono),monospace;font-size:11.5px;color:var(--accent);">${saleNum}</td>
-      <td style="font-weight:600;">${clientLabel}</td>
-      <td>${r.lines.map(l=>{const p=products.find(x=>x.id===l.productId);const t=(l.qteConforme||0)+(l.qteDommagee||0)+(l.qteManquante||0);return `<div style="font-size:12px;display:flex;align-items:center;gap:4px;">${p?.photo?`<img src="${escapeHTML(p.photo)}" style="width:20px;height:20px;object-fit:cover;border-radius:3px;" onerror="this.style.display='none'">`:''}<span>${escapeHTML(p?.name||'?')}×${t}</span></div>`;}).join('')}</td>
-      <td>
-        ${tCon>0?`<div style="font-size:11.5px;color:var(--green);">✅ ${tCon} conf.${ded>0?' −'+fmt(ded):''}` +`</div>`:''}
-        ${tDmg>0?`<div style="font-size:11.5px;color:var(--red);">💥 ${tDmg} endom.</div>`:''}
-        ${tMnq>0?`<div style="font-size:11.5px;color:var(--gold);">❓ ${tMnq} manq.</div>`:''}
-        ${isCred&&chg>0?`<div style="font-size:11px;color:var(--red);">Charge: ${fmt(chg)}</div>`:''}
-      </td>
-      <td>${badge[r.statut]||r.statut}</td>
-      <td style="font-size:11.5px;color:var(--text2);font-style:italic;">${r.note?escapeHTML(r.note):'—'}</td>
-      <td style="white-space:nowrap;">
-        <button class="btn btn-secondary btn-sm" onclick="event.stopPropagation();viewRetourDetail('${r.id}')" title="Voir détail">🔍</button>
-      </td>
-    </tr>`;}).join('')}</td>
-      <td>
-        ${tCon>0?`<div style="font-size:11.5px;color:var(--green);">✅ ${tCon} conforme(s)${ded>0?' (−'+fmt(ded)+')':''}</div>`:''}
-        ${tDmg>0?`<div style="font-size:11.5px;color:var(--red);">💥 ${tDmg} endommagé(s)</div>`:''}
-        ${tMnq>0?`<div style="font-size:11.5px;color:var(--gold);">❓ ${tMnq} manquant(s)</div>`:''}
-        ${isCred&&chg>0?`<div style="font-size:11px;color:var(--red);">Charge : ${fmt(chg)}</div>`:''}
-      </td>
-      <td>${badge[r.statut]||r.statut}</td>
-      <td style="font-size:11.5px;color:var(--text2);font-style:italic;">${r.note?escapeHTML(r.note):'—'}</td>
-    </tr>`;
+  tbody.innerHTML = pageData.map(r => {
+    const sale       = sales.find(s => s.id === r.saleId);
+    const dateStr    = new Date(r.date).toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit',year:'2-digit'});
+    const saleNum    = sale ? 'ORD-'+String(sales.indexOf(sale)+1).padStart(4,'0') : '—';
+    const isCred     = sale && (sale.payment==='Crédit' || sale.isCreditSale);
+    const tCon       = r.lines.reduce((s,l) => s+(l.qteConforme||0), 0);
+    const tDmg       = r.lines.reduce((s,l) => s+(l.qteDommagee||0), 0);
+    const tMnq       = r.lines.reduce((s,l) => s+(l.qteManquante||0), 0);
+    const ded        = r.lines.reduce((s,l) => s+(l.qteConforme||0)*(l.unitPrice||0), 0);
+    const chg        = r.lines.reduce((s,l) => s+((l.qteDommagee||0)+(l.qteManquante||0))*(l.unitPrice||0), 0);
+    const clientLabel = (r.clientName && r.clientName!=='undefined') ? escapeHTML(r.clientName) : 'Client de passage';
+
+    const articlesHtml = r.lines.map(l => {
+      const p = products.find(x => x.id === l.productId);
+      const t = (l.qteConforme||0)+(l.qteDommagee||0)+(l.qteManquante||0);
+      const photoTag = p && p.photo
+        ? '<img src="'+escapeHTML(p.photo)+'" style="width:20px;height:20px;object-fit:cover;border-radius:3px;flex-shrink:0;" onerror="this.style.display=&quot;none&quot;">'
+        : '';
+      return '<div style="font-size:12px;display:flex;align-items:center;gap:4px;">'
+        + photoTag
+        + '<span>'+escapeHTML(p ? p.name : '?')+'×'+t+'</span>'
+        + '</div>';
+    }).join('');
+
+    const qteHtml = ''
+      + (tCon>0 ? '<div style="font-size:11.5px;color:var(--green);">✅ '+tCon+' conf.'+(ded>0?' −'+fmt(ded):'')+' </div>' : '')
+      + (tDmg>0 ? '<div style="font-size:11.5px;color:var(--red);">💥 '+tDmg+' endom.</div>' : '')
+      + (tMnq>0 ? '<div style="font-size:11.5px;color:var(--gold);">❓ '+tMnq+' manq.</div>' : '')
+      + (isCred&&chg>0 ? '<div style="font-size:11px;color:var(--red);">Charge: '+fmt(chg)+'</div>' : '');
+
+    return '<tr data-rid="' + r.id + '" style="cursor:pointer;" onclick="viewRetourDetail(this.dataset.rid)">'
+      + '<td style="font-size:12px;">'+dateStr+'</td>'
+      + '<td style="font-family:var(--font-mono),monospace;font-size:11.5px;color:var(--accent);">'+saleNum+'</td>'
+      + '<td style="font-weight:600;">'+clientLabel+'</td>'
+      + '<td>'+articlesHtml+'</td>'
+      + '<td>'+qteHtml+'</td>'
+      + '<td>'+(badge[r.statut]||r.statut)+'</td>'
+      + '<td style="font-size:11.5px;color:var(--text2);font-style:italic;">'+(r.note ? escapeHTML(r.note) : '—')+'</td>'
+      + '<td><button class="btn btn-secondary btn-sm" onclick="event.stopPropagation();viewRetourDetail(this.closest(\"tr\").dataset.rid)" title="Voir détail">🔍</button></td>'
+      + '</tr>';
   }).join('');
 
-  buildPagination('retours',filtered.length,'renderRetours','retours-pagination');
+  buildPagination('retours', filtered.length, 'renderRetours', 'retours-pagination');
 }
 
 /* ── Résumé crédit+retours pour fiche client ── */
