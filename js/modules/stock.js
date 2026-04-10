@@ -674,39 +674,46 @@ function renderStockTable(resetPage) {
     });
 
     // ── Colonne Stock : chiffre principal + métadonnées ──
+    // ── Chiffre principal + label Disponible ──
     let stockHtml = '<div class="stock-cell">'
-
-      // Chiffre principal
       + '<div class="stock-cell-main">'
       + '<span class="stock-cell-qty">' + displayStock + (g.type==='kg' ? ' kg' : '') + '</span>'
       + '<span class="stock-cell-unit">' + (g.type==='kg' ? '' : (g.unit || 'pcs')) + '</span>'
       + '</div>'
+      + '<div class="stock-cell-label-dispo">Disponible</div>';
 
-      // Label Disponible
-      + '<div class="stock-cell-label">Disponible</div>';
-
-    // Badges endommagé + manquant (compacts)
+    // ── Badges endommagé + manquant ──
     if (damagedQty > 0 || missingQty > 0) {
       stockHtml += '<div class="stock-cell-issues">';
       if (damagedQty > 0) {
-        stockHtml += '<span class="stock-badge-damaged">💥 ' + damagedQty + ' end.</span>';
+        stockHtml += '<span class="stock-badge-damaged">'
+          + '<svg width="9" height="9" viewBox="0 0 24 24" fill="currentColor" style="flex-shrink:0;"><path d="M12 2L1 21h22L12 2zm0 3.5l8.5 15h-17L12 5.5zM11 10v4h2v-4h-2zm0 6v2h2v-2h-2z"/></svg>'
+          + ' ' + damagedQty + ' end.</span>';
       }
       if (missingQty > 0) {
-        stockHtml += '<span class="stock-badge-missing">❓ ' + missingQty + ' manq.</span>';
+        stockHtml += '<span class="stock-badge-missing">'
+          + '<svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="flex-shrink:0;"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>'
+          + ' ' + missingQty + ' manq.</span>';
       }
       stockHtml += '</div>';
     }
 
-    // Répartition locaux
+    // ── Répartition par local ──
     if (localMap.size > 1) {
+      // Plusieurs locaux : afficher nom: stock compact
       const localParts = Array.from(localMap.values()).map(e => {
         const cls = e.stock === 0 ? 'stock-loc-zero' : e.stock < e.minStock ? 'stock-loc-low' : 'stock-loc-ok';
-        return '<span class="stock-loc-badge ' + cls + '"><b>' + e.stock + '</b> ' + e.lName + '</span>';
+        return '<span class="stock-loc-badge ' + cls + '">'
+          + '<b>' + e.stock + '</b>'
+          + '<span class="stock-loc-name">' + escapeHTML(e.lName) + '</span>'
+          + '</span>';
       }).join('');
       stockHtml += '<div class="stock-cell-locals">' + localParts + '</div>';
     } else if (localMap.size === 1) {
       const e = Array.from(localMap.values())[0];
-      stockHtml += '<div class="stock-cell-local-single">' + e.lName + '</div>';
+      if (e.lName && e.lName !== '—') {
+        stockHtml += '<div class="stock-cell-local-single">📍 ' + escapeHTML(e.lName) + '</div>';
+      }
     }
 
     stockHtml += '</div>';

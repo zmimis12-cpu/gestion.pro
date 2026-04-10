@@ -397,17 +397,31 @@ function renderRetours(resetPage) {
     const chg        = r.lines.reduce((s,l) => s+((l.qteDommagee||0)+(l.qteManquante||0))*(l.unitPrice||0), 0);
     const clientLabel = (r.clientName && r.clientName!=='undefined') ? escapeHTML(r.clientName) : 'Client de passage';
 
-    const articlesHtml = r.lines.map(l => {
-      const p = products.find(x => x.id === l.productId);
-      const t = (l.qteConforme||0)+(l.qteDommagee||0)+(l.qteManquante||0);
-      const photoTag = p && p.photo
-        ? '<img src="'+escapeHTML(p.photo)+'" style="width:20px;height:20px;object-fit:cover;border-radius:3px;flex-shrink:0;" onerror="this.style.display=&quot;none&quot;">'
-        : '';
-      return '<div style="font-size:12px;display:flex;align-items:center;gap:4px;">'
-        + photoTag
-        + '<span>'+escapeHTML(p ? p.name : '?')+'×'+t+'</span>'
-        + '</div>';
-    }).join('');
+    // Résumé texte compact — pas d'images dans le tableau (images dans le modal détail)
+    const articlesHtml = r.lines.length === 1
+      ? (() => {
+          const l = r.lines[0];
+          const p = products.find(x => x.id === l.productId);
+          const t = (l.qteConforme||0)+(l.qteDommagee||0)+(l.qteManquante||0);
+          return '<span style="font-size:13px;font-weight:600;">'
+            + escapeHTML(p ? p.name : '?')
+            + '</span><span style="font-size:11.5px;color:var(--text3);margin-left:4px;">×' + t + '</span>';
+        })()
+      : (() => {
+          // Plusieurs produits : afficher les 2 premiers + "et N autres"
+          const visible = r.lines.slice(0, 2);
+          const rest    = r.lines.length - 2;
+          const parts   = visible.map(l => {
+            const p = products.find(x => x.id === l.productId);
+            const t = (l.qteConforme||0)+(l.qteDommagee||0)+(l.qteManquante||0);
+            return '<div style="font-size:12px;line-height:1.5;">'
+              + '<span style="font-weight:600;">' + escapeHTML(p ? p.name : '?') + '</span>'
+              + '<span style="color:var(--text3);"> ×' + t + '</span>'
+              + '</div>';
+          });
+          if (rest > 0) parts.push('<div style="font-size:11px;color:var(--accent);margin-top:1px;">+ ' + rest + ' autre(s)</div>');
+          return parts.join('');
+        })();
 
     const qteHtml = ''
       + (tCon>0 ? '<div style="font-size:11.5px;color:var(--green);">✅ '+tCon+' conf.'+(ded>0?' −'+fmt(ded):'')+' </div>' : '')

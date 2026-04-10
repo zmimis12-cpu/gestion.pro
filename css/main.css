@@ -3616,111 +3616,129 @@ select, textarea { font-size: 13.5px; padding: 8.5px 11px; }
 .stock-cell {
   display: flex;
   flex-direction: column;
-  gap: 3px;
-  min-width: 130px;
+  gap: 2px;
+  min-width: 140px;
 }
 
+/* Chiffre principal */
 .stock-cell-main {
   display: flex;
   align-items: baseline;
-  gap: 5px;
+  gap: 4px;
+  line-height: 1;
 }
 
 .stock-cell-qty {
   font-family: var(--font-mono), monospace;
   font-weight: 800;
-  font-size: 15px;
+  font-size: 16px;
   color: var(--text);
-  line-height: 1;
+  letter-spacing: -0.5px;
 }
 
 .stock-cell-unit {
   font-size: 10.5px;
   color: var(--text3);
+  font-weight: 500;
 }
 
-.stock-cell-label {
-  font-size: 10px;
-  color: var(--text3);
+/* Label "Disponible" — lisible sans être agressif */
+.stock-cell-label-dispo {
+  font-size: 9.5px;
+  color: var(--accent);
+  font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
-  font-weight: 600;
+  letter-spacing: 0.6px;
+  opacity: 0.75;
+  margin-bottom: 1px;
 }
 
+/* Badges endommagé + manquant */
 .stock-cell-issues {
   display: flex;
   gap: 4px;
   flex-wrap: wrap;
-  margin-top: 1px;
+  margin-top: 2px;
 }
 
 .stock-badge-damaged {
   display: inline-flex;
   align-items: center;
-  gap: 2px;
-  background: rgba(220,38,38,0.08);
-  border: 1px solid rgba(220,38,38,0.25);
-  border-radius: var(--radius-sm);
+  gap: 3px;
+  background: rgba(220,38,38,0.07);
+  border: 1px solid rgba(220,38,38,0.22);
+  border-radius: 4px;
   padding: 1px 6px;
   font-size: 10.5px;
   font-weight: 600;
   color: var(--red);
+  line-height: 1.6;
 }
 
 .stock-badge-missing {
   display: inline-flex;
   align-items: center;
-  gap: 2px;
-  background: rgba(245,158,11,0.08);
-  border: 1px solid rgba(245,158,11,0.25);
-  border-radius: var(--radius-sm);
+  gap: 3px;
+  background: rgba(245,158,11,0.07);
+  border: 1px solid rgba(245,158,11,0.22);
+  border-radius: 4px;
   padding: 1px 6px;
   font-size: 10.5px;
   font-weight: 600;
   color: var(--gold);
+  line-height: 1.6;
 }
 
+/* Répartition par local */
 .stock-cell-locals {
   display: flex;
   gap: 3px;
   flex-wrap: wrap;
-  margin-top: 2px;
+  margin-top: 3px;
 }
 
 .stock-loc-badge {
   display: inline-flex;
   align-items: center;
   gap: 3px;
-  border-radius: var(--radius-sm);
-  padding: 2px 6px;
+  border-radius: 4px;
+  padding: 2px 7px;
   font-size: 10px;
-  background: rgba(37,99,235,0.05);
-  border: 1px solid rgba(37,99,235,0.15);
+  background: rgba(37,99,235,0.04);
+  border: 1px solid rgba(37,99,235,0.14);
   white-space: nowrap;
+  line-height: 1.5;
 }
 
 .stock-loc-badge b {
   font-weight: 700;
   font-family: var(--font-mono), monospace;
+  font-size: 10.5px;
 }
 
-.stock-loc-badge span {
+.stock-loc-name {
   color: var(--text3);
+  font-size: 9.5px;
 }
 
-.stock-loc-ok   { border-color: rgba(37,99,235,0.2); }
+/* Couleurs selon état stock */
+.stock-loc-ok   { border-color: rgba(37,99,235,0.18); }
 .stock-loc-ok b { color: var(--accent); }
 
-.stock-loc-low   { border-color: rgba(245,158,11,0.25); background: rgba(245,158,11,0.05); }
-.stock-loc-low b { color: var(--gold); }
+.stock-loc-low                { border-color: rgba(245,158,11,0.22); background: rgba(245,158,11,0.04); }
+.stock-loc-low b              { color: var(--gold); }
 
-.stock-loc-zero   { border-color: rgba(220,38,38,0.25); background: rgba(220,38,38,0.05); }
-.stock-loc-zero b { color: var(--red); }
+.stock-loc-zero               { border-color: rgba(220,38,38,0.22); background: rgba(220,38,38,0.04); }
+.stock-loc-zero b             { color: var(--red); }
 
+/* Local unique */
 .stock-cell-local-single {
   font-size: 10.5px;
   color: var(--text3);
-  margin-top: 1px;
+  margin-top: 2px;
+  display: flex;
+  align-items: center;
+  gap: 3px;
 }
 
 /* Scrollbar modale stock-detail */
