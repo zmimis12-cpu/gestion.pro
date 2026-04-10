@@ -522,16 +522,22 @@ function populateStockFilters() {
 }
 
 
-/* ── Stock endommagé par produit (calculé depuis retours[]) ── */
+/* ── Stock endommagé + manquant par produit (depuis retours[]) ── */
 function _getDamagedStockByProduct() {
-  const map = {}; // productId → qteDommagee totale
-  retours.forEach(r => {
-    r.lines.forEach(line => {
-      if ((line.qteDommagee || 0) > 0) {
-        map[line.productId] = (map[line.productId] || 0) + line.qteDommagee;
-      }
-    });
-  });
+  const map = {};
+  retours.forEach(r => r.lines.forEach(line => {
+    if ((line.qteDommagee || 0) > 0)
+      map[line.productId] = (map[line.productId] || 0) + line.qteDommagee;
+  }));
+  return map;
+}
+
+function _getMissingStockByProduct() {
+  const map = {};
+  retours.forEach(r => r.lines.forEach(line => {
+    if ((line.qteManquante || 0) > 0)
+      map[line.productId] = (map[line.productId] || 0) + line.qteManquante;
+  }));
   return map;
 }
 
@@ -554,8 +560,9 @@ function renderStockTable(resetPage) {
 
   // ── GROUPER les produits identiques (même code ou même nom) ──────────────────
   // 1 groupe = même produit présent dans plusieurs locaux → 1 seule ligne avec détail
-  // Calcul du stock endommagé depuis les retours
+  // Calcul du stock endommagé et manquant depuis les retours
   const _damagedMap = typeof _getDamagedStockByProduct === 'function' ? _getDamagedStockByProduct() : {};
+  const _missingMap = typeof _getMissingStockByProduct === 'function' ? _getMissingStockByProduct() : {};
 
   const groupMap = new Map();
   products.forEach(p => {
@@ -650,15 +657,42 @@ function renderStockTable(resetPage) {
     const contSrc     = conteneurs.find(c => c.refs?.some(r => r.refCode === g.code));
 
     // ── Affichage stock avec détail par local ──
-    let stockHtml = `<span style="font-family:var(--font-mono),monospace;font-weight:700;font-size:14px;">${displayStock}${g.type==='kg'?' kg':''}</span> <span style="font-size:11px;color:var(--text2);">${g.type!=='kg'?g.unit:''}</span>`;
-    if (damagedQty > 0) {
-      stockHtml += `<div style="margin-top:3px;display:inline-flex;align-items:center;gap:4px;background:rgba(220,38,38,0.08);border:1px solid rgba(220,38,38,0.2);border-radius:var(--radius-sm);padding:2px 7px;">
-        <span style="font-size:10.5px;color:var(--red);">💥 Endommagé :</span>
-        <span style="font-family:var(--font-mono),monospace;font-weight:700;font-size:11px;color:var(--red);">${damagedQty}</span>
-      </div>`;
+    // Stock manquant cumulé sur tous les variants de ce groupe
+    const missingQty = variants.reduce((sum, v) => sum + (_missingMap[v.id] || 0), 0);
+
+    // ── Construction du bloc stock ──
+    // Stock vendable = totalStock (stock physique disponible)
+    // Stock endommagé = retours endommagés cumulés (hors stock normal)
+    // Stock manquant  = retours avec manque cumulés (en litige)
+
+    // ── Chiffre principal ──
+    let stockHtml = '<div style="display:flex;flex-direction:column;gap:4px;">'
+      + '<div style="display:flex;align-items:center;gap:6px;">'
+      + '<span style="font-family:var(--font-mono),monospace;font-weight:800;font-size:15px;color:var(--text);">'
+      + displayStock + (g.type==='kg' ? ' kg' : '') + '</span>'
+      + (g.type!=='kg' ? '<span style="font-size:11px;color:var(--text3);">'+g.unit+'</span>' : '')
+      + '</div>';
+
+    // ── Badges endommagé + manquant ──
+    if (damagedQty > 0 || missingQty > 0) {
+      stockHtml += '<div style="display:flex;gap:4px;flex-wrap:wrap;">';
+      if (damagedQty > 0) {
+        stockHtml += '<span style="display:inline-flex;align-items:center;gap:3px;'
+          + 'background:rgba(220,38,38,0.08);border:1px solid rgba(220,38,38,0.25);'
+          + 'border-radius:var(--radius-sm);padding:2px 7px;font-size:10.5px;font-weight:600;color:var(--red);">'
+          + '💥 ' + damagedQty + ' endom.</span>';
+      }
+      if (missingQty > 0) {
+        stockHtml += '<span style="display:inline-flex;align-items:center;gap:3px;'
+          + 'background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.25);'
+          + 'border-radius:var(--radius-sm);padding:2px 7px;font-size:10.5px;font-weight:600;color:var(--gold);">'
+          + '❓ ' + missingQty + ' manq.</span>';
+      }
+      stockHtml += '</div>';
     }
+
+    // ── Répartition par local (si plusieurs variants) ──
     if (variants.length > 1) {
-      // Regrouper les variants par local_id pour éviter les doublons
       const localMap = new Map();
       variants.forEach(v => {
         const lid   = v.local_id || v.zone || '__sans__';
@@ -669,12 +703,23 @@ function renderStockTable(resetPage) {
           localMap.set(lid, { lName, stock: v.stock, minStock: v.minStock || 0 });
         }
       });
-      const badges = Array.from(localMap.values()).map(entry => {
-        const col = entry.stock === 0 ? 'var(--red)' : entry.stock < entry.minStock ? 'var(--gold)' : 'var(--accent)';
-        return `<span style="display:inline-flex;align-items:center;gap:2px;border:1px solid ${col};color:${col};padding:1px 5px;border-radius:var(--radius);font-size:10px;font-weight:600;margin:1px;background:rgba(0,0,0,0.15);">🏪 ${entry.lName}: <b>${entry.stock}</b></span>`;
+      const localBadges = Array.from(localMap.values()).map(entry => {
+        const col = entry.stock === 0
+          ? 'rgba(220,38,38,0.7)'
+          : entry.stock < entry.minStock
+            ? 'rgba(245,158,11,0.8)'
+            : 'rgba(37,99,235,0.7)';
+        return '<span style="display:inline-flex;align-items:center;gap:3px;'
+          + 'background:rgba(37,99,235,0.05);border:1px solid rgba(37,99,235,0.15);'
+          + 'border-radius:var(--radius-sm);padding:2px 7px;font-size:10.5px;margin:1px;">'
+          + '<span style="color:' + col + ';font-weight:700;">' + entry.stock + '</span>'
+          + '<span style="color:var(--text3);font-size:10px;">@' + entry.lName + '</span>'
+          + '</span>';
       }).join('');
-      stockHtml += `<div style="margin-top:3px;">${badges}</div>`;
+      stockHtml += '<div style="display:flex;gap:2px;flex-wrap:wrap;margin-top:1px;">' + localBadges + '</div>';
     }
+
+    stockHtml += '</div>';
     if (g.type==='tailles' && g.sizes) {
       stockHtml += `<div style="font-size:10px;color:var(--text2);margin-top:2px;">${Object.entries(g.sizes).filter(([,v])=>v>0).map(([k,v])=>`<span style="background:rgba(108,99,255,0.12);color:var(--purple);border-radius:4px;padding:1px 4px;margin:1px;">${k}:${v}</span>`).join('')}</div>`;
     }
