@@ -661,62 +661,52 @@ function renderStockTable(resetPage) {
     const missingQty = variants.reduce((sum, v) => sum + (_missingMap[v.id] || 0), 0);
 
     // ── Construction du bloc stock ──
-    // Stock vendable = totalStock (stock physique disponible)
-    // Stock endommagé = retours endommagés cumulés (hors stock normal)
-    // Stock manquant  = retours avec manque cumulés (en litige)
+    // ── Construire la map locaux (dédupliquée) ──
+    const localMap = new Map();
+    variants.forEach(v => {
+      const lid   = v.local_id || v.zone || '__sans__';
+      const lName = GP_LOCAUX_ALL.find(l => l.id === v.local_id)?.nom || v.zone || '—';
+      if (localMap.has(lid)) {
+        localMap.get(lid).stock += v.stock;
+      } else {
+        localMap.set(lid, { lName, stock: v.stock, minStock: v.minStock || 0 });
+      }
+    });
 
-    // ── Chiffre principal ──
-    let stockHtml = '<div style="display:flex;flex-direction:column;gap:4px;">'
-      + '<div style="display:flex;align-items:center;gap:6px;">'
-      + '<span style="font-family:var(--font-mono),monospace;font-weight:800;font-size:15px;color:var(--text);">'
-      + displayStock + (g.type==='kg' ? ' kg' : '') + '</span>'
-      + (g.type!=='kg' ? '<span style="font-size:11px;color:var(--text3);">'+g.unit+'</span>' : '')
-      + '</div>';
+    // ── Colonne Stock : chiffre principal + métadonnées ──
+    let stockHtml = '<div class="stock-cell">'
 
-    // ── Badges endommagé + manquant ──
+      // Chiffre principal
+      + '<div class="stock-cell-main">'
+      + '<span class="stock-cell-qty">' + displayStock + (g.type==='kg' ? ' kg' : '') + '</span>'
+      + '<span class="stock-cell-unit">' + (g.type==='kg' ? '' : (g.unit || 'pcs')) + '</span>'
+      + '</div>'
+
+      // Label Disponible
+      + '<div class="stock-cell-label">Disponible</div>';
+
+    // Badges endommagé + manquant (compacts)
     if (damagedQty > 0 || missingQty > 0) {
-      stockHtml += '<div style="display:flex;gap:4px;flex-wrap:wrap;">';
+      stockHtml += '<div class="stock-cell-issues">';
       if (damagedQty > 0) {
-        stockHtml += '<span style="display:inline-flex;align-items:center;gap:3px;'
-          + 'background:rgba(220,38,38,0.08);border:1px solid rgba(220,38,38,0.25);'
-          + 'border-radius:var(--radius-sm);padding:2px 7px;font-size:10.5px;font-weight:600;color:var(--red);">'
-          + '💥 ' + damagedQty + ' endom.</span>';
+        stockHtml += '<span class="stock-badge-damaged">💥 ' + damagedQty + ' end.</span>';
       }
       if (missingQty > 0) {
-        stockHtml += '<span style="display:inline-flex;align-items:center;gap:3px;'
-          + 'background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.25);'
-          + 'border-radius:var(--radius-sm);padding:2px 7px;font-size:10.5px;font-weight:600;color:var(--gold);">'
-          + '❓ ' + missingQty + ' manq.</span>';
+        stockHtml += '<span class="stock-badge-missing">❓ ' + missingQty + ' manq.</span>';
       }
       stockHtml += '</div>';
     }
 
-    // ── Répartition par local (si plusieurs variants) ──
-    if (variants.length > 1) {
-      const localMap = new Map();
-      variants.forEach(v => {
-        const lid   = v.local_id || v.zone || '__sans__';
-        const lName = GP_LOCAUX_ALL.find(l => l.id === v.local_id)?.nom || v.zone || '?';
-        if (localMap.has(lid)) {
-          localMap.get(lid).stock += v.stock;
-        } else {
-          localMap.set(lid, { lName, stock: v.stock, minStock: v.minStock || 0 });
-        }
-      });
-      const localBadges = Array.from(localMap.values()).map(entry => {
-        const col = entry.stock === 0
-          ? 'rgba(220,38,38,0.7)'
-          : entry.stock < entry.minStock
-            ? 'rgba(245,158,11,0.8)'
-            : 'rgba(37,99,235,0.7)';
-        return '<span style="display:inline-flex;align-items:center;gap:3px;'
-          + 'background:rgba(37,99,235,0.05);border:1px solid rgba(37,99,235,0.15);'
-          + 'border-radius:var(--radius-sm);padding:2px 7px;font-size:10.5px;margin:1px;">'
-          + '<span style="color:' + col + ';font-weight:700;">' + entry.stock + '</span>'
-          + '<span style="color:var(--text3);font-size:10px;">@' + entry.lName + '</span>'
-          + '</span>';
+    // Répartition locaux
+    if (localMap.size > 1) {
+      const localParts = Array.from(localMap.values()).map(e => {
+        const cls = e.stock === 0 ? 'stock-loc-zero' : e.stock < e.minStock ? 'stock-loc-low' : 'stock-loc-ok';
+        return '<span class="stock-loc-badge ' + cls + '"><b>' + e.stock + '</b> ' + e.lName + '</span>';
       }).join('');
-      stockHtml += '<div style="display:flex;gap:2px;flex-wrap:wrap;margin-top:1px;">' + localBadges + '</div>';
+      stockHtml += '<div class="stock-cell-locals">' + localParts + '</div>';
+    } else if (localMap.size === 1) {
+      const e = Array.from(localMap.values())[0];
+      stockHtml += '<div class="stock-cell-local-single">' + e.lName + '</div>';
     }
 
     stockHtml += '</div>';
@@ -758,7 +748,7 @@ function renderStockTable(resetPage) {
       <td>${stockHtml}</td>
       <td style="color:var(--text2);font-size:12px;">${g.minStock}</td>
       <td style="font-family:var(--font-mono),monospace;font-weight:600;font-size:12px;">${g.price.toFixed(2)}</td>
-      <td style="font-size:11px;">${zonesHtml}</td>
+
       <td style="font-family:var(--font-mono),monospace;font-size:12px;color:var(--text2);">${cost > 0 ? cost.toFixed(2) : '—'}</td>
       <td style="font-family:var(--font-mono),monospace;font-weight:700;font-size:12px;color:${profitColor};">${cost > 0 ? (profit>=0?'+':'')+profit.toFixed(2) : '—'}</td>
       <td style="font-size:12px;font-weight:700;color:${profitColor};">${cost > 0 ? margin.toFixed(1)+'%' : '—'}</td>
@@ -767,6 +757,7 @@ function renderStockTable(resetPage) {
         ${transferBtn}
       </td>
       <td style="white-space:nowrap;">
+        <button class="btn btn-secondary btn-sm" onclick="viewStockDetail('${editId}')" title="Voir détail stock">🔍</button>
         ${(isSuperAdmin()||hasPermission('stock','update')) ? `<button class="btn btn-secondary btn-sm" onclick="editProduct('${editId}')">✏️</button>` : ''}
         ${(isSuperAdmin()||hasPermission('stock','delete')) ? `<button class="btn btn-danger btn-sm" onclick="deleteProduct('${editId}')">🗑️</button>` : ''}
       </td>
@@ -918,4 +909,172 @@ function selectCaisseLocal(localId) {
   if (typeof renderCategoryFilters === 'function') renderCategoryFilters();
   updateAlertCount();
   toast(`🏪 Local de vente : ${localName}`, 'success');
+}
+
+
+/* ════════════════════════════════════════
+   DÉTAIL STOCK — Modal complet par produit
+════════════════════════════════════════ */
+function viewStockDetail(productId) {
+  const prod = products.find(p => p.id === productId);
+  if (!prod) return;
+
+  const key = (prod.code && prod.code.trim())
+    ? prod.code.trim().toLowerCase()
+    : prod.name.trim().toLowerCase() + '||' + (prod.category||'').toLowerCase();
+
+  const grp = products.filter(p => {
+    const k = (p.code && p.code.trim())
+      ? p.code.trim().toLowerCase()
+      : p.name.trim().toLowerCase() + '||' + (p.category||'').toLowerCase();
+    return k === key;
+  });
+
+  const totalStock = grp.reduce((s, v) => s + (v.stock||0), 0);
+  const dMap = typeof _getDamagedStockByProduct === 'function' ? _getDamagedStockByProduct() : {};
+  const mMap = typeof _getMissingStockByProduct === 'function' ? _getMissingStockByProduct() : {};
+  const damagedQty = grp.reduce((s, v) => s + (dMap[v.id]||0), 0);
+  const missingQty = grp.reduce((s, v) => s + (mMap[v.id]||0), 0);
+
+  // Map locaux
+  const lm = new Map();
+  grp.forEach(v => {
+    const lid   = v.local_id || v.zone || '__sans__';
+    const lName = GP_LOCAUX_ALL.find(l => l.id === v.local_id)?.nom || v.zone || '—';
+    if (lm.has(lid)) lm.get(lid).stock += v.stock;
+    else lm.set(lid, { lName, stock: v.stock, minStock: v.minStock || 0 });
+  });
+
+  // Retours récents
+  const prodRetours = retours.filter(r => r.lines.some(l => grp.some(v => v.id === l.productId))).slice(0, 8);
+  const recentSales = sales.filter(s => s.items && s.items.some(i => grp.some(v => v.id === (i.productId||i.id)))).slice(0, 8);
+
+  const statusColor = totalStock === 0 ? 'var(--red)' : totalStock < prod.minStock ? 'var(--gold)' : 'var(--green)';
+  const statusText  = totalStock === 0 ? 'Rupture' : totalStock < prod.minStock ? 'Stock bas' : 'En stock';
+
+  // Photo
+  let photoHtml;
+  if (prod.photo) {
+    photoHtml = '<img src="' + escapeHTML(prod.photo) + '" style="width:80px;height:80px;object-fit:cover;border-radius:var(--radius);flex-shrink:0;">';
+  } else {
+    photoHtml = '<div style="width:80px;height:80px;background:var(--surface2);border-radius:var(--radius);display:flex;align-items:center;justify-content:center;font-size:32px;flex-shrink:0;">📦</div>';
+  }
+
+  // Locaux
+  const locauxHtml = Array.from(lm.values()).map(e => {
+    const pct = totalStock > 0 ? Math.round(e.stock / totalStock * 100) : 0;
+    const col = e.stock === 0 ? 'var(--red)' : e.stock < e.minStock ? 'var(--gold)' : 'var(--accent)';
+    return '<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:var(--surface2);border-radius:var(--radius-sm);margin-bottom:5px;">'
+      + '<span style="font-size:13px;font-weight:600;">' + escapeHTML(e.lName) + '</span>'
+      + '<div style="display:flex;align-items:center;gap:10px;">'
+      + '<div style="width:80px;height:5px;background:var(--border);border-radius:3px;overflow:hidden;">'
+      + '<div style="height:100%;width:' + pct + '%;background:' + col + ';border-radius:3px;"></div>'
+      + '</div>'
+      + '<span style="font-family:var(--font-mono),monospace;font-weight:700;color:' + col + ';min-width:30px;text-align:right;">' + e.stock + '</span>'
+      + '</div></div>';
+  }).join('');
+
+  // Retours
+  const retoursHtml = prodRetours.length === 0
+    ? '<div style="padding:12px;text-align:center;font-size:12.5px;color:var(--text3);">Aucun retour</div>'
+    : prodRetours.map(r => {
+        const line = r.lines.find(l => grp.some(v => v.id === l.productId));
+        if (!line) return '';
+        const d = new Date(r.date).toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit',year:'2-digit'});
+        const c = (r.clientName && r.clientName !== 'undefined') ? escapeHTML(r.clientName) : 'Client de passage';
+        return '<div style="display:flex;align-items:center;justify-content:space-between;padding:7px 12px;border-bottom:1px solid var(--border);font-size:12px;">'
+          + '<span style="color:var(--text3);">' + d + '</span>'
+          + '<span style="font-weight:600;">' + c + '</span>'
+          + '<span>'
+          + ((line.qteConforme||0)  > 0 ? '<span style="color:var(--green);margin-right:4px;">✅' + line.qteConforme  + '</span>' : '')
+          + ((line.qteDommagee||0)  > 0 ? '<span style="color:var(--red);margin-right:4px;">💥'  + line.qteDommagee  + '</span>' : '')
+          + ((line.qteManquante||0) > 0 ? '<span style="color:var(--gold);">❓'                   + line.qteManquante + '</span>' : '')
+          + '</span></div>';
+      }).join('');
+
+  // Ventes
+  const ventesHtml = recentSales.length === 0
+    ? '<div style="padding:12px;text-align:center;font-size:12.5px;color:var(--text3);">Aucune vente récente</div>'
+    : recentSales.map(s => {
+        const item = s.items.find(i => grp.some(v => v.id === (i.productId||i.id)));
+        if (!item) return '';
+        const d = new Date(s.date).toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit',year:'2-digit'});
+        const c = (s.clientName && s.clientName !== 'undefined') ? escapeHTML(s.clientName) : 'Client de passage';
+        const pc = s.payment === 'Crédit' ? 'var(--gold)' : 'var(--green)';
+        return '<div style="display:flex;align-items:center;justify-content:space-between;padding:7px 12px;border-bottom:1px solid var(--border);font-size:12px;">'
+          + '<span style="color:var(--text3);">' + d + '</span>'
+          + '<span style="font-weight:600;">' + c + '</span>'
+          + '<span style="font-family:var(--font-mono),monospace;">x' + (item.qty||1) + '</span>'
+          + '<span style="color:' + pc + ';font-size:11px;font-weight:600;">' + s.payment + '</span>'
+          + '</div>';
+      }).join('');
+
+  // Tailles
+  const taillesHtml = (prod.type === 'tailles' && prod.sizes)
+    ? '<div style="margin-top:14px;">'
+      + '<div style="font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Par taille</div>'
+      + '<div style="display:flex;gap:6px;flex-wrap:wrap;">'
+      + Object.entries(prod.sizes).filter(([,v]) => v > 0).map(([k,v]) =>
+          '<span style="background:rgba(108,99,255,0.1);color:var(--purple);border:1px solid rgba(108,99,255,0.2);border-radius:var(--radius-sm);padding:4px 10px;font-weight:700;font-size:13px;">' + k + ': ' + v + '</span>'
+        ).join('')
+      + '</div></div>'
+    : '';
+
+  const el = document.getElementById('stock-detail-content');
+  if (!el) return;
+
+  el.innerHTML =
+    // En-tête
+    '<div style="display:flex;gap:16px;margin-bottom:20px;align-items:flex-start;">'
+    + photoHtml
+    + '<div style="flex:1;">'
+    + '<div style="font-size:16px;font-weight:700;margin-bottom:2px;">' + escapeHTML(prod.name) + '</div>'
+    + '<div style="font-size:12px;color:var(--text3);margin-bottom:10px;">Réf : ' + escapeHTML(prod.code||'—') + ' · ' + escapeHTML(prod.category||'—') + '</div>'
+    + '<div style="display:flex;gap:8px;flex-wrap:wrap;">'
+    + '<span style="background:var(--surface2);border-radius:var(--radius-sm);padding:3px 8px;font-size:12px;">Prix : <strong>' + fmt(prod.price) + '</strong></span>'
+    + '<span style="background:var(--surface2);border-radius:var(--radius-sm);padding:3px 8px;font-size:12px;">Min : <strong>' + (prod.minStock||0) + '</strong></span>'
+    + '</div>'
+    + '</div></div>'
+
+    // KPI
+    + '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:20px;">'
+    + '<div style="background:var(--surface2);border-radius:var(--radius-sm);padding:12px;text-align:center;border-top:3px solid ' + statusColor + ';">'
+    + '<div style="font-size:10px;color:var(--text3);margin-bottom:4px;text-transform:uppercase;letter-spacing:0.5px;">Disponible</div>'
+    + '<div style="font-size:22px;font-weight:800;color:' + statusColor + ';">' + totalStock + '</div>'
+    + '<div style="font-size:10.5px;color:' + statusColor + ';font-weight:600;">' + statusText + '</div>'
+    + '</div>'
+    + '<div style="background:rgba(220,38,38,0.06);border-radius:var(--radius-sm);padding:12px;text-align:center;border-top:3px solid rgba(220,38,38,0.4);">'
+    + '<div style="font-size:10px;color:var(--text3);margin-bottom:4px;text-transform:uppercase;letter-spacing:0.5px;">Endommagé</div>'
+    + '<div style="font-size:22px;font-weight:800;color:var(--red);">' + damagedQty + '</div>'
+    + '<div style="font-size:10.5px;color:var(--red);">Non vendable</div>'
+    + '</div>'
+    + '<div style="background:rgba(245,158,11,0.06);border-radius:var(--radius-sm);padding:12px;text-align:center;border-top:3px solid rgba(245,158,11,0.4);">'
+    + '<div style="font-size:10px;color:var(--text3);margin-bottom:4px;text-transform:uppercase;letter-spacing:0.5px;">Manquant</div>'
+    + '<div style="font-size:22px;font-weight:800;color:var(--gold);">' + missingQty + '</div>'
+    + '<div style="font-size:10.5px;color:var(--gold);">En litige</div>'
+    + '</div>'
+    + '<div style="background:var(--surface2);border-radius:var(--radius-sm);padding:12px;text-align:center;border-top:3px solid var(--border2);">'
+    + '<div style="font-size:10px;color:var(--text3);margin-bottom:4px;text-transform:uppercase;letter-spacing:0.5px;">Locaux</div>'
+    + '<div style="font-size:22px;font-weight:800;">' + lm.size + '</div>'
+    + '<div style="font-size:10.5px;color:var(--text3);">zone(s)</div>'
+    + '</div></div>'
+
+    // Locaux
+    + '<div style="font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Répartition par local</div>'
+    + locauxHtml
+    + taillesHtml
+
+    // Retours
+    + '<div style="margin-top:18px;">'
+    + '<div style="font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;">Retours récents</div>'
+    + '<div style="background:var(--surface2);border-radius:var(--radius-sm);overflow:hidden;">' + retoursHtml + '</div>'
+    + '</div>'
+
+    // Ventes
+    + '<div style="margin-top:18px;">'
+    + '<div style="font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;">Ventes récentes</div>'
+    + '<div style="background:var(--surface2);border-radius:var(--radius-sm);overflow:hidden;">' + ventesHtml + '</div>'
+    + '</div>';
+
+  openModal('modal-stock-detail');
 }

@@ -3609,3 +3609,121 @@ select, textarea { font-size: 13.5px; padding: 8.5px 11px; }
   background: var(--border2);
   border-radius: 2px;
 }
+
+/* ════════════════════════════════════════
+   STOCK CELL — Affichage métier premium
+════════════════════════════════════════ */
+.stock-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 130px;
+}
+
+.stock-cell-main {
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+}
+
+.stock-cell-qty {
+  font-family: var(--font-mono), monospace;
+  font-weight: 800;
+  font-size: 15px;
+  color: var(--text);
+  line-height: 1;
+}
+
+.stock-cell-unit {
+  font-size: 10.5px;
+  color: var(--text3);
+}
+
+.stock-cell-label {
+  font-size: 10px;
+  color: var(--text3);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-weight: 600;
+}
+
+.stock-cell-issues {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  margin-top: 1px;
+}
+
+.stock-badge-damaged {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  background: rgba(220,38,38,0.08);
+  border: 1px solid rgba(220,38,38,0.25);
+  border-radius: var(--radius-sm);
+  padding: 1px 6px;
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--red);
+}
+
+.stock-badge-missing {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  background: rgba(245,158,11,0.08);
+  border: 1px solid rgba(245,158,11,0.25);
+  border-radius: var(--radius-sm);
+  padding: 1px 6px;
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--gold);
+}
+
+.stock-cell-locals {
+  display: flex;
+  gap: 3px;
+  flex-wrap: wrap;
+  margin-top: 2px;
+}
+
+.stock-loc-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  border-radius: var(--radius-sm);
+  padding: 2px 6px;
+  font-size: 10px;
+  background: rgba(37,99,235,0.05);
+  border: 1px solid rgba(37,99,235,0.15);
+  white-space: nowrap;
+}
+
+.stock-loc-badge b {
+  font-weight: 700;
+  font-family: var(--font-mono), monospace;
+}
+
+.stock-loc-badge span {
+  color: var(--text3);
+}
+
+.stock-loc-ok   { border-color: rgba(37,99,235,0.2); }
+.stock-loc-ok b { color: var(--accent); }
+
+.stock-loc-low   { border-color: rgba(245,158,11,0.25); background: rgba(245,158,11,0.05); }
+.stock-loc-low b { color: var(--gold); }
+
+.stock-loc-zero   { border-color: rgba(220,38,38,0.25); background: rgba(220,38,38,0.05); }
+.stock-loc-zero b { color: var(--red); }
+
+.stock-cell-local-single {
+  font-size: 10.5px;
+  color: var(--text3);
+  margin-top: 1px;
+}
+
+/* Scrollbar modale stock-detail */
+#stock-detail-content::-webkit-scrollbar { width: 4px; }
+#stock-detail-content::-webkit-scrollbar-track { background: transparent; }
+#stock-detail-content::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }

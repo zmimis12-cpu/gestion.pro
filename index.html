@@ -553,7 +553,7 @@
                 <th id="th-col-stock">Stock</th>
                 <th id="th-col-min">Min.</th>
                 <th id="th-col-price">Prix vente</th>
-                <th id="th-col-zone">Zone</th>
+                
                 <th id="th-col-cost">Prix achat</th>
                 <th id="th-col-profit">Bénéfice/pcs</th>
                 <th id="th-col-margin">Marge %</th>
@@ -2484,6 +2484,18 @@
     <div id="retour-detail-content" style="overflow-y:auto;flex:1;padding-right:4px;"></div>
     <div class="modal-actions" style="flex-shrink:0;margin-top:16px;">
       <button class="btn btn-secondary" onclick="closeModal('modal-retour-detail')">Fermer</button>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══ MODAL DÉTAIL STOCK ═══ -->
+<div class="modal-overlay" id="modal-stock-detail">
+  <div class="modal" style="max-width:700px;max-height:88vh;display:flex;flex-direction:column;">
+    <div class="modal-title" style="flex-shrink:0;">📦 Détail du stock produit</div>
+    <div id="stock-detail-content" style="overflow-y:auto;flex:1;padding-right:4px;"></div>
+    <div class="modal-actions" style="flex-shrink:0;margin-top:16px;">
+      <button class="btn btn-secondary" onclick="closeModal('modal-stock-detail')">Fermer</button>
     </div>
   </div>
 </div>
