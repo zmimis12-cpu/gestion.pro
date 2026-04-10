@@ -1314,13 +1314,14 @@
           <div style="overflow-x:auto;">
             <table style="width:100%;min-width:700px;">
               <thead><tr>
-                <th style="width:90px;">Date</th>
-                <th style="width:100px;">Commande</th>
+                <th style="width:85px;">Date</th>
+                <th style="width:95px;">Commande</th>
                 <th>Client</th>
                 <th>Articles</th>
-                <th style="width:180px;">Quantités</th>
-                <th style="width:110px;">Statut</th>
+                <th style="width:170px;">Quantités</th>
+                <th style="width:100px;">Statut</th>
                 <th>Note</th>
+                <th style="width:40px;"></th>
               </tr></thead>
               <tbody id="retours-table">
                 <tr><td colspan="7"><div class="empty-state"><div class="emoji">↩️</div><p>Aucun retour enregistré</p></div></td></tr>
@@ -2474,6 +2475,18 @@
   <script src="js/modules/superadmin.js"></script>
   <script src="js/modules/retours.js"></script>
   <script src="js/app.js"></script>
+
+
+<!-- ═══ MODAL DÉTAIL RETOUR ═══ -->
+<div class="modal-overlay" id="modal-retour-detail">
+  <div class="modal" style="max-width:680px;max-height:85vh;display:flex;flex-direction:column;">
+    <div class="modal-title" style="flex-shrink:0;">🔍 Détail du retour</div>
+    <div id="retour-detail-content" style="overflow-y:auto;flex:1;padding-right:4px;"></div>
+    <div class="modal-actions" style="flex-shrink:0;margin-top:16px;">
+      <button class="btn btn-secondary" onclick="closeModal('modal-retour-detail')">Fermer</button>
+    </div>
+  </div>
+</div>
 
 </body>
 </html>

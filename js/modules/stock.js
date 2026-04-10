@@ -521,6 +521,20 @@ function populateStockFilters() {
   }
 }
 
+
+/* ── Stock endommagé par produit (calculé depuis retours[]) ── */
+function _getDamagedStockByProduct() {
+  const map = {}; // productId → qteDommagee totale
+  retours.forEach(r => {
+    r.lines.forEach(line => {
+      if ((line.qteDommagee || 0) > 0) {
+        map[line.productId] = (map[line.productId] || 0) + line.qteDommagee;
+      }
+    });
+  });
+  return map;
+}
+
 function renderStockTable(resetPage) {
   if (resetPage !== false) _pages['stock'] = 1;
   populateStockFilters();
@@ -540,6 +554,9 @@ function renderStockTable(resetPage) {
 
   // ── GROUPER les produits identiques (même code ou même nom) ──────────────────
   // 1 groupe = même produit présent dans plusieurs locaux → 1 seule ligne avec détail
+  // Calcul du stock endommagé depuis les retours
+  const _damagedMap = typeof _getDamagedStockByProduct === 'function' ? _getDamagedStockByProduct() : {};
+
   const groupMap = new Map();
   products.forEach(p => {
     const key = (p.code && p.code.trim()) ? p.code.trim().toLowerCase() : `${p.name.trim().toLowerCase()}||${(p.category||'').toLowerCase()}`;
@@ -613,6 +630,9 @@ function renderStockTable(resetPage) {
     // Afficher le stock total (toutes zones)
     const displayStock = totalStock;
 
+    // Stock endommagé cumulé sur tous les variants de ce groupe
+    const damagedQty = variants.reduce((sum, v) => sum + (_damagedMap[v.id] || 0), 0);
+
     // Statut basé sur stock total
     const statusClass = totalStock === 0 ? 'chip-red' : totalStock < g.minStock ? 'chip-orange' : 'chip-green';
     const statusText  = totalStock === 0 ? `🔴 ${t('stat_rupture')}` : totalStock < g.minStock ? `🟡 ${t('stat_bas')}` : `🟢 ${t('stat_ok')}`;
@@ -631,6 +651,12 @@ function renderStockTable(resetPage) {
 
     // ── Affichage stock avec détail par local ──
     let stockHtml = `<span style="font-family:var(--font-mono),monospace;font-weight:700;font-size:14px;">${displayStock}${g.type==='kg'?' kg':''}</span> <span style="font-size:11px;color:var(--text2);">${g.type!=='kg'?g.unit:''}</span>`;
+    if (damagedQty > 0) {
+      stockHtml += `<div style="margin-top:3px;display:inline-flex;align-items:center;gap:4px;background:rgba(220,38,38,0.08);border:1px solid rgba(220,38,38,0.2);border-radius:var(--radius-sm);padding:2px 7px;">
+        <span style="font-size:10.5px;color:var(--red);">💥 Endommagé :</span>
+        <span style="font-family:var(--font-mono),monospace;font-weight:700;font-size:11px;color:var(--red);">${damagedQty}</span>
+      </div>`;
+    }
     if (variants.length > 1) {
       // Regrouper les variants par local_id pour éviter les doublons
       const localMap = new Map();

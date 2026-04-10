@@ -3583,3 +3583,29 @@ select, textarea { font-size: 13.5px; padding: 8.5px 11px; }
   border-color: var(--accent);
   box-shadow: 0 0 0 3px rgba(37,99,235,0.1);
 }
+
+/* ── Retours — ligne cliquable ── */
+#retours-table tr[onclick] {
+  transition: background 0.12s;
+}
+#retours-table tr[onclick]:hover {
+  background: var(--surface2);
+}
+#retours-table tr[onclick]:hover td:first-child {
+  border-left: 3px solid var(--accent);
+}
+
+/* ── Modal détail retour — scrollable ── */
+#modal-retour-detail .modal {
+  overflow: hidden;
+}
+#retour-detail-content::-webkit-scrollbar {
+  width: 4px;
+}
+#retour-detail-content::-webkit-scrollbar-track {
+  background: transparent;
+}
+#retour-detail-content::-webkit-scrollbar-thumb {
+  background: var(--border2);
+  border-radius: 2px;
+}

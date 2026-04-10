@@ -390,11 +390,23 @@ function renderRetours(resetPage) {
     const ded=r.lines.reduce((s,l)=>s+(l.qteConforme||0)*(l.unitPrice||0),0);
     const chg=r.lines.reduce((s,l)=>s+((l.qteDommagee||0)+(l.qteManquante||0))*(l.unitPrice||0),0);
     const clientLabel=(r.clientName&&r.clientName!=='undefined')?escapeHTML(r.clientName):'Client de passage';
-    return `<tr>
+    return `<tr style="cursor:pointer;" onclick="viewRetourDetail('${r.id}')">
       <td style="font-size:12px;">${dateStr}</td>
       <td style="font-family:var(--font-mono),monospace;font-size:11.5px;color:var(--accent);">${saleNum}</td>
       <td style="font-weight:600;">${clientLabel}</td>
-      <td>${r.lines.map(l=>{const p=products.find(x=>x.id===l.productId);const t=(l.qteConforme||0)+(l.qteDommagee||0)+(l.qteManquante||0);return `<div style="font-size:12px;">${escapeHTML(p?.name||'?')}×${t}</div>`;}).join('')}</td>
+      <td>${r.lines.map(l=>{const p=products.find(x=>x.id===l.productId);const t=(l.qteConforme||0)+(l.qteDommagee||0)+(l.qteManquante||0);return `<div style="font-size:12px;display:flex;align-items:center;gap:4px;">${p?.photo?`<img src="${escapeHTML(p.photo)}" style="width:20px;height:20px;object-fit:cover;border-radius:3px;" onerror="this.style.display='none'">`:''}<span>${escapeHTML(p?.name||'?')}×${t}</span></div>`;}).join('')}</td>
+      <td>
+        ${tCon>0?`<div style="font-size:11.5px;color:var(--green);">✅ ${tCon} conf.${ded>0?' −'+fmt(ded):''}` +`</div>`:''}
+        ${tDmg>0?`<div style="font-size:11.5px;color:var(--red);">💥 ${tDmg} endom.</div>`:''}
+        ${tMnq>0?`<div style="font-size:11.5px;color:var(--gold);">❓ ${tMnq} manq.</div>`:''}
+        ${isCred&&chg>0?`<div style="font-size:11px;color:var(--red);">Charge: ${fmt(chg)}</div>`:''}
+      </td>
+      <td>${badge[r.statut]||r.statut}</td>
+      <td style="font-size:11.5px;color:var(--text2);font-style:italic;">${r.note?escapeHTML(r.note):'—'}</td>
+      <td style="white-space:nowrap;">
+        <button class="btn btn-secondary btn-sm" onclick="event.stopPropagation();viewRetourDetail('${r.id}')" title="Voir détail">🔍</button>
+      </td>
+    </tr>`;}).join('')}</td>
       <td>
         ${tCon>0?`<div style="font-size:11.5px;color:var(--green);">✅ ${tCon} conforme(s)${ded>0?' (−'+fmt(ded)+')':''}</div>`:''}
         ${tDmg>0?`<div style="font-size:11.5px;color:var(--red);">💥 ${tDmg} endommagé(s)</div>`:''}
@@ -428,4 +440,131 @@ function getClientCreditRetourSummary(clientId) {
       ${totalCharge>0?`<div style="color:var(--gold);">⚠️ Charge client : <strong>${fmt(totalCharge)}</strong></div>`:''}
     </div>
   </div>`;
+}
+
+
+/* ════════════════════════════════════════
+   DÉTAIL D'UN RETOUR — Modal complet
+════════════════════════════════════════ */
+function viewRetourDetail(retourId) {
+  const r    = retours.find(x => x.id === retourId);
+  if (!r) return;
+  const sale = sales.find(s => s.id === r.saleId);
+  const saleNum   = sale ? 'ORD-' + String(sales.indexOf(sale) + 1).padStart(4,'0') : '—';
+  const localName = GP_LOCAUX_ALL.find(l => l.id === r.local_id)?.nom || r.local_id || '—';
+  const dateStr   = new Date(r.date).toLocaleString('fr-FR', {day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'});
+  const isCred    = sale && (sale.payment === 'Crédit' || sale.isCreditSale);
+
+  // Totaux globaux
+  const totalConf = r.lines.reduce((s,l) => s+(l.qteConforme||0), 0);
+  const totalDmg  = r.lines.reduce((s,l) => s+(l.qteDommagee||0), 0);
+  const totalMnq  = r.lines.reduce((s,l) => s+(l.qteManquante||0), 0);
+  const totalDed  = r.lines.reduce((s,l) => s+(l.qteConforme||0)*(l.unitPrice||0), 0);
+  const totalChg  = r.lines.reduce((s,l) => s+((l.qteDommagee||0)+(l.qteManquante||0))*(l.unitPrice||0), 0);
+
+  const statutColors = { conforme:'var(--green)', endommage:'var(--red)', manque:'var(--gold)' };
+  const statutLabels = { conforme:'✅ Conforme', endommage:'💥 Endommagé', manque:'❓ Manquant' };
+
+  // Lignes produits
+  const linesHtml = r.lines.map(line => {
+    const prod      = products.find(p => p.id === line.productId);
+    const name      = prod?.name || 'Produit inconnu';
+    const code      = prod?.code || '—';
+    const photo     = prod?.photo || null;
+    const price     = line.unitPrice || 0;
+    const saleItem  = sale?.items?.find(i => (i.productId||i.id) === line.productId);
+    const qteSortie = saleItem?.qty || '?';
+    const qteConf   = line.qteConforme  || 0;
+    const qteDmg    = line.qteDommagee  || 0;
+    const qteMnq    = line.qteManquante || 0;
+    const qteNonRet = typeof qteSortie === 'number' ? Math.max(0, qteSortie - qteConf - qteDmg - qteMnq) : '?';
+    const montantDed = qteConf * price;
+    const montantChg = (qteDmg + qteMnq) * price;
+
+    return `<div style="border:1px solid var(--border);border-radius:var(--radius);padding:14px;margin-bottom:10px;background:var(--surface2);">
+      <div style="display:flex;gap:12px;align-items:flex-start;">
+        ${photo
+          ? `<img src="${escapeHTML(photo)}" style="width:54px;height:54px;object-fit:cover;border-radius:var(--radius-sm);flex-shrink:0;" onerror="this.style.display='none'">`
+          : `<div style="width:54px;height:54px;background:var(--surface3,#eee);border-radius:var(--radius-sm);display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;">📦</div>`
+        }
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:13.5px;font-weight:700;color:var(--text);">${escapeHTML(name)}</div>
+          <div style="font-size:11.5px;color:var(--text3);margin-bottom:8px;">Réf : ${escapeHTML(code)} · ${price>0?fmt(price)+' / pcs':'prix non renseigné'}</div>
+          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:8px;">
+            <div style="background:var(--surface);border-radius:var(--radius-sm);padding:7px;text-align:center;">
+              <div style="font-size:10.5px;color:var(--text3);margin-bottom:2px;">Sorti</div>
+              <div style="font-size:16px;font-weight:700;">${qteSortie}</div>
+            </div>
+            <div style="background:rgba(34,197,94,0.08);border:1px solid rgba(34,197,94,0.2);border-radius:var(--radius-sm);padding:7px;text-align:center;">
+              <div style="font-size:10.5px;color:var(--green);margin-bottom:2px;">✅ Conforme</div>
+              <div style="font-size:16px;font-weight:700;color:var(--green);">${qteConf}</div>
+            </div>
+            <div style="background:rgba(220,38,38,0.07);border:1px solid rgba(220,38,38,0.2);border-radius:var(--radius-sm);padding:7px;text-align:center;">
+              <div style="font-size:10.5px;color:var(--red);margin-bottom:2px;">💥 Endomm.</div>
+              <div style="font-size:16px;font-weight:700;color:var(--red);">${qteDmg}</div>
+            </div>
+            <div style="background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.2);border-radius:var(--radius-sm);padding:7px;text-align:center;">
+              <div style="font-size:10.5px;color:var(--gold);margin-bottom:2px;">❓ Manquant</div>
+              <div style="font-size:16px;font-weight:700;color:var(--gold);">${qteMnq}</div>
+            </div>
+          </div>
+          ${price > 0 ? `
+          <div style="display:flex;gap:8px;flex-wrap:wrap;font-size:12px;">
+            ${montantDed>0?`<span style="background:rgba(34,197,94,0.1);color:var(--green);padding:3px 8px;border-radius:var(--radius-sm);">Déduit de la dette : −${fmt(montantDed)}</span>`:''}
+            ${montantChg>0?`<span style="background:rgba(220,38,38,0.08);color:var(--red);padding:3px 8px;border-radius:var(--radius-sm);">Reste à charge : ${fmt(montantChg)}</span>`:''}
+            ${typeof qteNonRet==='number'&&qteNonRet>0?`<span style="background:rgba(107,114,128,0.1);color:var(--text2);padding:3px 8px;border-radius:var(--radius-sm);">Non retourné : ${qteNonRet} pcs (${fmt(qteNonRet*price)})</span>`:''}
+          </div>` : ''}
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+
+  const el = document.getElementById('retour-detail-content');
+  if (!el) return;
+
+  el.innerHTML = `
+    <!-- En-tête -->
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px;">
+      <div style="background:var(--surface2);border-radius:var(--radius-sm);padding:10px 14px;">
+        <div style="font-size:11px;color:var(--text3);margin-bottom:3px;">Commande</div>
+        <div style="font-weight:700;color:var(--accent);">${saleNum}</div>
+      </div>
+      <div style="background:var(--surface2);border-radius:var(--radius-sm);padding:10px 14px;">
+        <div style="font-size:11px;color:var(--text3);margin-bottom:3px;">Client</div>
+        <div style="font-weight:600;">${escapeHTML(r.clientName||'Client de passage')}</div>
+      </div>
+      <div style="background:var(--surface2);border-radius:var(--radius-sm);padding:10px 14px;">
+        <div style="font-size:11px;color:var(--text3);margin-bottom:3px;">Date</div>
+        <div style="font-size:12px;font-weight:600;">${dateStr}</div>
+      </div>
+      <div style="background:var(--surface2);border-radius:var(--radius-sm);padding:10px 14px;">
+        <div style="font-size:11px;color:var(--text3);margin-bottom:3px;">Local</div>
+        <div style="font-weight:600;">${escapeHTML(localName)}</div>
+      </div>
+      <div style="background:var(--surface2);border-radius:var(--radius-sm);padding:10px 14px;">
+        <div style="font-size:11px;color:var(--text3);margin-bottom:3px;">Statut</div>
+        <div style="font-weight:700;color:${statutColors[r.statut]||'var(--text)'};">${statutLabels[r.statut]||r.statut}</div>
+      </div>
+      ${isCred ? `
+      <div style="background:rgba(37,99,235,0.08);border:1px solid rgba(37,99,235,0.2);border-radius:var(--radius-sm);padding:10px 14px;">
+        <div style="font-size:11px;color:var(--accent);margin-bottom:3px;">Impact dette</div>
+        <div style="font-size:12px;">
+          ${totalDed>0?`<div style="color:var(--green);">−${fmt(totalDed)} déduit</div>`:''}
+          ${totalChg>0?`<div style="color:var(--red);">${fmt(totalChg)} à charge</div>`:''}
+        </div>
+      </div>` : '<div></div>'}
+    </div>
+
+    <!-- Articles -->
+    <div style="font-size:12px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px;">Articles retournés</div>
+    ${linesHtml}
+
+    <!-- Note -->
+    ${r.note ? `<div style="margin-top:12px;padding:10px 14px;background:var(--surface2);border-left:3px solid var(--border2);border-radius:0 var(--radius-sm) var(--radius-sm) 0;">
+      <div style="font-size:11px;color:var(--text3);margin-bottom:3px;">Note / Observation</div>
+      <div style="font-size:13px;font-style:italic;color:var(--text2);">${escapeHTML(r.note)}</div>
+    </div>` : ''}
+  `;
+
+  openModal('modal-retour-detail');
 }
