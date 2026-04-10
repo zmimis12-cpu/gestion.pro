@@ -568,25 +568,25 @@ function renderStockTable(resetPage) {
   products.forEach(p => {
     const key = (p.code && p.code.trim()) ? p.code.trim().toLowerCase() : `${p.name.trim().toLowerCase()}||${(p.category||'').toLowerCase()}`;
     if (!groupMap.has(key)) {
-      const g = { ...p, _variants: [p], _totalStock: p.stock };
+      const g = { ...p, _variants: [p], _totalStock: p.stock, _renderStockMap: {} };
       if (p.type === 'tailles' && p.sizes) g.sizes = { ...p.sizes };
       if (p.type === 'couleurs' && p.colors) g.colors = { ...p.colors };
       groupMap.set(key, g);
     } else {
       const g = groupMap.get(key);
-      // Si même local_id déjà dans _variants → additionner au lieu de dupliquer
-      const existingVariant = g._variants.find(v => (v.local_id || null) === (p.local_id || null));
-      if (existingVariant) {
-        existingVariant.stock += p.stock;
+      // Chercher si ce local_id est déjà représenté dans les variants du groupe
+      const existingIdx = g._variants.findIndex(v => (v.local_id || null) === (p.local_id || null));
+      if (existingIdx >= 0) {
+        // Même produit, même local : consolider dans renderStockMap (JAMAIS dans products[])
+        const vid = g._variants[existingIdx].id;
+        g._renderStockMap[vid] = (g._renderStockMap[vid] || g._variants[existingIdx].stock) + p.stock;
         g._totalStock += p.stock;
-        if (p.type === 'tailles' && p.sizes) {
-          Object.entries(p.sizes).forEach(([s, v]) => { existingVariant.sizes = existingVariant.sizes||{}; existingVariant.sizes[s] = (existingVariant.sizes[s]||0) + v; });
-        }
       } else {
+        // Nouveau local : ajouter le produit (par référence, mais renderStockMap isole les valeurs)
         g._variants.push(p);
         g._totalStock += p.stock;
         if (p.type === 'tailles' && p.sizes) {
-          Object.entries(p.sizes).forEach(([s, v]) => { g.sizes[s] = (g.sizes[s]||0) + v; });
+          Object.entries(p.sizes).forEach(([s, v]) => { g.sizes[s] = (g.sizes[s] || 0) + v; });
         }
       }
     }
@@ -664,12 +664,18 @@ function renderStockTable(resetPage) {
     // ── Construire la map locaux (dédupliquée) ──
     const localMap = new Map();
     variants.forEach(v => {
-      const lid   = v.local_id || v.zone || '__sans__';
-      const lName = GP_LOCAUX_ALL.find(l => l.id === v.local_id)?.nom || v.zone || '—';
+      const lid   = v.local_id || v.zone || null;
+      if (!lid) return; // Pas de local — ignorer
+      const lName = GP_LOCAUX_ALL.find(l => l.id === v.local_id)?.nom || v.zone || null;
+      if (!lName || lName === '—') return; // Local fantôme — ignorer
+      // Utiliser _renderStockMap si une consolidation a eu lieu, sinon v.stock
+      const renderStock = (g._renderStockMap && g._renderStockMap[v.id] !== undefined)
+        ? g._renderStockMap[v.id]
+        : v.stock;
       if (localMap.has(lid)) {
-        localMap.get(lid).stock += v.stock;
+        localMap.get(lid).stock += renderStock;
       } else {
-        localMap.set(lid, { lName, stock: v.stock, minStock: v.minStock || 0 });
+        localMap.set(lid, { lName, stock: renderStock, minStock: v.minStock || 0 });
       }
     });
 
@@ -946,8 +952,10 @@ function viewStockDetail(productId) {
   // Map locaux
   const lm = new Map();
   grp.forEach(v => {
-    const lid   = v.local_id || v.zone || '__sans__';
-    const lName = GP_LOCAUX_ALL.find(l => l.id === v.local_id)?.nom || v.zone || '—';
+    const lid   = v.local_id || v.zone || null;
+    if (!lid) return; // Ignorer produits sans local
+    const lName = GP_LOCAUX_ALL.find(l => l.id === v.local_id)?.nom || v.zone || null;
+    if (!lName) return; // Ignorer locaux fantômes sans nom
     if (lm.has(lid)) lm.get(lid).stock += v.stock;
     else lm.set(lid, { lName, stock: v.stock, minStock: v.minStock || 0 });
   });
