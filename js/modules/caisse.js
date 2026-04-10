@@ -54,7 +54,16 @@ function renderProductGrid(resetPage) {
       : (p._totalStock||p.stock) === 0;
     return `<div class="product-card ${isOutOfStock ? 'out-of-stock' : ''}" onclick="addToCart('${p.id}')">
       ${photo}
-      <div class="product-stock-badge" title="${p._variants&&p._variants.length>1 ? p._variants.map(v=>{const l=GP_LOCAUX_ALL.find(l=>l.id===v.local_id)?.nom||v.zone||'?';return l+': '+v.stock}).join(' | ') : ''}">${p.type==='tailles' ? '👕' : p.type==='couleurs' ? '🎨' : p.type==='kg' ? `⚖️ ${p._totalStock||p.stock}kg` : (p._totalStock||p.stock)}</div>
+      <div class="product-stock-badge" title="${p._variants&&p._variants.length>1 ? (() => {
+            const lm = new Map();
+            p._variants.forEach(v => {
+              const lid = v.local_id||v.zone||'?';
+              const lName = GP_LOCAUX_ALL.find(l=>l.id===v.local_id)?.nom||v.zone||'?';
+              lm.set(lid, (lm.get(lid)||0) + v.stock);
+              lm._names = lm._names||{}; lm._names[lid]=lName;
+            });
+            return Array.from(lm.entries()).filter(([k])=>k!=='_names').map(([k,s])=>`${lm._names[k]}: ${s}`).join(' | ');
+          })() : ''}">${p.type==='tailles' ? '👕' : p.type==='couleurs' ? '🎨' : p.type==='kg' ? `⚖️ ${p._totalStock||p.stock}kg` : (p._totalStock||p.stock)}</div>
       <div class="product-name">${escapeHTML(p.name)}</div>
       ${!SA_ACTIVE_LOCAL && p._variants && p._variants.length > 1 ? `<div style="font-size:9.5px;color:var(--text3);margin-top:1px;text-align:center;">📍 ${p._variants.length} locaux</div>` : ''}
       <div class="product-price">${p.price.toFixed(2)} MAD${p.type==='kg' ? '<span style="font-size:10px;color:var(--text2);"> /kg</span>' : ''}</div>

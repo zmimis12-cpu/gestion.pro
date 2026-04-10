@@ -550,10 +550,20 @@ function renderStockTable(resetPage) {
       groupMap.set(key, g);
     } else {
       const g = groupMap.get(key);
-      g._variants.push(p);
-      g._totalStock += p.stock;
-      if (p.type === 'tailles' && p.sizes) {
-        Object.entries(p.sizes).forEach(([s, v]) => { g.sizes[s] = (g.sizes[s]||0) + v; });
+      // Si même local_id déjà dans _variants → additionner au lieu de dupliquer
+      const existingVariant = g._variants.find(v => (v.local_id || null) === (p.local_id || null));
+      if (existingVariant) {
+        existingVariant.stock += p.stock;
+        g._totalStock += p.stock;
+        if (p.type === 'tailles' && p.sizes) {
+          Object.entries(p.sizes).forEach(([s, v]) => { existingVariant.sizes = existingVariant.sizes||{}; existingVariant.sizes[s] = (existingVariant.sizes[s]||0) + v; });
+        }
+      } else {
+        g._variants.push(p);
+        g._totalStock += p.stock;
+        if (p.type === 'tailles' && p.sizes) {
+          Object.entries(p.sizes).forEach(([s, v]) => { g.sizes[s] = (g.sizes[s]||0) + v; });
+        }
       }
     }
   });
@@ -622,10 +632,20 @@ function renderStockTable(resetPage) {
     // ── Affichage stock avec détail par local ──
     let stockHtml = `<span style="font-family:var(--font-mono),monospace;font-weight:700;font-size:14px;">${displayStock}${g.type==='kg'?' kg':''}</span> <span style="font-size:11px;color:var(--text2);">${g.type!=='kg'?g.unit:''}</span>`;
     if (variants.length > 1) {
-      const badges = variants.map(v => {
+      // Regrouper les variants par local_id pour éviter les doublons
+      const localMap = new Map();
+      variants.forEach(v => {
+        const lid   = v.local_id || v.zone || '__sans__';
         const lName = GP_LOCAUX_ALL.find(l => l.id === v.local_id)?.nom || v.zone || '?';
-        const col = v.stock === 0 ? 'var(--red)' : v.stock < v.minStock ? 'var(--gold)' : 'var(--accent)';
-        return `<span style="display:inline-flex;align-items:center;gap:2px;border:1px solid ${col};color:${col};padding:1px 5px;border-radius:var(--radius);font-size:10px;font-weight:600;margin:1px;background:rgba(0,0,0,0.15);">🏪 ${lName}: <b>${v.stock}</b></span>`;
+        if (localMap.has(lid)) {
+          localMap.get(lid).stock += v.stock;
+        } else {
+          localMap.set(lid, { lName, stock: v.stock, minStock: v.minStock || 0 });
+        }
+      });
+      const badges = Array.from(localMap.values()).map(entry => {
+        const col = entry.stock === 0 ? 'var(--red)' : entry.stock < entry.minStock ? 'var(--gold)' : 'var(--accent)';
+        return `<span style="display:inline-flex;align-items:center;gap:2px;border:1px solid ${col};color:${col};padding:1px 5px;border-radius:var(--radius);font-size:10px;font-weight:600;margin:1px;background:rgba(0,0,0,0.15);">🏪 ${entry.lName}: <b>${entry.stock}</b></span>`;
       }).join('');
       stockHtml += `<div style="margin-top:3px;">${badges}</div>`;
     }
@@ -640,10 +660,17 @@ function renderStockTable(resetPage) {
     // ── Zones affichées ──
     const zonesHtml = variants.length === 1
       ? (g.zone ? `<span style="background:rgba(108,99,255,0.15);color:var(--purple);padding:3px 8px;border-radius:var(--radius-lg);font-weight:600;">${g.zone}</span>` : '<span style="color:var(--text2);">—</span>')
-      : variants.map(v => {
-          const lName = GP_LOCAUX_ALL.find(l => l.id === v.local_id)?.nom || v.zone || '?';
-          return `<span style="background:rgba(108,99,255,0.12);color:var(--purple);padding:2px 6px;border-radius:var(--radius);font-size:11px;margin:1px;display:inline-block;">${lName}</span>`;
-        }).join('');
+      : (() => {
+          // Dédupliquer les zones par local_id
+          const seen = new Set();
+          return variants.map(v => {
+            const lName = GP_LOCAUX_ALL.find(l => l.id === v.local_id)?.nom || v.zone || '?';
+            const key   = v.local_id || lName;
+            if (seen.has(key)) return '';
+            seen.add(key);
+            return `<span style="background:rgba(108,99,255,0.12);color:var(--purple);padding:2px 6px;border-radius:var(--radius);font-size:11px;margin:1px;display:inline-block;">${lName}</span>`;
+          }).join('');
+        })();
 
     const transferBtn = ''; // Bouton demande transfert supprimé
 
