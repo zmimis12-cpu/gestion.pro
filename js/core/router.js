@@ -89,6 +89,7 @@ function navigate(page) {
   if (page === 'conges') renderConges();
   if (page === 'livraisons') renderLivraisons();
   if (page === 'docs-rh') renderDocsRH();
+  if (page === 'retours') renderRetours();
   if (page === 'depenses') renderDepenses();
   if (page === 'docs-admin') {}
   // Apply lang to dynamic elements after page switch

@@ -14,8 +14,6 @@
    - Manquant  → pas de stock + dette maintenue
 ================================================================ */
 
-let retours = [];
-
 /* ── Helper : prix unitaire depuis item vente ── */
 function _getItemUnitPrice(item) {
   return item.sellPrice || item.price || 0;
@@ -281,21 +279,10 @@ async function confirmRetour() {
       if (creditDeduction > 0) {
         const before = client.creditUsed || 0;
         client.creditUsed = Math.max(0, before - creditDeduction);
-        if (!client.transactions) client.transactions = [];
-        client.transactions.push({
-          type:'retour_conforme', amount:creditDeduction,
-          date:retour.date,
-          note:`Retour conforme ${retourId.slice(-6)} — déduction ${fmt(creditDeduction)}`,
-        });
         console.log(`[Retour] Dette client: ${before} → ${client.creditUsed} (déduction: ${creditDeduction})`);
       }
-      // Log charge endommagé/manquant
       const charge = lines.reduce((s,l)=>s+((l.qteDommagee||0)+(l.qteManquante||0))*(l.unitPrice||0),0);
       if (charge > 0) {
-        client.transactions.push({
-          type:'charge_retour', amount:charge, date:retour.date,
-          note:`Charge retour non conforme — ${fmt(charge)} à la charge du client`,
-        });
         console.log(`[Retour] Charge client endommagé+manquant: ${charge}`);
       }
     }
@@ -337,11 +324,11 @@ async function confirmRetour() {
       try {
         const {error} = await sb.from('gp_clients')
           .update({
-            credit_used:client.creditUsed,
-            transactions:client.transactions,
-            updated_at:new Date().toISOString(),
+            credit_used: client.creditUsed,
+            updated_at:  new Date().toISOString(),
           })
-          .eq('id',client.id).eq('tenant_id',GP_TENANT?.id);
+          .eq('id', client.id)
+          .eq('tenant_id', GP_TENANT?.id);
         if (error) { console.error('[Retour] gp_clients:',error.message); ok=false; }
         else console.log('[Retour] Crédit client OK → solde:',client.creditUsed);
       } catch(e) { console.error('[Retour] gp_clients exception:',e); ok=false; }

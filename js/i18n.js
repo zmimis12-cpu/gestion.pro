@@ -75,6 +75,7 @@ let caisseOps  = [];
 let depenses   = [];
 let locaux = []; // Alias vers GP_LOCAUX_ALL — synchronisé au chargement
 let conteneurs = [];
-let ordres     = [];
+let ordres     = []
+let retours    = [];
 let settings   = {tva:20,showTva:false,storeName:'GestionPro',storeAddress:'',storePhone:'',storeEmail:'',storeWebsite:'',invoicePrefix:'FAC',storeIce:'',storeLogo:null,bankName:'',bankIban:'',bankSwift:'',invoiceNotes:'',invoicePaymentTerms:'30 jours',invoiceCounter:1};
 

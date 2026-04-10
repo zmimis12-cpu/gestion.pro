@@ -950,6 +950,15 @@ async function loadUserData() {
     console.warn('[SB] loadUserData error:', e);
     toast('⚠️ Erreur chargement données — mode hors ligne', 'warn');
   }
+
+  // Rendre la page retours si elle est active
+  console.log('[loadUserData] Retours chargés:', retours.length);
+  if (typeof renderRetours === 'function') {
+    const pageRetours = document.getElementById('page-retours');
+    if (pageRetours && pageRetours.classList.contains('active')) {
+      renderRetours();
+    }
+  }
 }
 
 // _doSave → version Supabase définie plus haut
