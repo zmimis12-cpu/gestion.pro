@@ -1092,36 +1092,28 @@ function filterRestockList() {
   const q    = document.getElementById('reappro-search').value.toLowerCase().trim();
   const list = document.getElementById('reappro-list');
 
-  // ── Grouper par clé produit, puis agréger par local_id ──
-  // Structure : groupMap[key] = { name, code, category, _byLocal: Map(localId → {nom, stock, ids[]}) }
+  // Grouper par clé produit, agréger par local_id
   const groupMap = new Map();
-
   products
     .filter(p => !q || p.name.toLowerCase().includes(q) || (p.code||'').toLowerCase().includes(q))
     .forEach(p => {
       const key = (p.code && p.code.trim())
         ? p.code.trim().toLowerCase()
         : p.name.trim().toLowerCase() + '||' + (p.category||'').toLowerCase();
-
       if (!groupMap.has(key)) {
         groupMap.set(key, {
           name: p.name, code: p.code||'', category: p.category||'',
-          minStock: p.minStock||5, unit: p.unit||'pcs', type: p.type||'unite',
-          _byLocal: new Map(),   // localId → { nom, stock, ids, rep }
-          _totalStock: 0,
+          minStock: p.minStock||5, unit: p.unit||'pcs',
+          _byLocal: new Map(), _totalStock: 0,
         });
       }
       const g   = groupMap.get(key);
       const lid = p.local_id || '__sans__';
       const lnm = GP_LOCAUX_ALL.find(l => l.id === p.local_id)?.nom || p.zone || '?';
-
       if (g._byLocal.has(lid)) {
-        // AGRÉGER : même produit, même local → sommer le stock
-        const entry = g._byLocal.get(lid);
-        entry.stock += (p.stock || 0);
-        entry.ids.push(p.id);
+        g._byLocal.get(lid).stock += (p.stock || 0);
       } else {
-        g._byLocal.set(lid, { nom: lnm, stock: p.stock || 0, ids: [p.id], repId: p.id });
+        g._byLocal.set(lid, { nom: lnm, stock: p.stock || 0, repId: p.id });
       }
       g._totalStock += (p.stock || 0);
     });
@@ -1133,53 +1125,57 @@ function filterRestockList() {
     return;
   }
 
+  // Construire le HTML — utiliser data-attributes pour éviter les quotes dans onclick
   list.innerHTML = sorted.map(g => {
-    const locals      = [...g._byLocal.values()];
-    const totalStock  = g._totalStock;
-    const statusColor = totalStock === 0 ? 'var(--red)' : totalStock < g.minStock ? 'var(--gold)' : 'var(--accent)';
+    const locals = [...g._byLocal.values()];
 
-    // Infos locaux agrégées — une seule ligne par local
-    const localInfo = locals.length > 1
-      ? locals.map(e => e.nom + ':' + e.stock).join(' · ')
-      : (locals[0]?.nom && locals[0].nom !== '?' ? locals[0].nom : '');
-
-    // Choisir le local représentatif pour le clic
-    const repLocal = locals[0];
-    const repId    = repLocal?.repId || '';
-    const repStock = repLocal?.stock || 0;
-    const repNom   = repLocal?.nom   || '';
-
-    // Si plusieurs locaux → afficher chacun séparément pour le choix
     if (locals.length > 1) {
-      return locals.map(e =>
-        '<div onclick="selectRestockProduct(' + JSON.stringify(e.repId) + ',' + e.stock + ',' + JSON.stringify(e.nom) + ')"'
-        + ' style="display:flex;align-items:center;gap:12px;padding:10px 14px;cursor:pointer;border-bottom:1px solid var(--border);transition:.1s;"'
-        + ' class="restock-item">'
-        + '<div style="flex:1;">'
-        + '<div style="font-weight:600;font-size:13px;">' + escapeHTML(g.name) + ' <span style="color:var(--text3);font-weight:400;font-size:11px;">· ' + escapeHTML(e.nom) + '</span></div>'
-        + '<div style="font-size:11px;color:var(--text2);">' + (g.code||'') + ' · ' + (g.category||'') + '</div>'
-        + '</div>'
-        + '<div style="text-align:right;">'
-        + '<div style="font-family:var(--font-mono),monospace;font-weight:800;font-size:15px;color:' + (e.stock===0?'var(--red)':e.stock<g.minStock?'var(--gold)':'var(--accent)') + ';">' + e.stock + '</div>'
-        + '<div style="font-size:10px;color:var(--text2);">en stock</div>'
-        + '</div></div>'
-      ).join('');
+      // Plusieurs locaux → une ligne par local
+      return locals.map(e => {
+        const col = e.stock === 0 ? 'var(--red)' : e.stock < g.minStock ? 'var(--gold)' : 'var(--accent)';
+        return '<div class="restock-item"'
+          + ' data-prod-id="' + escapeHTML(e.repId) + '"'
+          + ' data-stock="' + e.stock + '"'
+          + ' data-local-nom="' + escapeHTML(e.nom) + '"'
+          + ' onclick="selectRestockProduct(this.dataset.prodId, +this.dataset.stock, this.dataset.localNom)"'
+          + ' style="display:flex;align-items:center;gap:12px;padding:10px 14px;cursor:pointer;border-bottom:1px solid var(--border);">'
+          + '<div style="flex:1;">'
+          + '<div style="font-weight:600;font-size:13px;">' + escapeHTML(g.name)
+          + ' <span style="color:var(--text3);font-weight:400;font-size:11px;">· ' + escapeHTML(e.nom) + '</span></div>'
+          + '<div style="font-size:11px;color:var(--text2);">' + escapeHTML(g.code||'') + ' · ' + escapeHTML(g.category||'') + '</div>'
+          + '</div>'
+          + '<div style="text-align:right;">'
+          + '<div style="font-family:var(--font-mono),monospace;font-weight:800;font-size:15px;color:' + col + ';">' + e.stock + '</div>'
+          + '<div style="font-size:10px;color:var(--text2);">en stock</div>'
+          + '</div></div>';
+      }).join('');
     }
 
     // Un seul local
-    return '<div onclick="selectRestockProduct(' + JSON.stringify(repId) + ',' + repStock + ',' + JSON.stringify(repNom) + ')"'
-      + ' style="display:flex;align-items:center;gap:12px;padding:10px 14px;cursor:pointer;border-bottom:1px solid var(--border);transition:.1s;"'
-        + ' class="restock-item">' 
+    const e = locals[0];
+    const col = g._totalStock === 0 ? 'var(--red)' : g._totalStock < g.minStock ? 'var(--gold)' : 'var(--accent)';
+    const localInfo = e?.nom && e.nom !== '?' ? e.nom : '';
+    return '<div class="restock-item"'
+      + ' data-prod-id="' + escapeHTML(e?.repId || '') + '"'
+      + ' data-stock="' + (e?.stock || 0) + '"'
+      + ' data-local-nom="' + escapeHTML(e?.nom || '') + '"'
+      + ' onclick="selectRestockProduct(this.dataset.prodId, +this.dataset.stock, this.dataset.localNom)"'
+      + ' style="display:flex;align-items:center;gap:12px;padding:10px 14px;cursor:pointer;border-bottom:1px solid var(--border);">'
       + '<div style="flex:1;">'
       + '<div style="font-weight:600;font-size:13px;">' + escapeHTML(g.name) + '</div>'
-      + '<div style="font-size:11px;color:var(--text2);">' + (g.code||'') + (localInfo ? ' · ' + localInfo : '') + ' · ' + (g.category||'') + '</div>'
+      + '<div style="font-size:11px;color:var(--text2);">'
+      + (g.code ? escapeHTML(g.code) + ' · ' : '')
+      + (localInfo ? localInfo + ' · ' : '')
+      + escapeHTML(g.category||'')
+      + '</div>'
       + '</div>'
       + '<div style="text-align:right;">'
-      + '<div style="font-family:var(--font-mono),monospace;font-weight:800;font-size:15px;color:' + statusColor + ';">' + totalStock + '</div>'
+      + '<div style="font-family:var(--font-mono),monospace;font-weight:800;font-size:15px;color:' + col + ';">' + g._totalStock + '</div>'
       + '<div style="font-size:10px;color:var(--text2);">en stock</div>'
       + '</div></div>';
   }).join('');
 }
+
 
 function selectRestockProduct(id, aggregatedStock, localNomOverride) {
   const p = products.find(x => x.id === id);
