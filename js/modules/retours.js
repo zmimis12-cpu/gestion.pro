@@ -437,7 +437,7 @@ function renderRetours(resetPage) {
       + '<td>'+qteHtml+'</td>'
       + '<td>'+(badge[r.statut]||r.statut)+'</td>'
       + '<td style="font-size:11.5px;color:var(--text2);font-style:italic;">'+(r.note ? escapeHTML(r.note) : '—')+'</td>'
-      + '<td><button class="btn btn-secondary btn-sm" onclick="event.stopPropagation();viewRetourDetail(this.closest(\"tr\").dataset.rid)" title="Voir détail">🔍</button></td>'
+      + '<td><button class="btn btn-secondary btn-sm" onclick="event.stopPropagation();viewRetourDetail(this.closest(&apos;tr&apos;).dataset.rid)" title="Voir détail">🔍</button></td>'
       + '</tr>';
   }).join('');
 
