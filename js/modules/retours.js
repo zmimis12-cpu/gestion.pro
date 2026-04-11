@@ -507,7 +507,7 @@ function viewRetourDetail(retourId) {
     return `<div style="border:1px solid var(--border);border-radius:var(--radius);padding:14px;margin-bottom:10px;background:var(--surface2);">
       <div style="display:flex;gap:12px;align-items:flex-start;">
         ${photo
-          ? `<img src="${escapeHTML(photo)}" style="width:54px;height:54px;object-fit:cover;border-radius:var(--radius-sm);flex-shrink:0;" onerror="this.style.display='none'">`
+          ? `<img src="${escapeHTML(photo)}" style="width:54px;height:54px;object-fit:cover;border-radius:var(--radius-sm);flex-shrink:0;" class="retour-detail-img">`
           : `<div style="width:54px;height:54px;background:var(--surface3,#eee);border-radius:var(--radius-sm);display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;">📦</div>`
         }
         <div style="flex:1;min-width:0;">

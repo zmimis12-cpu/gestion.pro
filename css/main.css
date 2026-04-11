@@ -3745,3 +3745,17 @@ select, textarea { font-size: 13.5px; padding: 8.5px 11px; }
 #stock-detail-content::-webkit-scrollbar { width: 4px; }
 #stock-detail-content::-webkit-scrollbar-track { background: transparent; }
 #stock-detail-content::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+
+/* Images dans modal retour — cacher si cassée via CSS */
+.retour-detail-img { display: block; }
+.retour-detail-img::after {
+  content: '📦';
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  width: 54px;
+  height: 54px;
+  background: var(--surface2);
+  border-radius: var(--radius-sm);
+}
