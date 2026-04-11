@@ -269,6 +269,35 @@ async function loadSAData() {
     const tid = GP_TENANT?.id || null;
     // TOUJOURS filtrer par tenant — jamais charger sans tenant
     if (!tid) { GP_LOCAUX_ALL = []; GP_USERS_ALL = []; return; }
+    // Charger TOUS les produits du tenant (sans filtre local_id)
+    // pour que la page Locaux puisse calculer le stock de chaque local
+    try {
+      const { data: allProds } = await sb.from('gp_products')
+        .select('id,local_id,name,category,code,type,price,cost,stock,min_stock,unit,zone,sizes,photo_url')
+        .eq('tenant_id', tid)
+        .order('name');
+      if (allProds && allProds.length > 0) {
+        // Mettre à jour products[] avec TOUS les produits du tenant
+        // (écrase le filtre local_id de loadUserData)
+        products = allProds.map(p => ({
+          id: p.id, local_id: p.local_id,
+          name: p.name, category: p.category || 'Général',
+          code: p.code || '', type: p.type || 'unite',
+          price: p.price || 0, cost: p.cost || 0,
+          stock: p.stock || 0, minStock: p.min_stock || 5,
+          unit: p.unit || 'Pièce', zone: p.zone || null,
+          sizes: p.sizes || {}, photo: p.photo_url || null,
+        }));
+        console.log('[loadSAData] Tous les produits chargés:', products.length,
+          '— par local:', products.reduce((m,p) => {
+            const k = p.local_id || 'sans_local';
+            m[k] = (m[k]||0)+1; return m;
+          }, {}));
+      }
+    } catch(e) {
+      console.warn('[loadSAData] Erreur chargement produits globaux:', e);
+    }
+
     const locsQ = sb.from('gp_locaux').select('*').eq('tenant_id', tid).order('nom');
     const { data: locs } = await locsQ;
     GP_LOCAUX_ALL = (locs || [])

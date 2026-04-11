@@ -21,11 +21,14 @@ const LOCAL_COLORS = {
 function getLocalProducts(localNom) {
   // Chercher par local_id OU zone (les deux) pour couvrir tous les cas
   const localObj = GP_LOCAUX_ALL.find(l => l.nom === localNom);
-  const localId = localObj?.id;
-  return products.filter(p =>
+  const localId  = localObj?.id;
+  const result   = products.filter(p =>
     (localId && p.local_id === localId) ||
-    (!p.local_id && (p.zone || '').trim() === localNom.trim())
+    (!p.local_id && (p.zone || '').trim().toLowerCase() === localNom.trim().toLowerCase())
   );
+  console.log('[getLocalProducts]', localNom, '(id:', localId, ') →', result.length, 'produits, stock total:',
+    result.reduce((s,p) => s+(p.stock||0), 0));
+  return result;
 }
 
 function getUniqueLocalProducts(localNom) {
