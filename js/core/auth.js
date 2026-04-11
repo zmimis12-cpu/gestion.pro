@@ -271,15 +271,20 @@ async function loadSAData() {
     if (!tid) { GP_LOCAUX_ALL = []; GP_USERS_ALL = []; return; }
     const locsQ = sb.from('gp_locaux').select('*').eq('tenant_id', tid).order('nom');
     const { data: locs } = await locsQ;
-    GP_LOCAUX_ALL = (locs || []).map(l => ({
-      id: l.id, nom: l.nom,
-      description: l.description || '', desc: l.description || '',
-      adresse: l.adresse || '', telephone: l.telephone || '',
-      responsable: l.responsable || '',
-      couleur: l.couleur || 'accent', actif: l.actif !== false,
-      createdAt: l.created_at
-    }));
+    GP_LOCAUX_ALL = (locs || [])
+      // Sécurité : ne garder QUE les locaux du bon tenant (double filtre JS)
+      .filter(l => l.tenant_id === tid)
+      .map(l => ({
+        id: l.id, nom: l.nom,
+        description: l.description || '', desc: l.description || '',
+        adresse: l.adresse || '', telephone: l.telephone || '',
+        responsable: l.responsable || '',
+        couleur: l.couleur || 'accent', actif: l.actif !== false,
+        createdAt: l.created_at
+      }));
     locaux = GP_LOCAUX_ALL;
+    console.log('[loadSAData] Locaux chargés:', GP_LOCAUX_ALL.length,
+      '— noms:', GP_LOCAUX_ALL.map(l => l.nom).join(', ') || '(aucun)');
 
     // Ne PAS charger les passwords dans le client (sécurité)
     const usrsQ = sb.from('gp_users').select('id,nom,prenom,email,role,local_id,telephone,actif,created_at').eq('tenant_id', tid).order('nom');
@@ -305,13 +310,32 @@ async function saveSAData() {
 async function saveGPLocaux() {
   if (!isSuperAdmin()) { toast('⛔ Accès refusé', 'error'); return; }
   try {
-    await sbUpsert('gp_locaux', GP_LOCAUX_ALL.map(l => ({
-      id: l.id, nom: l.nom,
-      description: l.description || l.desc || null,
-      adresse: l.adresse || null, telephone: l.telephone || null,
-      responsable: l.responsable || null,
-      couleur: l.couleur || 'accent', actif: l.actif !== false
-    })));
+    const _tid = GP_TENANT?.id || null;
+    if (!_tid) {
+      console.warn('[saveGPLocaux] tenant_id manquant — abandon');
+      return;
+    }
+    console.log('[saveGPLocaux] Sauvegarde', GP_LOCAUX_ALL.length, 'locaux pour tenant', _tid);
+    const { error: locErr } = await sb.from('gp_locaux').upsert(
+      GP_LOCAUX_ALL.map(l => ({
+        id: l.id,
+        tenant_id: _tid,
+        nom: l.nom,
+        description: l.description || l.desc || null,
+        adresse: l.adresse || null,
+        telephone: l.telephone || null,
+        responsable: l.responsable || null,
+        couleur: l.couleur || 'accent',
+        actif: l.actif !== false,
+      })),
+      { onConflict: 'id' }
+    );
+    if (locErr) {
+      console.error('[saveGPLocaux] Erreur Supabase:', locErr.message);
+      toast('⚠️ Erreur sauvegarde locaux: ' + locErr.message, 'error');
+    } else {
+      console.log('[saveGPLocaux] ✅ Locaux sauvegardés OK');
+    }
   } catch(e) {
     console.warn('[SB] saveGPLocaux error:', e);
   }

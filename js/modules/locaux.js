@@ -95,11 +95,24 @@ function saveLocal() {
     GP_LOCAUX_ALL.push(local);
   }
   locaux = GP_LOCAUX_ALL; // garder l'alias synchronisé
-  saveGPLocaux();
-  save();
+  console.log('[saveLocal] GP_LOCAUX_ALL après ajout:', GP_LOCAUX_ALL.map(l => l.nom));
+
+  // Sauvegarder PUIS recharger depuis Supabase pour confirmer la persistance
   closeModal('modal-local');
-  toast(`✅ "${nom}" ${t('toast_local_saved')}`);
-  renderLocaux();
+  toast('⏳ Sauvegarde en cours...', 'info');
+
+  saveGPLocaux().then(() => {
+    // Recharger les locaux depuis Supabase pour confirmer
+    return loadSAData();
+  }).then(() => {
+    console.log('[saveLocal] Locaux rechargés depuis Supabase:', GP_LOCAUX_ALL.map(l => l.nom));
+    renderLocaux();
+    toast(`✅ "${nom}" ${t('toast_local_saved')}`);
+  }).catch(e => {
+    console.error('[saveLocal] Erreur:', e);
+    renderLocaux(); // Afficher quand même l'état local
+    toast(`⚠️ "${nom}" sauvegardé localement — erreur sync`, 'warn');
+  });
 }
 
 function deleteLocal(id) {
@@ -125,7 +138,21 @@ function deleteLocal(id) {
   }
   GP_LOCAUX_ALL = GP_LOCAUX_ALL.filter(x => x.id !== id);
   locaux = GP_LOCAUX_ALL;
-  sbDelete('gp_locaux', id);
+
+  // Supprimer en Supabase avec tenant guard
+  sb.from('gp_locaux')
+    .delete()
+    .eq('id', id)
+    .eq('tenant_id', GP_TENANT?.id)
+    .then(({ error }) => {
+      if (error) {
+        console.error('[deleteLocal] Erreur Supabase:', error.message);
+        toast('⚠️ Erreur suppression Supabase', 'error');
+      } else {
+        console.log('[deleteLocal] Local supprimé OK:', id);
+      }
+    });
+
   renderLocaux();
   toast(t('toast_local_deleted'), 'warn');
 }
@@ -227,6 +254,7 @@ function viewLocal(id) {
 }
 
 function renderLocaux() {
+  console.log('[renderLocaux] GP_LOCAUX_ALL:', GP_LOCAUX_ALL.length, 'locaux —', GP_LOCAUX_ALL.map(l => l.nom).join(', '));
   const q = (document.getElementById('local-search')?.value || '').toLowerCase();
 
   // Stats globales
@@ -269,9 +297,14 @@ function renderLocaux() {
   const grid = document.getElementById('locaux-grid');
   if (!grid) return;
 
-  // Locaux from data
-  let displayLocaux = [...locaux];
-  if (q) displayLocaux = displayLocaux.filter(l => l.nom.toLowerCase().includes(q) || (l.desc||'').toLowerCase().includes(q));
+  // Toujours partir de GP_LOCAUX_ALL (source de vérité depuis Supabase)
+  // locaux[] est un alias de GP_LOCAUX_ALL — les deux sont synchronisés
+  let displayLocaux = [...GP_LOCAUX_ALL];
+  if (q) displayLocaux = displayLocaux.filter(l =>
+    (l.nom || '').toLowerCase().includes(q) ||
+    (l.desc || '').toLowerCase().includes(q)
+  );
+  console.log('[renderLocaux] displayLocaux après filtre:', displayLocaux.length, displayLocaux.map(l => l.nom));
 
   // Also create virtual "local" for products without zone
   const sansZoneProds = products.filter(p => !p.zone || !p.zone.trim());
