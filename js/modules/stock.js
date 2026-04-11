@@ -28,16 +28,30 @@ function executeTransfert() {
   const refProd = products.find(x => x.id === prodId);
   if (!refProd) return;
   const prodKey = (refProd.code&&refProd.code.trim()) ? refProd.code.trim().toLowerCase() : `${refProd.name.trim().toLowerCase()}||${(refProd.category||'').toLowerCase()}`;
-  // Variant source = celui dans fromLid
-  const p = products.find(x => {
+  // Tous les variants du produit dans le local source (agrégation multi-lignes)
+  const srcVariants = products.filter(x => {
     const xk = (x.code&&x.code.trim()) ? x.code.trim().toLowerCase() : `${x.name.trim().toLowerCase()}||${(x.category||'').toLowerCase()}`;
     return xk === prodKey && x.local_id === fromLid;
-  }) || refProd;
+  });
+  const p = srcVariants[0] || refProd;
   if (!p) return;
-  if (p.stock < qty) { toast(`Stock insuffisant dans "${fromNom}" (disponible: ${p.stock})`, 'error'); return; }
 
-  // Déduire du source
-  p.stock -= qty;
+  // Stock agrégé = somme de toutes les lignes source
+  const srcStockTotal = srcVariants.reduce((s, x) => s + (x.stock || 0), 0);
+  if (srcStockTotal < qty) {
+    toast('Stock insuffisant dans "' + fromNom + '" (disponible: ' + srcStockTotal + ')', 'error');
+    return;
+  }
+
+  // Déduire la quantité en vidant les lignes dans l'ordre (plus petites d'abord)
+  let remaining = qty;
+  const sortedSrc = [...srcVariants].sort((a, b) => a.stock - b.stock);
+  for (const sv of sortedSrc) {
+    if (remaining <= 0) break;
+    const take = Math.min(sv.stock, remaining);
+    sv.stock -= take;
+    remaining -= take;
+  }
 
   // Chercher produit existant dans le local destination
   // Priorité: même code → même nom+catégorie → même nom seul

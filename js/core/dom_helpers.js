@@ -130,8 +130,13 @@ function updateTransfertQtyMax() {
     if (best) trFrom.value = best.local_id;
   }
   const activeLid = document.getElementById('tr-from')?.value || refProd.local_id;
-  const srcVariant = variants.find(v => v.local_id === activeLid) || variants[0];
-  const localNom = GP_LOCAUX_ALL.find(l => l.id === activeLid)?.nom || srcVariant?.zone || '—';
+  // Agréger le stock de TOUTES les lignes du même local (évite le bug multi-lignes)
+  const srcVariants = variants.filter(v => v.local_id === activeLid);
+  const srcVariant  = srcVariants[0] || variants[0];
+  const srcStock    = srcVariants.reduce((s, v) => s + (v.stock || 0), 0) || srcVariant?.stock || 0;
+  const localNom    = GP_LOCAUX_ALL.find(l => l.id === activeLid)?.nom || srcVariant?.zone || '—';
   const info = document.getElementById('tr-qty-info');
-  if (info) info.textContent = srcVariant ? `Stock dans "${localNom}": ${srcVariant.stock} ${srcVariant.unit||'unités'}` : '';
+  if (info) info.textContent = srcVariant
+    ? 'Stock dans "' + localNom + '": ' + srcStock + ' ' + (srcVariant.unit||'unités')
+    : '';
 }
