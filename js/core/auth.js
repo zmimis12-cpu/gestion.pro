@@ -993,6 +993,101 @@ async function loadUserData() {
       }));
     } catch(e) { console.warn('[SB] gp_docs_rh load skipped:', e.message); docsRHHistory = []; }
 
+    // ── Stores e-commerce ─────────────────────────────────────
+    try {
+      const { data: storesData } = await sb.from('gp_stores')
+        .select('*').eq('tenant_id', tid).order('nom');
+      ecomStores = (storesData || []).map(s => ({
+        id: s.id, tenantId: s.tenant_id,
+        nom: s.nom, clientNom: s.client_nom,
+        notes: s.notes,
+        fulfillmentFee: s.fulfillment_fee || 0,
+        portType: s.port_type || 1,
+        shippingCompany: s.shipping_company || 'digylog',
+        digylogStoreId: s.digylog_store_id,
+        digylogStoreName: s.digylog_store_name,
+        digylogNetworkId: s.digylog_network_id,
+        digylogMode: s.digylog_mode || 1,
+        sheetsEnabled: s.sheets_enabled || false,
+        sheetsId: s.sheets_id,
+        sheetsTab: s.sheets_tab || 'Sheet1',
+        sheetsLastSync: s.sheets_last_sync,
+        webhookUrl: s.webhook_url,
+        actif: s.actif !== false,
+        createdAt: s.created_at,
+      }));
+    } catch(e) { ecomStores = []; console.warn('[SB] gp_stores:', e.message); }
+
+    // ── Mappings produits store ─────────────────────────────
+    try {
+      const { data: mappingsData } = await sb.from('gp_store_mapping')
+        .select('*').eq('tenant_id', tid).order('nom_externe');
+      ecomMappings = (mappingsData || []).map(m => ({
+        id: m.id, tenantId: m.tenant_id,
+        storeId: m.store_id, productId: m.product_id,
+        nomExterne: m.nom_externe,
+        nomNormalise: m.nom_normalise,
+        designationDigylog: m.designation_digylog,
+        refDigylog: m.ref_digylog,
+        notes: m.notes, actif: m.actif !== false,
+        createdAt: m.created_at,
+      }));
+    } catch(e) { ecomMappings = []; console.warn('[SB] gp_store_mapping:', e.message); }
+
+    // ── Commandes e-commerce ───────────────────────────────
+    try {
+      const { data: ordersData } = await sb.from('gp_ecom_orders')
+        .select('*').eq('tenant_id', tid)
+        .order('created_at', { ascending: false }).limit(500);
+      ecomOrders = (ordersData || []).map(o => ({
+        id: o.id, tenantId: o.tenant_id,
+        storeId: o.store_id, num: o.num,
+        source: o.source || 'csv',
+        clientNom: o.client_nom || '',
+        clientTel: o.client_tel || '',
+        clientAdresse: o.client_adresse || '',
+        clientVille: o.client_ville || '',
+        montant: o.montant || 0,
+        portType: o.port_type || 1,
+        statut: o.statut || 'importe',
+        hasMappingError: o.has_mapping_error || false,
+        tracking: o.tracking,
+        digylogId: o.digylog_id,
+        digylogBl: o.digylog_bl,
+        digylogHub: o.digylog_hub,
+        digylogStatus: o.digylog_status || 'Non envoyé',
+        dispatchId: o.dispatch_id,
+        notes: o.notes,
+        createdAt: o.created_at,
+        expediAt: o.expedie_at,
+        livreAt: o.livre_at,
+      }));
+    } catch(e) { ecomOrders = []; console.warn('[SB] gp_ecom_orders:', e.message); }
+
+    // ── Lignes de commandes e-commerce ─────────────────────
+    try {
+      const orderIds = ecomOrders.map(o => o.id);
+      if (orderIds.length > 0) {
+        const { data: linesData } = await sb.from('gp_ecom_order_lines')
+          .select('*')
+          .in('order_id', orderIds.slice(0, 200)); // Limiter pour perf
+        ecomOrderLines = (linesData || []).map(l => ({
+          id: l.id, orderId: l.order_id,
+          nomExterne: l.nom_externe,
+          productId: l.product_id,
+          designationDigylog: l.designation_digylog,
+          refDigylog: l.ref_digylog,
+          qte: l.qte || 1,
+          prixUnitaire: l.prix_unitaire || 0,
+          statut: l.statut || 'en_attente',
+          mappingAuto: l.mapping_auto || false,
+          mappingError: l.mapping_error || false,
+        }));
+      } else {
+        ecomOrderLines = [];
+      }
+    } catch(e) { ecomOrderLines = []; console.warn('[SB] gp_ecom_order_lines:', e.message); }
+
     // ── Settings GLOBAUX — localStorage uniquement (pas de table dédiée) ──
     try {
       const localSett = localStorage.getItem('gp_settings_global');

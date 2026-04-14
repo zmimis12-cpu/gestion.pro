@@ -76,6 +76,10 @@ let depenses   = [];
 let locaux = []; // Alias vers GP_LOCAUX_ALL — synchronisé au chargement
 let conteneurs = [];
 let ordres     = []
-let retours    = [];
+let retours    = []
+let ecomStores     = []   // gp_stores
+let ecomOrders     = []   // gp_ecom_orders
+let ecomOrderLines = []   // gp_ecom_order_lines
+let ecomMappings   = []   // gp_store_mapping;
 let settings   = {tva:20,showTva:false,storeName:'GestionPro',storeAddress:'',storePhone:'',storeEmail:'',storeWebsite:'',invoicePrefix:'FAC',storeIce:'',storeLogo:null,bankName:'',bankIban:'',bankSwift:'',invoiceNotes:'',invoicePaymentTerms:'30 jours',invoiceCounter:1};
 

@@ -40,7 +40,7 @@ function navigate(page) {
     openCaisseLocalModal();
   }
 
-  const titles = { depenses:'💸 Gestion des Dépenses', dashboard:'Tableau de bord', caisse:'Caisse & Ventes', conteneurs:'Gestion Conteneurs', commandes:'Ordres & Ventes', docscont:'Documents Conteneurs', retours:'↩️ Gestion des Retours', fonds:'Fonds de Caisse', stock:'Gestion du Stock', locaux:'Gestion des Locaux / Zones', clients:'Gestion Clients', alerts:'Alertes & Notifications', settings:'Paramètres', superadmin:'👑 Super Admin — Panneau Central', 'owner-admin':'🏢 Mes Clients GestionPro', employes:'👨‍💼 Gestion des Employés', conges:'🏖️ Gestion des Congés', livraisons:'🚚 Bons de Livraison', 'docs-rh':'📋 Documents RH', 'docs-admin':'🏢 Documents Administratifs' };
+  const titles = { depenses:'💸 Gestion des Dépenses', dashboard:'Tableau de bord', caisse:'Caisse & Ventes', conteneurs:'Gestion Conteneurs', commandes:'Ordres & Ventes', docscont:'Documents Conteneurs', retours:'↩️ Gestion des Retours', fonds:'Fonds de Caisse', stock:'Gestion du Stock', locaux:'Gestion des Locaux / Zones', clients:'Gestion Clients', alerts:'Alertes & Notifications', settings:'Paramètres', superadmin:'👑 Super Admin — Panneau Central', 'owner-admin':'🏢 Mes Clients GestionPro', employes:'👨‍💼 Gestion des Employés', conges:'🏖️ Gestion des Congés', livraisons:'🚚 Bons de Livraison', 'docs-rh':'📋 Documents RH', 'docs-admin':'🏢 Documents Administratifs', stores:'🏪 Gestion des Stores', ecom:'📦 Commandes E-commerce' };
   document.getElementById('page-title').textContent = titles[page] || page;
 
   // Actions topbar filtrées par RBAC
@@ -62,6 +62,8 @@ function navigate(page) {
     'docs-rh': { perm: ['docs_rh','create'],  icon:'📄', text:'Générer document', fn: () => genererDocRH() },
     'docs-admin':{ perm: ['docs_admin','create'], icon:'🏢', text:'Nouveau document', fn: () => {} },
     'depenses':  { perm: null, icon:'➕', text:'Nouvelle dépense', fn: () => { document.getElementById('dep-montant')?.focus(); } },
+    stores:      { perm: null, icon:'🏪', text:'Nouveau store',    fn: () => openNewStore() },
+    ecom:        { perm: null, icon:'📥', text:'Importer CSV',     fn: () => openImportCSVModal() },
   };
   const actionDef = actionsDef[page];
   const topbarBtn = document.getElementById('topbar-action');
@@ -90,6 +92,8 @@ function navigate(page) {
   if (page === 'livraisons') renderLivraisons();
   if (page === 'docs-rh') renderDocsRH();
   if (page === 'retours') renderRetours();
+  if (page === 'stores') renderStores();
+  if (page === 'ecom') renderEcom();
   if (page === 'depenses') renderDepenses();
   if (page === 'docs-admin') {}
   // Apply lang to dynamic elements after page switch
