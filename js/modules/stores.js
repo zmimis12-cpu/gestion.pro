@@ -141,11 +141,10 @@ async function saveStore() {
   const nom = document.getElementById('store-nom').value.trim();
   if (!nom) { toast('Le nom du store est obligatoire', 'error'); return; }
 
-  const editId = document.getElementById('store-edit-id').value;
+  const editId = document.getElementById('store-edit-id').value.trim();
   const tid    = GP_TENANT?.id;
 
-  const storeData = {
-    id:               editId || uid(),
+  const payload = {
     tenant_id:        tid,
     nom:              nom,
     client_nom:       document.getElementById('store-client-nom').value.trim() || null,
@@ -162,27 +161,52 @@ async function saveStore() {
   };
 
   try {
-    const { error } = await sb.from('gp_stores').upsert(storeData, { onConflict: 'id' });
-    if (error) { toast('Erreur: ' + error.message, 'error'); return; }
+    let savedId = editId;
+
+    if (editId) {
+      // MODIFICATION : UPDATE ciblé par id + tenant_id
+      const { error } = await sb.from('gp_stores')
+        .update(payload)
+        .eq('id', editId)
+        .eq('tenant_id', tid);
+      if (error) {
+        console.error('[saveStore] UPDATE error:', error);
+        toast('Erreur: ' + error.message, 'error');
+        return;
+      }
+    } else {
+      // CRÉATION : INSERT, laisser Supabase générer l'UUID
+      const { data: inserted, error } = await sb.from('gp_stores')
+        .insert(payload)
+        .select('id')
+        .single();
+      if (error) {
+        console.error('[saveStore] INSERT error:', error);
+        toast('Erreur: ' + error.message, 'error');
+        return;
+      }
+      savedId = inserted.id;
+    }
 
     // Mettre à jour le state local
     const localStore = {
-      id: storeData.id, tenantId: tid, nom: storeData.nom,
-      clientNom: storeData.client_nom, notes: storeData.notes,
-      fulfillmentFee: storeData.fulfillment_fee, portType: storeData.port_type,
-      shippingCompany: storeData.shipping_company, actif: storeData.actif,
-      sheetsEnabled: storeData.sheets_enabled, sheetsId: storeData.sheets_id,
-      sheetsTab: storeData.sheets_tab, webhookUrl: storeData.webhook_url,
+      id: savedId, tenantId: tid, nom: payload.nom,
+      clientNom: payload.client_nom, notes: payload.notes,
+      fulfillmentFee: payload.fulfillment_fee, portType: payload.port_type,
+      shippingCompany: payload.shipping_company, actif: payload.actif,
+      sheetsEnabled: payload.sheets_enabled, sheetsId: payload.sheets_id,
+      sheetsTab: payload.sheets_tab, webhookUrl: payload.webhook_url,
     };
-    const idx = ecomStores.findIndex(x => x.id === storeData.id);
-    if (idx >= 0) ecomStores[idx] = localStore;
+    const existing = ecomStores.findIndex(x => x.id === savedId);
+    if (existing >= 0) ecomStores[existing] = localStore;
     else ecomStores.push(localStore);
 
     closeModal('modal-store');
     renderStores();
     toast('✅ Store "' + nom + '" sauvegardé', 'success');
   } catch (e) {
-    toast('Erreur: ' + e.message, 'error');
+    console.error('[saveStore] Exception:', e);
+    toast('Erreur inattendue: ' + e.message, 'error');
   }
 }
 

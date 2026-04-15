@@ -1435,45 +1435,33 @@
 
       <!-- ═══════════════════════════════ STORES ═══════════════════════════════ -->
       <div class="page" id="page-stores">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;gap:12px;flex-wrap:wrap;">
-          <div>
-            <div style="font-size:16px;font-weight:700;color:var(--text);letter-spacing:-0.3px;">🏪 Gestion des Stores</div>
-            <div style="font-size:12px;color:var(--text3);margin-top:2px;">Configurez vos stores e-commerce et mappings produits</div>
-          </div>
-          <div style="display:flex;gap:8px;">
-            <input id="stores-search" type="text" placeholder="Rechercher un store..." class="input" style="width:220px;" oninput="renderStores()">
-            <button class="btn btn-primary" onclick="openNewStore()">🏪 Nouveau store</button>
-          </div>
+        <div style="display:flex;gap:10px;align-items:center;margin-bottom:16px;flex-wrap:wrap;">
+          <input id="stores-search" type="text" placeholder="🔍 Rechercher un store..." class="input" style="max-width:260px;" oninput="renderStores()">
+          <button class="btn btn-primary" onclick="openNewStore()">🏪 Nouveau store</button>
         </div>
         <div id="stores-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:14px;"></div>
       </div>
 
       <!-- ═══════════════════════════════ COMMANDES E-COM ══════════════════════════ -->
       <div class="page" id="page-ecom">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;gap:12px;flex-wrap:wrap;">
-          <div>
-            <div style="font-size:16px;font-weight:700;color:var(--text);letter-spacing:-0.3px;">📦 Commandes E-commerce</div>
-            <div style="font-size:12px;color:var(--text3);margin-top:2px;">Gestion des commandes importées depuis vos stores</div>
-          </div>
-          <div style="display:flex;gap:8px;flex-wrap:wrap;">
-            <input id="ecom-search" type="text" placeholder="Rechercher..." class="input" style="width:180px;" oninput="renderEcom()">
-            <select id="ecom-filter-store" class="input" style="width:150px;" onchange="renderEcom()">
-              <option value="all">Tous les stores</option>
-            </select>
-            <select id="ecom-filter-statut" class="input" style="width:140px;" onchange="renderEcom()">
-              <option value="all">Tous les statuts</option>
-              <option value="importe">📥 Importé</option>
-              <option value="mapping_ok">✅ Mappé</option>
-              <option value="prepare">📦 Préparé</option>
-              <option value="dispatche">🚚 Dispatché</option>
-              <option value="livre">✅ Livré</option>
-              <option value="retour">↩️ Retour</option>
-              <option value="annule">❌ Annulé</option>
-            </select>
-            <button class="btn btn-primary" onclick="openImportCSVModal()">📥 Importer CSV</button>
-          </div>
-        </div>
         <div id="ecom-kpis" style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px;"></div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:14px;">
+          <input id="ecom-search" type="text" placeholder="🔍 N° commande, client..." class="input" style="max-width:220px;" oninput="renderEcom()">
+          <select id="ecom-filter-store" class="input" style="max-width:160px;" onchange="renderEcom()">
+            <option value="all">Tous les stores</option>
+          </select>
+          <select id="ecom-filter-statut" class="input" style="max-width:150px;" onchange="renderEcom()">
+            <option value="all">Tous les statuts</option>
+            <option value="importe">📥 Importé</option>
+            <option value="mapping_ok">✅ Mappé</option>
+            <option value="prepare">📦 Préparé</option>
+            <option value="dispatche">🚚 Dispatché</option>
+            <option value="livre">✅ Livré</option>
+            <option value="retour">↩️ Retour</option>
+            <option value="annule">❌ Annulé</option>
+          </select>
+          <button class="btn btn-primary" onclick="openImportCSVModal()">📥 Importer CSV</button>
+        </div>
         <div class="card" style="overflow:hidden;">
           <div style="overflow-x:auto;">
             <table style="width:100%;border-collapse:collapse;">
