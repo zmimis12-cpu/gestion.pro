@@ -1339,6 +1339,59 @@
           <div id="retours-pagination" class="pagination" style="padding:12px 16px;"></div>
         </div>
       </div>
+      
+      <!-- ═══════════════════════════════ STORES ═══════════════════════════════ -->
+      <div class="page" id="page-stores">
+        <div style="display:flex;gap:10px;align-items:center;margin-bottom:16px;flex-wrap:wrap;">
+          <input id="stores-search" type="text" placeholder="🔍 Rechercher un store..." class="input" style="max-width:260px;" oninput="renderStores()">
+          <button class="btn btn-primary" onclick="openNewStore()">🏪 Nouveau store</button>
+        </div>
+        <div id="stores-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:14px;"></div>
+      </div>
+
+      <!-- ═══════════════════════════════ COMMANDES E-COM ══════════════════════════ -->
+      <div class="page" id="page-ecom">
+        <div id="ecom-kpis" style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px;"></div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:14px;">
+          <input id="ecom-search" type="text" placeholder="🔍 N° commande, client..." class="input" style="max-width:220px;" oninput="renderEcom()">
+          <select id="ecom-filter-store" class="input" style="max-width:160px;" onchange="renderEcom()">
+            <option value="all">Tous les stores</option>
+          </select>
+          <select id="ecom-filter-statut" class="input" style="max-width:150px;" onchange="renderEcom()">
+            <option value="all">Tous les statuts</option>
+            <option value="importe">📥 Importé</option>
+            <option value="mapping_ok">✅ Mappé</option>
+            <option value="prepare">📦 Préparé</option>
+            <option value="dispatche">🚚 Dispatché</option>
+            <option value="livre">✅ Livré</option>
+            <option value="retour">↩️ Retour</option>
+            <option value="annule">❌ Annulé</option>
+          </select>
+          <button class="btn btn-primary" onclick="openImportCSVModal()">📥 Importer CSV</button>
+        </div>
+        <div class="card" style="overflow:hidden;">
+          <div style="overflow-x:auto;">
+            <table style="width:100%;border-collapse:collapse;">
+              <thead>
+                <tr style="background:var(--surface2);">
+                  <th style="text-align:left;padding:10px 12px;font-size:11.5px;font-weight:700;color:var(--text2);">N° Commande</th>
+                  <th style="text-align:left;padding:10px 12px;font-size:11.5px;font-weight:700;color:var(--text2);">Store</th>
+                  <th style="text-align:left;padding:10px 12px;font-size:11.5px;font-weight:700;color:var(--text2);">Client</th>
+                  <th style="text-align:left;padding:10px 12px;font-size:11.5px;font-weight:700;color:var(--text2);">Ville</th>
+                  <th style="text-align:left;padding:10px 12px;font-size:11.5px;font-weight:700;color:var(--text2);">Articles</th>
+                  <th style="text-align:left;padding:10px 12px;font-size:11.5px;font-weight:700;color:var(--text2);">Montant</th>
+                  <th style="text-align:left;padding:10px 12px;font-size:11.5px;font-weight:700;color:var(--text2);">Statut</th>
+                  <th style="text-align:left;padding:10px 12px;font-size:11.5px;font-weight:700;color:var(--text2);">Date</th>
+                  <th style="width:100px;"></th>
+                </tr>
+              </thead>
+              <tbody id="ecom-table"></tbody>
+            </table>
+          </div>
+          <div id="ecom-pagination" style="padding:12px;"></div>
+        </div>
+      </div>
+
       </div><!-- end content -->
   </div><!-- end main -->
 
@@ -1432,58 +1485,6 @@
   </div>
 </div>
 
-
-      <!-- ═══════════════════════════════ STORES ═══════════════════════════════ -->
-      <div class="page" id="page-stores">
-        <div style="display:flex;gap:10px;align-items:center;margin-bottom:16px;flex-wrap:wrap;">
-          <input id="stores-search" type="text" placeholder="🔍 Rechercher un store..." class="input" style="max-width:260px;" oninput="renderStores()">
-          <button class="btn btn-primary" onclick="openNewStore()">🏪 Nouveau store</button>
-        </div>
-        <div id="stores-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:14px;"></div>
-      </div>
-
-      <!-- ═══════════════════════════════ COMMANDES E-COM ══════════════════════════ -->
-      <div class="page" id="page-ecom">
-        <div id="ecom-kpis" style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px;"></div>
-        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:14px;">
-          <input id="ecom-search" type="text" placeholder="🔍 N° commande, client..." class="input" style="max-width:220px;" oninput="renderEcom()">
-          <select id="ecom-filter-store" class="input" style="max-width:160px;" onchange="renderEcom()">
-            <option value="all">Tous les stores</option>
-          </select>
-          <select id="ecom-filter-statut" class="input" style="max-width:150px;" onchange="renderEcom()">
-            <option value="all">Tous les statuts</option>
-            <option value="importe">📥 Importé</option>
-            <option value="mapping_ok">✅ Mappé</option>
-            <option value="prepare">📦 Préparé</option>
-            <option value="dispatche">🚚 Dispatché</option>
-            <option value="livre">✅ Livré</option>
-            <option value="retour">↩️ Retour</option>
-            <option value="annule">❌ Annulé</option>
-          </select>
-          <button class="btn btn-primary" onclick="openImportCSVModal()">📥 Importer CSV</button>
-        </div>
-        <div class="card" style="overflow:hidden;">
-          <div style="overflow-x:auto;">
-            <table style="width:100%;border-collapse:collapse;">
-              <thead>
-                <tr style="background:var(--surface2);">
-                  <th style="text-align:left;padding:10px 12px;font-size:11.5px;font-weight:700;color:var(--text2);">N° Commande</th>
-                  <th style="text-align:left;padding:10px 12px;font-size:11.5px;font-weight:700;color:var(--text2);">Store</th>
-                  <th style="text-align:left;padding:10px 12px;font-size:11.5px;font-weight:700;color:var(--text2);">Client</th>
-                  <th style="text-align:left;padding:10px 12px;font-size:11.5px;font-weight:700;color:var(--text2);">Ville</th>
-                  <th style="text-align:left;padding:10px 12px;font-size:11.5px;font-weight:700;color:var(--text2);">Articles</th>
-                  <th style="text-align:left;padding:10px 12px;font-size:11.5px;font-weight:700;color:var(--text2);">Montant</th>
-                  <th style="text-align:left;padding:10px 12px;font-size:11.5px;font-weight:700;color:var(--text2);">Statut</th>
-                  <th style="text-align:left;padding:10px 12px;font-size:11.5px;font-weight:700;color:var(--text2);">Date</th>
-                  <th style="width:100px;"></th>
-                </tr>
-              </thead>
-              <tbody id="ecom-table"></tbody>
-            </table>
-          </div>
-          <div id="ecom-pagination" style="padding:12px;"></div>
-        </div>
-      </div>
 
 <!-- ═══ MODAL SA — LOCAL ═══ -->
 </div><!-- end app-wrapper -->
