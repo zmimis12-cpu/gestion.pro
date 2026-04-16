@@ -2657,11 +2657,11 @@
       <div style="display:grid;grid-template-columns:1fr 1fr auto;gap:8px;align-items:flex-end;">
         <div>
           <label class="label" style="font-size:11px;">Nom produit côté store</label>
-          <input id="mapping-nom-externe" type="text" class="input" placeholder="Ex: CRASH ROUGE 42">
+          <input id="mapping-nom-externe" type="text" class="input" placeholder="Ex: CRASH ROUGE 42" onkeydown="_mappingKeydown(event)">
         </div>
         <div>
           <label class="label" style="font-size:11px;">Produit interne GestionPro</label>
-          <select id="mapping-product-select" class="input" onclick="populateMappingProductSelect()">
+          <select id="mapping-product-select" class="input" onfocus="populateMappingProductSelect()">
             <option value="">— Sélectionner —</option>
           </select>
         </div>

@@ -29,6 +29,15 @@ function renderStores() {
     return;
   }
 
+  // Synchroniser le select ecom-filter-store avec la liste actuelle
+  const ecomStoreSelect = document.getElementById('ecom-filter-store');
+  if (ecomStoreSelect) {
+    const curVal = ecomStoreSelect.value;
+    ecomStoreSelect.innerHTML = '<option value="all">Tous les stores</option>'
+      + ecomStores.map(s => '<option value="' + s.id + '"' + (s.id === curVal ? ' selected' : '') + '>'
+        + escapeHTML(s.nom) + '</option>').join('');
+  }
+
   grid.innerHTML = list.map(s => {
     const ordersCount   = ecomOrders.filter(o => o.storeId === s.id).length;
     const pendingCount  = ecomOrders.filter(o => o.storeId === s.id && o.statut === 'importe').length;
@@ -244,8 +253,14 @@ function openStoreMappingModal(storeId) {
   const s = ecomStores.find(x => x.id === storeId);
   document.getElementById('mapping-store-title').textContent =
     '🔗 Mapping produits — ' + (s?.nom || storeId);
+  // Vider les champs
+  document.getElementById('mapping-nom-externe').value = '';
+  document.getElementById('mapping-search').value = '';
+  // Pré-charger le select des produits internes
+  populateMappingProductSelect();
   renderMappingList();
   openModal('modal-store-mapping');
+  setTimeout(() => document.getElementById('mapping-nom-externe')?.focus(), 150);
 }
 
 function renderMappingList() {
@@ -296,6 +311,17 @@ function populateMappingProductSelect() {
         + (p.code ? ' (' + escapeHTML(p.code) + ')' : '')
         + '</option>')
       .join('');
+}
+
+function _mappingKeydown(e) {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    const nom = document.getElementById('mapping-nom-externe').value.trim();
+    if (!nom) { document.getElementById('mapping-nom-externe').focus(); return; }
+    const sel = document.getElementById('mapping-product-select');
+    if (!sel.value) { sel.focus(); return; }
+    saveMapping();
+  }
 }
 
 async function saveMapping() {

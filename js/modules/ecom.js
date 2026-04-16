@@ -17,11 +17,13 @@ function renderEcom(resetPage) {
   const tbody   = document.getElementById('ecom-table');
   if (!tbody) return;
 
-  // Remplir le select stores
+  // Toujours reconstruire le select stores (peut changer après un ajout)
   const storeSelect = document.getElementById('ecom-filter-store');
-  if (storeSelect && storeSelect.options.length <= 1) {
+  if (storeSelect) {
+    const curStoreVal = storeSelect.value;
     storeSelect.innerHTML = '<option value="all">Tous les stores</option>'
-      + ecomStores.map(s => '<option value="' + s.id + '">' + escapeHTML(s.nom) + '</option>').join('');
+      + ecomStores.map(s => '<option value="' + s.id + '"' + (s.id === curStoreVal ? ' selected' : '') + '>'
+        + escapeHTML(s.nom) + '</option>').join('');
   }
 
   // KPIs
@@ -290,109 +292,130 @@ async function launchCSVImport() {
 
   const reader = new FileReader();
   reader.onload = async e => {
-    const rawLines = e.target.result.split('\n').filter(l => l.trim());
+    const rawLines  = e.target.result.split('\n').filter(l => l.trim());
     const dataLines = hasHeader ? rawLines.slice(1) : rawLines;
 
     let nbImportees = 0, nbDoublons = 0, nbErreurs = 0;
-    const ordersToInsert = [], linesToInsert = [];
-    const errorsDetail = [];
+
+    // ── Étape 1 : Parser les lignes du CSV ──────────────────────
+    const ordersToInsert = []; // { orderPayload, pendingLines[] }
 
     for (const rawLine of dataLines) {
       const cols = _parseCSVLine(rawLine, separator);
       const num  = (cols[colNum] || '').trim();
       if (!num) continue;
 
-      // Vérifier doublon
-      const existing = ecomOrders.find(o => o.storeId === storeId && o.num === num);
-      if (existing) { nbDoublons++; continue; }
+      // Vérifier doublon en state local
+      if (ecomOrders.find(o => o.storeId === storeId && o.num === num)) {
+        nbDoublons++;
+        continue;
+      }
 
-      const orderId = uid();
       let hasMappingError = false;
+      const pendingLines  = [];
+      const produitsStr   = (cols[colProduits] || '').trim();
+      const entries       = produitsStr ? produitsStr.split(prodSep) : [];
 
-      // Parser les produits (format: "nom_produit:qte,nom_produit:qte")
-      const produitsStr = (cols[colProduits] || '').trim();
-      const produitEntries = produitsStr ? produitsStr.split(prodSep) : [];
-      const orderLines = [];
-
-      for (const entry of produitEntries) {
-        const parts = entry.trim().split(':');
+      for (const entry of entries) {
+        const parts      = entry.trim().split(':');
         const nomExterne = (parts[0] || '').trim();
-        const qte = parseInt(parts[1]) || 1;
+        const qte        = parseInt(parts[1]) || 1;
         if (!nomExterne) continue;
 
         const resolved = resolveMappingProduct(storeId, nomExterne);
-        const lineId   = uid();
-        const line = {
-          id:           lineId,
-          order_id:     orderId,
-          nom_externe:  nomExterne,
-          product_id:   resolved.found ? resolved.productId : null,
-          qte:          qte,
+        pendingLines.push({
+          nom_externe:   nomExterne,
+          product_id:    resolved.found ? resolved.productId : null,
+          qte:           qte,
           prix_unitaire: 0,
-          statut:       'en_attente',
-          mapping_auto: resolved.auto,
+          statut:        'en_attente',
+          mapping_auto:  resolved.auto,
           mapping_error: !resolved.found,
-        };
-        orderLines.push(line);
-        linesToInsert.push(line);
+        });
         if (!resolved.found) hasMappingError = true;
       }
 
-      const order = {
-        id:               orderId,
-        tenant_id:        tid,
-        store_id:         storeId,
-        num:              num,
-        source:           'csv',
-        client_nom:       (cols[colClient] || '').trim(),
-        client_tel:       (cols[colTel] || '').trim(),
-        client_adresse:   (cols[colAdresse] || '').trim(),
-        client_ville:     (cols[colVille] || '').trim(),
-        montant:          parseFloat((cols[colMontant] || '0').replace(/[^\d.]/g, '')) || 0,
-        statut:           hasMappingError ? 'importe' : 'mapping_ok',
-        has_mapping_error: hasMappingError,
-        notes:            colNotes >= 0 ? (cols[colNotes] || '').trim() : null,
-        created_at:       new Date().toISOString(),
-      };
-
-      ordersToInsert.push(order);
+      // Payload order sans id — Supabase génère l'UUID
+      ordersToInsert.push({
+        orderPayload: {
+          tenant_id:        tid,
+          store_id:         storeId,
+          num:              num,
+          source:           'csv',
+          client_nom:       (cols[colClient]  || '').trim(),
+          client_tel:       (cols[colTel]     || '').trim(),
+          client_adresse:   (cols[colAdresse] || '').trim(),
+          client_ville:     (cols[colVille]   || '').trim(),
+          montant:          parseFloat((cols[colMontant] || '0').replace(/[^\d.]/g, '')) || 0,
+          statut:           hasMappingError ? 'importe' : 'mapping_ok',
+          has_mapping_error: hasMappingError,
+          notes:            colNotes >= 0 ? (cols[colNotes] || '').trim() || null : null,
+        },
+        pendingLines,
+      });
       if (hasMappingError) nbErreurs++;
     }
 
-    // Insérer en base par batches de 50
+    // ── Étape 2 : Insérer les orders et récupérer les UUIDs ─────
     if (ordersToInsert.length > 0) {
       try {
+        const allInserted = [];
+
         for (let i = 0; i < ordersToInsert.length; i += 50) {
-          const batch = ordersToInsert.slice(i, i + 50);
-          const { error } = await sb.from('gp_ecom_orders').insert(batch);
-          if (error) throw error;
+          const batch = ordersToInsert.slice(i, i + 50).map(x => x.orderPayload);
+          const { data: inserted, error } = await sb.from('gp_ecom_orders')
+            .insert(batch)
+            .select('id, num, store_id, statut, has_mapping_error, client_nom, client_tel, client_adresse, client_ville, montant, notes, source');
+          if (error) {
+            console.error('[CSV Import] orders insert error:', error);
+            throw error;
+          }
+          allInserted.push(...(inserted || []));
         }
-        for (let i = 0; i < linesToInsert.length; i += 100) {
-          const batch = linesToInsert.slice(i, i + 100);
+
+        // ── Étape 3 : Insérer les lignes avec les vrais UUIDs ───
+        const allLines = [];
+        for (const item of ordersToInsert) {
+          const ins = allInserted.find(x => x.num === item.orderPayload.num);
+          if (!ins) continue;
+          for (const l of item.pendingLines) {
+            allLines.push({ order_id: ins.id, ...l });
+          }
+        }
+
+        for (let i = 0; i < allLines.length; i += 100) {
+          const batch = allLines.slice(i, i + 100);
           const { error } = await sb.from('gp_ecom_order_lines').insert(batch);
-          if (error) throw error;
+          if (error) {
+            console.error('[CSV Import] lines insert error:', error);
+            throw error;
+          }
         }
 
-        // Mettre à jour le state local
-        ordersToInsert.forEach(o => {
+        // ── Étape 4 : Mettre à jour le state local ────────────────
+        allInserted.forEach(ins => {
           ecomOrders.push({
-            id: o.id, storeId: o.store_id, num: o.num, source: o.source,
-            clientNom: o.client_nom, clientTel: o.client_tel,
-            clientAdresse: o.client_adresse, clientVille: o.client_ville,
-            montant: o.montant, statut: o.statut,
-            hasMappingError: o.has_mapping_error, notes: o.notes,
-            createdAt: o.created_at, tracking: null,
+            id: ins.id, storeId: ins.store_id, num: ins.num,
+            source: ins.source || 'csv',
+            clientNom: ins.client_nom, clientTel: ins.client_tel,
+            clientAdresse: ins.client_adresse, clientVille: ins.client_ville,
+            montant: ins.montant, statut: ins.statut,
+            hasMappingError: ins.has_mapping_error, notes: ins.notes,
+            createdAt: new Date().toISOString(), tracking: null,
           });
-        });
-        linesToInsert.forEach(l => {
-          ecomOrderLines.push({
-            id: l.id, orderId: l.order_id, nomExterne: l.nom_externe,
-            productId: l.product_id, qte: l.qte, prixUnitaire: l.prix_unitaire,
-            statut: l.statut, mappingAuto: l.mapping_auto, mappingError: l.mapping_error,
-          });
+          const item = ordersToInsert.find(x => x.orderPayload.num === ins.num);
+          if (item) {
+            item.pendingLines.forEach(l => {
+              ecomOrderLines.push({
+                id: null, orderId: ins.id, nomExterne: l.nom_externe,
+                productId: l.product_id, qte: l.qte, prixUnitaire: l.prix_unitaire,
+                statut: l.statut, mappingAuto: l.mapping_auto, mappingError: l.mapping_error,
+              });
+            });
+          }
         });
 
-        nbImportees = ordersToInsert.length;
+        nbImportees = allInserted.length;
       } catch (err) {
         toast('Erreur insertion: ' + err.message, 'error');
         if (btn) { btn.disabled = false; btn.textContent = '📥 Lancer l\'import'; }
@@ -400,26 +423,37 @@ async function launchCSVImport() {
       }
     }
 
-    // Afficher le rapport
+    // ── Étape 5 : Afficher le rapport ────────────────────────────
     const resultEl = document.getElementById('csv-import-result');
     resultEl.style.display = '';
     resultEl.innerHTML =
-      '<div style="background:var(--surface2);border-radius:var(--radius-sm);padding:14px;font-size:13px;">'
-      + '<div style="font-weight:700;margin-bottom:8px;">📊 Rapport d\'import</div>'
-      + '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;">'
-      + '<div style="text-align:center;"><div style="font-size:20px;font-weight:800;color:var(--green);">' + nbImportees + '</div><div style="font-size:10.5px;color:var(--text3);">Importées</div></div>'
-      + '<div style="text-align:center;"><div style="font-size:20px;font-weight:800;color:var(--gold);">' + nbDoublons + '</div><div style="font-size:10.5px;color:var(--text3);">Doublons ignorés</div></div>'
-      + '<div style="text-align:center;"><div style="font-size:20px;font-weight:800;color:' + (nbErreurs > 0 ? 'var(--red)' : 'var(--text3)') + ';">' + nbErreurs + '</div><div style="font-size:10.5px;color:var(--text3);">Mapping manquant</div></div>'
+      '<div style="background:var(--surface2);border-radius:var(--radius-sm);padding:14px;">'
+      + '<div style="font-weight:700;margin-bottom:10px;font-size:13px;">📊 Rapport d\'import</div>'
+      + '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:10px;">'
+      + '<div style="text-align:center;background:var(--surface);border-radius:var(--radius-sm);padding:10px;">'
+      + '<div style="font-size:22px;font-weight:800;color:var(--green);">' + nbImportees + '</div>'
+      + '<div style="font-size:10.5px;color:var(--text3);">Importées</div></div>'
+      + '<div style="text-align:center;background:var(--surface);border-radius:var(--radius-sm);padding:10px;">'
+      + '<div style="font-size:22px;font-weight:800;color:var(--gold);">' + nbDoublons + '</div>'
+      + '<div style="font-size:10.5px;color:var(--text3);">Doublons ignorés</div></div>'
+      + '<div style="text-align:center;background:var(--surface);border-radius:var(--radius-sm);padding:10px;">'
+      + '<div style="font-size:22px;font-weight:800;color:' + (nbErreurs > 0 ? 'var(--red)' : 'var(--text3)') + ';">' + nbErreurs + '</div>'
+      + '<div style="font-size:10.5px;color:var(--text3);">Mapping manquant</div></div>'
       + '</div>'
-      + (nbErreurs > 0 ? '<div style="margin-top:8px;font-size:12px;color:var(--red);">⚠️ ' + nbErreurs + ' commande(s) avec des produits non mappés — allez dans Stores → Mapping pour les corriger.</div>' : '')
+      + (nbErreurs > 0
+        ? '<div style="font-size:12px;color:var(--red);padding:8px 10px;background:rgba(220,38,38,0.06);border-radius:var(--radius-sm);">⚠️ '
+          + nbErreurs + ' commande(s) avec produits non mappés — allez dans <strong>Stores → Mapping</strong> pour corriger.</div>'
+        : '<div style="font-size:12px;color:var(--green);">✅ Tous les produits ont été mappés automatiquement.</div>')
       + '</div>';
 
     if (btn) { btn.disabled = false; btn.textContent = '📥 Lancer l\'import'; }
-    if (nbImportees > 0) renderEcom();
+    if (nbImportees > 0) renderEcom(true);
     toast('✅ Import terminé — ' + nbImportees + ' importée(s)', 'success');
   };
   reader.readAsText(file, 'UTF-8');
 }
+
+
 
 function _parseCSVLine(line, sep = ',') {
   const result = [];
