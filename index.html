@@ -2712,7 +2712,7 @@
       </div>
     </div>
 
-    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:12px;">
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:12px;">
       <div>
         <label class="label" style="font-size:11px;">Séparateur colonnes</label>
         <select id="csv-separator" class="input">
@@ -2727,6 +2727,15 @@
           <option value=";">; (point-virgule)</option>
           <option value="|">| (pipe)</option>
           <option value=",">, (virgule)</option>
+        </select>
+      </div>
+      <div>
+        <label class="label" style="font-size:11px;">Encodage fichier</label>
+        <select id="csv-encoding" class="input">
+          <option value="auto">Auto-détecté</option>
+          <option value="UTF-8">UTF-8</option>
+          <option value="windows-1256">Windows-1256 (arabe)</option>
+          <option value="windows-1252">Windows-1252 (latin)</option>
         </select>
       </div>
       <div style="display:flex;align-items:center;gap:6px;padding-top:18px;">

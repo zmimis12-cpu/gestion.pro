@@ -220,30 +220,28 @@ function openImportCSVModal() {
 function previewCSV() {
   const file = document.getElementById('csv-file-input').files[0];
   if (!file) return;
-  const reader = new FileReader();
-  reader.onload = e => {
-    const lines = e.target.result.split('\n').filter(l => l.trim());
+  _readCSVFile(file, text => {
+    const sep   = document.getElementById('csv-separator').value || ',';
+    const lines = text.split(/\r?\n/).filter(l => l.trim());
     const preview = document.getElementById('csv-preview');
     if (!lines.length) { preview.innerHTML = '<p style="color:var(--red);">Fichier vide</p>'; return; }
 
-    const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''));
+    const headers = _parseCSVLine(lines[0], sep).map(h => h.trim());
     preview.innerHTML = '<div style="font-size:12px;color:var(--text3);margin-bottom:8px;">Aperçu — ' + Math.min(3, lines.length-1) + ' premières lignes :</div>'
       + '<div style="overflow-x:auto;">'
       + '<table style="width:100%;font-size:11px;border-collapse:collapse;">'
       + '<thead><tr>' + headers.map(h => '<th style="text-align:left;padding:4px 8px;background:var(--surface2);font-weight:600;">' + escapeHTML(h) + '</th>').join('') + '</tr></thead>'
       + '<tbody>'
       + lines.slice(1, 4).map(l => {
-          const cols = _parseCSVLine(l);
-          return '<tr>' + cols.map(c => '<td style="padding:4px 8px;border-bottom:1px solid var(--border);">' + escapeHTML(c.slice(0, 30)) + '</td>').join('') + '</tr>';
+          const cols = _parseCSVLine(l, sep);
+          return '<tr>' + cols.map(c => '<td style="padding:4px 8px;border-bottom:1px solid var(--border);">' + escapeHTML(c.slice(0, 40)) + '</td>').join('') + '</tr>';
         }).join('')
       + '</tbody></table></div>'
       + '<div style="margin-top:8px;font-size:11px;color:var(--text3);">'
       + (lines.length - 1) + ' ligne(s) au total</div>';
 
-    // Pré-remplir les colonnes si header reconnu
     _autoDetectColumns(headers);
-  };
-  reader.readAsText(file, 'UTF-8');
+  });
 }
 
 function _autoDetectColumns(headers) {
@@ -290,9 +288,8 @@ async function launchCSVImport() {
   const btn = document.getElementById('csv-import-btn');
   if (btn) { btn.disabled = true; btn.textContent = '⏳ Importation...'; }
 
-  const reader = new FileReader();
-  reader.onload = async e => {
-    const rawLines  = e.target.result.split('\n').filter(l => l.trim());
+  async function processCSVText(text) {
+    const rawLines  = text.split(/\r?\n/).filter(l => l.trim());
     const dataLines = hasHeader ? rawLines.slice(1) : rawLines;
 
     let nbImportees = 0, nbDoublons = 0, nbErreurs = 0;
@@ -449,20 +446,82 @@ async function launchCSVImport() {
     if (btn) { btn.disabled = false; btn.textContent = '📥 Lancer l\'import'; }
     if (nbImportees > 0) renderEcom(true);
     toast('✅ Import terminé — ' + nbImportees + ' importée(s)', 'success');
-  };
-  reader.readAsText(file, 'UTF-8');
+  }
+  _readCSVFile(file, processCSVText);
 }
 
 
 
+// ════════════════════════════════════════════════════════════════
+// LECTURE FICHIER CSV — gestion encodage UTF-8 / UTF-8 BOM / Windows-1256
+// ════════════════════════════════════════════════════════════════
+function _readCSVFile(file, callback) {
+  const encodingSel = document.getElementById('csv-encoding');
+  const forcedEnc   = encodingSel ? encodingSel.value : 'auto';
+
+  function _strip(text) {
+    // Supprimer BOM UTF-8 (\uFEFF) — Excel Windows en ajoute souvent
+    return text.charCodeAt(0) === 0xFEFF ? text.slice(1) : text;
+  }
+
+  if (forcedEnc !== 'auto') {
+    // Encodage choisi manuellement par l'utilisateur
+    const r = new FileReader();
+    r.onload = e => {
+      console.info('[CSV] Encodage forcé :', forcedEnc);
+      callback(_strip(e.target.result));
+    };
+    r.onerror = () => toast('Erreur de lecture du fichier', 'error');
+    r.readAsText(file, forcedEnc);
+    return;
+  }
+
+  // Mode auto : lire en UTF-8, détecter mojibake, retenter en windows-1256
+  const r1 = new FileReader();
+  r1.onload = e => {
+    const text = _strip(e.target.result);
+
+    // Mojibake = caractères de remplacement Unicode ou séquences ANSI invalides
+    const hasMojibake = text.includes('\uFFFD');
+
+    if (hasMojibake) {
+      // Retenter en Windows-1256 (arabe Excel Windows)
+      const r2 = new FileReader();
+      r2.onload = e2 => {
+        console.info('[CSV] Encodage auto-détecté : windows-1256');
+        callback(_strip(e2.target.result));
+      };
+      r2.onerror = () => {
+        console.warn('[CSV] Échec windows-1256, retour UTF-8');
+        callback(text);
+      };
+      r2.readAsText(file, 'windows-1256');
+    } else {
+      console.info('[CSV] Encodage : UTF-8');
+      callback(text);
+    }
+  };
+  r1.onerror = () => toast('Erreur de lecture du fichier', 'error');
+  r1.readAsText(file, 'UTF-8');
+}
+
 function _parseCSVLine(line, sep = ',') {
+  // Supprimer le \r final (fichiers Windows CRLF)
+  if (line.endsWith('\r')) line = line.slice(0, -1);
+
   const result = [];
   let current = '';
   let inQuotes = false;
   for (let i = 0; i < line.length; i++) {
     const c = line[i];
     if (c === '"') {
-      inQuotes = !inQuotes;
+      // Guillemets doublés "" dans une chaîne entre guillemets = guillemet littéral
+      if (inQuotes && line[i + 1] === '"') {
+        current += '"';
+        i++;
+      } else {
+        inQuotes = !inQuotes;
+      }
     } else if (c === sep && !inQuotes) {
       result.push(current.trim());
       current = '';
