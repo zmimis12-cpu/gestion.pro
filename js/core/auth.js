@@ -1012,6 +1012,8 @@ async function loadUserData() {
         sheetsId: s.sheets_id,
         sheetsTab: s.sheets_tab || 'Sheet1',
         sheetsLastSync: s.sheets_last_sync,
+        sheetsLastRow: s.sheets_last_row || 1,
+        sheetsApiKey: s.sheets_api_key || null,
         webhookUrl: s.webhook_url,
         actif: s.actif !== false,
         createdAt: s.created_at,

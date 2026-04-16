@@ -82,12 +82,7 @@ function renderStores() {
       + '</div>'
 
       // Actions
-      + '<div style="display:flex;gap:6px;">'
-      + '<button class="btn btn-secondary btn-sm" onclick="openEditStore(\'' + s.id + '\')">✏️ Modifier</button>'
-      + '<button class="btn btn-secondary btn-sm" onclick="openStoreMappingModal(\'' + s.id + '\')">🔗 Mapping</button>'
-      + '<button class="btn btn-secondary btn-sm" onclick="navigate(\'ecom\')" title="Voir commandes">📋</button>'
-      + '<button class="btn btn-danger btn-sm" onclick="deleteStore(\'' + s.id + '\')" title="Supprimer">🗑️</button>'
-      + '</div>'
+      + '<div style="display:flex;gap:6px;flex-wrap:wrap;">'      + '<button class="btn btn-secondary btn-sm" onclick="openEditStore(\'' + s.id + '\')">✏️ Modifier</button>'      + '<button class="btn btn-secondary btn-sm" onclick="openStoreMappingModal(\'' + s.id + '\')">🔗 Mapping</button>'      + '<button class="btn btn-secondary btn-sm" onclick="navigate(\'ecom\')" title="Voir commandes">📋</button>'      + (s.sheetsEnabled        ? '<button class="btn btn-primary btn-sm" id="quick-sync-btn-' + s.id + '" onclick="quickSyncStore(\'' + s.id + '\')" title="Sync rapide">🔄 Sync</button>'          + '<button class="btn btn-secondary btn-sm" onclick="openSheetsSyncModal(\'' + s.id + '\')" title="Config Sheets">📊</button>'        : '<button class="btn btn-secondary btn-sm" onclick="openSheetsSyncModal(\'' + s.id + '\')" title="Connecter Google Sheets">📊 Sheets</button>')      + '<button class="btn btn-danger btn-sm" onclick="deleteStore(\'' + s.id + '\')" title="Supprimer">🗑️</button>'      + '</div>'
       + '</div>';
   }).join('');
 }
