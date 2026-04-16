@@ -336,31 +336,45 @@ async function saveMapping() {
 
   const nomNormalise = nomExterne.toLowerCase().trim();
 
-  // Vérifier doublon
+  // Vérifier doublon en state local
   const existing = ecomMappings.find(m => m.storeId === storeId && m.nomNormalise === nomNormalise);
   if (existing) { toast('Ce nom externe est déjà mappé pour ce store', 'warn'); return; }
 
   const prod = products.find(p => p.id === productId);
-  const mapData = {
-    id:           uid(),
-    tenant_id:    tid,
-    store_id:     storeId,
-    product_id:   productId,
-    nom_externe:  nomExterne,
-    nom_normalise: nomNormalise,
+
+  // Payload SANS id — Supabase génère l'UUID (gp_store_mapping.id = uuid)
+  const payload = {
+    tenant_id:           tid,
+    store_id:            storeId,
+    product_id:          productId,
+    nom_externe:         nomExterne,
+    nom_normalise:       nomNormalise,
     designation_digylog: prod?.name || null,
-    created_at:   new Date().toISOString(),
-    created_by:   GP_USER?.id || null,
+    created_by:          GP_USER?.id || null,
   };
 
-  try {
-    const { error } = await sb.from('gp_store_mapping').insert(mapData);
-    if (error) { toast('Erreur: ' + error.message, 'error'); return; }
+  console.log('[saveMapping] payload:', JSON.stringify(payload));
 
+  try {
+    const { data: inserted, error } = await sb.from('gp_store_mapping')
+      .insert(payload)
+      .select('id')
+      .single();
+
+    if (error) {
+      console.error('[saveMapping] error:', error);
+      toast('Erreur: ' + error.message, 'error');
+      return;
+    }
+
+    // Mettre à jour le state local avec l'UUID réel retourné
     ecomMappings.push({
-      id: mapData.id, storeId, productId,
-      nomExterne, nomNormalise,
-      designationDigylog: mapData.designation_digylog,
+      id:                  inserted.id,
+      storeId,
+      productId,
+      nomExterne,
+      nomNormalise,
+      designationDigylog:  prod?.name || null,
     });
 
     document.getElementById('mapping-nom-externe').value = '';
@@ -368,6 +382,7 @@ async function saveMapping() {
     renderMappingList();
     toast('✅ Mapping sauvegardé', 'success');
   } catch (e) {
+    console.error('[saveMapping] exception:', e);
     toast('Erreur: ' + e.message, 'error');
   }
 }
