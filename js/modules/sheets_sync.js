@@ -67,13 +67,16 @@ async function launchSheetsSync() {
   btn.disabled = true; btn.textContent = '⏳ Synchronisation...';
 
   try {
-    const token = sb.auth.session?.access_token;
+    const { data: sessionData } = await sb.auth.getSession();
+    const token = sessionData?.session?.access_token;
+    if (!token) throw new Error('Session expirée — veuillez vous reconnecter');
+
     const resp = await fetch(SHEETS_SYNC_FUNCTION_URL, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
+        'Content-Type':  'application/json',
         'Authorization': 'Bearer ' + token,
-        'apikey': GP_SUPABASE_ANON_KEY,
+        'apikey':        GP_SUPABASE_ANON_KEY,
       },
       body: JSON.stringify({ store_id: storeId, tenant_id: tid, sync_mode: syncMode }),
     });
@@ -113,13 +116,16 @@ async function quickSyncStore(storeId) {
   if (btn) { btn.disabled = true; btn.textContent = '⏳'; }
 
   try {
-    const token = (await sb.auth.getSession())?.data?.session?.access_token;
-    const resp  = await fetch(SHEETS_SYNC_FUNCTION_URL, {
+    const { data: qSessionData } = await sb.auth.getSession();
+    const token = qSessionData?.session?.access_token;
+    if (!token) throw new Error('Session expirée');
+
+    const resp = await fetch(SHEETS_SYNC_FUNCTION_URL, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
+        'Content-Type':  'application/json',
         'Authorization': 'Bearer ' + token,
-        'apikey': GP_SUPABASE_ANON_KEY,
+        'apikey':        GP_SUPABASE_ANON_KEY,
       },
       body: JSON.stringify({
         store_id: storeId,
