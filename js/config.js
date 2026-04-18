@@ -685,3 +685,6 @@ var TRANSLATIONS = {
 const SUPABASE_URL  = 'https://xyaispmikggrgjczyghk.supabase.co';
 const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh5YWlzcG1pa2dncmdqY3p5Z2hrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE3OTc4NjUsImV4cCI6MjA4NzM3Mzg2NX0.ohiqpHyEuzMyhPLoktFe7SakgfnRRj2TT4ysuQOER3o';
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+// Aliases pour Edge Functions
+const GP_SUPABASE_URL     = SUPABASE_URL;
+const GP_SUPABASE_ANON_KEY = SUPABASE_ANON;

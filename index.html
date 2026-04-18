@@ -2616,28 +2616,49 @@
       <textarea id="store-notes" class="input" rows="2" placeholder="Notes internes..."></textarea>
     </div>
 
+    <!-- Section Google Sheets (service account) -->
     <div style="background:var(--surface2);border-radius:var(--radius-sm);padding:12px;margin-bottom:12px;">
-      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
         <input id="store-sheets-enabled" type="checkbox" onchange="toggleSheetsConfig()" style="width:16px;height:16px;cursor:pointer;">
-        <label style="font-size:13px;font-weight:600;cursor:pointer;" onclick="document.getElementById('store-sheets-enabled').click()">📊 Activer intégration Google Sheets</label>
+        <label style="font-size:13px;font-weight:600;cursor:pointer;" onclick="document.getElementById('store-sheets-enabled').click()">📊 Google Sheets — Sync automatique</label>
       </div>
       <div id="sheets-config-block" style="display:none;">
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+        <div style="font-size:11px;color:var(--text3);margin-bottom:8px;padding:6px 8px;background:rgba(37,99,235,0.06);border-radius:var(--radius-sm);">
+          Partagez votre Sheet avec : <strong style="color:var(--accent);font-family:var(--font-mono),monospace;font-size:10.5px;" id="sa-email-display">chargement...</strong>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
           <div>
-            <label class="label" style="font-size:11px;">ID du Google Sheet</label>
-            <input id="store-sheets-id" type="text" class="input" placeholder="1BxiMVs0XRA...">
+            <label class="label" style="font-size:11px;">ID du Google Sheet *</label>
+            <input id="store-sheets-id" type="text" class="input" placeholder="1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgVE2upms"
+              style="font-family:var(--font-mono),monospace;font-size:11px;">
           </div>
           <div>
-            <label class="label" style="font-size:11px;">Onglet</label>
+            <label class="label" style="font-size:11px;">Nom de l'onglet</label>
             <input id="store-sheets-tab" type="text" class="input" value="Sheet1">
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+          <div>
+            <label class="label" style="font-size:11px;">Ligne de début (après headers)</label>
+            <input id="store-sheets-row-start" type="number" class="input" value="2" min="1">
           </div>
         </div>
       </div>
     </div>
 
-    <div style="margin-bottom:16px;">
-      <label class="label">URL Webhook (optionnel)</label>
-      <input id="store-webhook-url" type="text" class="input" placeholder="https://...">
+    <!-- Section DIGYLOG -->
+    <div style="background:var(--surface2);border-radius:var(--radius-sm);padding:12px;margin-bottom:12px;">
+      <div style="font-size:13px;font-weight:600;margin-bottom:8px;color:var(--text);">🚚 Configuration DIGYLOG</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+        <div>
+          <label class="label" style="font-size:11px;">Nom store DIGYLOG</label>
+          <input id="store-digylog-name" type="text" class="input" placeholder="HichouxStore">
+        </div>
+        <div>
+          <label class="label" style="font-size:11px;">Network ID</label>
+          <input id="store-digylog-network" type="number" class="input" placeholder="1">
+        </div>
+      </div>
     </div>
 
     <div class="modal-actions">
@@ -2809,69 +2830,57 @@
 </div>
 
 
-<!-- ═══ MODAL SYNC GOOGLE SHEETS ════════════════════════════════ -->
+<!-- ═══ MODAL SYNC GOOGLE SHEETS (Service Account) ═════════════ -->
 <div class="modal-overlay" id="modal-sheets-sync">
-  <div class="modal" style="max-width:620px;max-height:88vh;display:flex;flex-direction:column;">
+  <div class="modal" style="max-width:580px;max-height:85vh;display:flex;flex-direction:column;">
     <div class="modal-title">📊 Synchronisation Google Sheets</div>
 
-    <!-- Store info -->
+    <!-- Store actif -->
     <div style="background:var(--accent-light);border-radius:var(--radius-sm);padding:8px 12px;margin-bottom:14px;font-size:13px;font-weight:600;color:var(--accent);">
       🏪 <span id="sync-store-name">—</span>
     </div>
 
-    <!-- Config Sheet -->
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
-      <div style="grid-column:1/-1;">
-        <label class="label" style="font-size:11px;">ID du Google Sheet *</label>
-        <input id="sync-sheet-id" type="text" class="input" placeholder="1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgVE2upms"
-          style="font-family:var(--font-mono),monospace;font-size:12px;">
-        <div style="font-size:10.5px;color:var(--text3);margin-top:3px;">
-          Dans l'URL : docs.google.com/spreadsheets/d/<strong>[ID ici]</strong>/edit
-        </div>
-      </div>
-      <div>
-        <label class="label" style="font-size:11px;">Nom de l'onglet</label>
-        <input id="sync-sheet-tab" type="text" class="input" value="Sheet1" placeholder="Sheet1, Commandes...">
-      </div>
-      <div>
-        <label class="label" style="font-size:11px;">Google Sheets API Key *</label>
-        <input id="sync-api-key" type="text" class="input" placeholder="AIzaSy..."
-          style="font-family:var(--font-mono),monospace;font-size:12px;">
+    <!-- Config actuelle du store -->
+    <div style="background:var(--surface2);border-radius:var(--radius-sm);padding:10px 12px;margin-bottom:12px;font-size:12px;">
+      <div style="display:grid;grid-template-columns:auto 1fr;gap:4px 12px;">
+        <span style="color:var(--text3);">Sheet ID :</span>
+        <span id="sync-sheet-id-display" style="font-family:var(--font-mono),monospace;font-size:11px;color:var(--text);">—</span>
+        <span style="color:var(--text3);">Onglet :</span>
+        <span id="sync-sheet-tab-display" style="color:var(--text);">—</span>
       </div>
     </div>
 
-    <!-- Mode sync -->
-    <div style="display:flex;gap:8px;align-items:center;margin-bottom:12px;">
-      <label class="label" style="margin:0;font-size:11px;white-space:nowrap;">Mode :</label>
-      <select id="sync-mode" class="input" style="max-width:240px;">
-        <option value="new">Nouvelles lignes uniquement (depuis dernière sync)</option>
-        <option value="all">Tout reimporter (depuis ligne 2)</option>
-      </select>
+    <!-- Instructions partage -->
+    <div style="background:rgba(37,99,235,0.06);border:1px solid rgba(37,99,235,0.15);border-radius:var(--radius-sm);padding:10px 12px;margin-bottom:12px;">
+      <div style="font-size:12px;font-weight:700;color:var(--accent);margin-bottom:4px;">📋 Partage requis</div>
+      <div style="font-size:11.5px;color:var(--text2);">Partagez votre Google Sheet avec ce compte :</div>
+      <div style="font-family:var(--font-mono),monospace;font-size:12px;color:var(--accent);font-weight:700;padding:4px 0;word-break:break-all;" id="sync-sa-email">chargement...</div>
+      <div style="font-size:10.5px;color:var(--text3);">Partager → Tout le monde → Lecteur (pas besoin de rendre public)</div>
     </div>
 
-    <!-- Dernier sync -->
-    <div id="sync-last-info" style="font-size:11.5px;color:var(--text3);margin-bottom:10px;display:none;"></div>
-
-    <!-- Aide rapide -->
-    <div style="background:var(--surface2);border-radius:var(--radius-sm);padding:10px 12px;margin-bottom:12px;font-size:11.5px;color:var(--text2);">
-      <strong>📋 Prérequis :</strong> Sheet partagé en lecture publique
-      (<em>Partager → Tout le monde avec le lien → Lecteur</em>)
-      · Ligne 1 = en-têtes (Order Reference, Name, Phone, City, COD Amount, Product SKU…)
+    <!-- Message si pas configuré -->
+    <div id="sync-no-config-msg" style="padding:12px;background:rgba(245,158,11,0.07);border-radius:var(--radius-sm);font-size:12px;color:var(--gold);margin-bottom:12px;">
+      ⚠️ Ce store n'a pas encore de Google Sheet configuré. Modifiez le store pour ajouter l'ID du Sheet.
     </div>
 
-    <!-- Résultat détection colonnes -->
-    <div id="sync-col-map" style="display:none;margin-bottom:12px;overflow-y:auto;max-height:220px;"></div>
+    <!-- Section sync -->
+    <div id="sync-launch-section">
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:12px;">
+        <label class="label" style="margin:0;font-size:11px;white-space:nowrap;">Mode :</label>
+        <select id="sync-mode" class="input" style="max-width:280px;">
+          <option value="new">Nouvelles lignes uniquement (depuis dernière sync)</option>
+          <option value="all">Tout réimporter (depuis début)</option>
+        </select>
+      </div>
+      <div id="sync-last-info" style="font-size:11.5px;color:var(--text3);margin-bottom:10px;display:none;"></div>
+    </div>
 
-    <!-- Résultat sync -->
-    <div id="sync-result" style="display:none;margin-bottom:12px;"></div>
-    <div id="sync-preview" style="display:none;"></div>
+    <!-- Résultat -->
+    <div id="sync-result" style="display:none;margin-bottom:8px;"></div>
 
     <div class="modal-actions" style="flex-shrink:0;">
       <button class="btn btn-secondary" onclick="closeModal('modal-sheets-sync')">Fermer</button>
-      <button id="sync-detect-btn" class="btn btn-secondary" onclick="detectSheetColumns()"
-        style="border-color:var(--accent);color:var(--accent);">🔍 Détecter colonnes</button>
-      <button id="sync-launch-btn" class="btn btn-primary" onclick="launchSheetsSync()"
-        style="display:none;">🔄 Lancer la sync</button>
+      <button id="sync-launch-btn" class="btn btn-primary" onclick="launchSheetsSync()">🔄 Lancer la sync</button>
     </div>
   </div>
 </div>

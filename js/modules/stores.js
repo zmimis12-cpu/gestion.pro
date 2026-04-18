@@ -102,7 +102,9 @@ function openNewStore() {
   document.getElementById('store-sheets-enabled').checked = false;
   document.getElementById('store-sheets-id').value = '';
   document.getElementById('store-sheets-tab').value = 'Sheet1';
-  document.getElementById('store-webhook-url').value = '';
+  document.getElementById('store-digylog-name').value = '';
+  document.getElementById('store-digylog-network').value = '';
+  document.getElementById('store-sheets-row-start').value = '2';
   document.getElementById('modal-store-title').textContent = '🏪 Nouveau Store';
   toggleSheetsConfig();
   openModal('modal-store');
@@ -123,7 +125,9 @@ function openEditStore(id) {
   document.getElementById('store-sheets-enabled').checked = s.sheetsEnabled || false;
   document.getElementById('store-sheets-id').value = s.sheetsId || '';
   document.getElementById('store-sheets-tab').value = s.sheetsTab || 'Sheet1';
-  document.getElementById('store-webhook-url').value = s.webhookUrl || '';
+  document.getElementById('store-digylog-name').value    = s.digylogStoreName || '';
+  document.getElementById('store-digylog-network').value  = s.digylogNetworkId || '';
+  document.getElementById('store-sheets-row-start').value = s.sheetsRowStart || 2;
   document.getElementById('modal-store-title').textContent = '✏️ Modifier Store';
   toggleSheetsConfig();
   openModal('modal-store');
@@ -160,7 +164,9 @@ async function saveStore() {
     sheets_enabled:   document.getElementById('store-sheets-enabled').checked,
     sheets_id:        document.getElementById('store-sheets-id').value.trim() || null,
     sheets_tab:       document.getElementById('store-sheets-tab').value.trim() || 'Sheet1',
-    webhook_url:      document.getElementById('store-webhook-url').value.trim() || null,
+    digylog_store_name: document.getElementById('store-digylog-name').value.trim() || null,
+    digylog_network_id: parseInt(document.getElementById('store-digylog-network').value) || null,
+    sheets_row_start:   parseInt(document.getElementById('store-sheets-row-start').value) || 2,
     updated_at:       new Date().toISOString(),
   };
 

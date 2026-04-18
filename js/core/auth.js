@@ -1013,8 +1013,9 @@ async function loadUserData() {
         sheetsTab: s.sheets_tab || 'Sheet1',
         sheetsLastSync: s.sheets_last_sync,
         sheetsLastRow: s.sheets_last_row || 1,
-        sheetsApiKey: s.sheets_api_key || null,
-        webhookUrl: s.webhook_url,
+        sheetsRowStart: s.sheets_row_start || 2,
+        digylogStoreName: s.digylog_store_name,
+        digylogNetworkId: s.digylog_network_id,
         actif: s.actif !== false,
         createdAt: s.created_at,
       }));
