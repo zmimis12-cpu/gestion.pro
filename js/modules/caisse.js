@@ -743,7 +743,7 @@ function buildInvoiceHTML(sale) {
     color: #222;
     background: #fff;
     width: 210mm;
-    min-height: 297mm;
+    min-height: auto;
     padding: 15mm 15mm 20mm;
     box-sizing: border-box;
     position: relative;
@@ -851,7 +851,7 @@ function buildInvoiceHTML(sale) {
     </div>
 
     <!-- FOOTER -->
-    <div style="position:absolute;bottom:15mm;left:15mm;right:15mm;border-top:1px solid #ddd;padding-top:12px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;font-size:10.5px;color:#555;line-height:1.7;">
+    <div class="invoice-footer" style="margin-top:40px;border-top:1px solid #ddd;padding-top:12px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;font-size:10.5px;color:#555;line-height:1.7;">
       <div>
         <strong style="color:#222;font-size:11px;">${settings.storeName || 'Mon Entreprise'}</strong><br>
         ${settings.storeAddress || ''}<br>
@@ -913,10 +913,32 @@ function switchDocType(type) {
 }
 
 function printInvoice() {
-  const printEl = document.getElementById('receipt-print');
-  printEl.style.display = 'block';
-  window.print();
-  printEl.style.display = 'none';
+  // Récupérer le HTML déjà généré dans receipt-content
+  const sourceEl = document.getElementById('receipt-content');
+  if (!sourceEl) return;
+
+  // Déterminer le type de document
+  const isFacture = (currentDocType === 'facture');
+
+  // Injecter dans le conteneur d'impression isolé
+  const printRoot = document.getElementById('invoice-print-root');
+  if (!printRoot) return;
+
+  // Enveloppe avec le bon style selon le type
+  printRoot.innerHTML = isFacture
+    ? sourceEl.innerHTML
+    : '<div style="display:flex;justify-content:center;align-items:flex-start;min-height:100vh;background:#fff;padding:20px;">'
+      + sourceEl.innerHTML
+      + '</div>';
+
+  // Laisser le navigateur rendre le contenu avant d'imprimer
+  requestAnimationFrame(() => {
+    setTimeout(() => {
+      window.print();
+      // Nettoyer après impression
+      setTimeout(() => { printRoot.innerHTML = ''; }, 500);
+    }, 150);
+  });
 }
 
 function buildReceiptHTML(sale) {
