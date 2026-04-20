@@ -913,32 +913,118 @@ function switchDocType(type) {
 }
 
 function printInvoice() {
-  // Récupérer le HTML déjà généré dans receipt-content
+  // 1. Récupérer le HTML de la facture depuis receipt-content
   const sourceEl = document.getElementById('receipt-content');
-  if (!sourceEl) return;
+  if (!sourceEl || !sourceEl.innerHTML.trim()) {
+    toast('Aucune facture à imprimer', 'warn');
+    return;
+  }
 
-  // Déterminer le type de document
   const isFacture = (currentDocType === 'facture');
 
-  // Injecter dans le conteneur d'impression isolé
-  const printRoot = document.getElementById('invoice-print-root');
-  if (!printRoot) return;
+  // 2. Construire le document HTML complet pour l'impression
+  //    Inclure les styles inline + les styles de la facture
+  const printStyles = `
+    <style>
+      @page { size: A4 portrait; margin: 12mm 15mm 15mm; }
+      * { box-sizing: border-box; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+      body { margin: 0; padding: 0; background: #fff; font-family: Arial, Helvetica, sans-serif; }
 
-  // Enveloppe avec le bon style selon le type
-  printRoot.innerHTML = isFacture
-    ? sourceEl.innerHTML
-    : '<div style="display:flex;justify-content:center;align-items:flex-start;min-height:100vh;background:#fff;padding:20px;">'
-      + sourceEl.innerHTML
-      + '</div>';
+      /* ── Facture A4 ── */
+      .invoice-a4 {
+        width: 210mm; max-width: 100%; margin: 0 auto;
+        font-family: Arial, sans-serif; font-size: 12px; color: #1a1a1a; background: #fff;
+      }
+      .invoice-a4 table { width: 100%; border-collapse: collapse; }
+      .invoice-a4 table tr { page-break-inside: avoid; }
+      .invoice-a4 table thead { display: table-header-group; }
+      .invoice-a4 table td, .invoice-a4 table th { padding: 8px 10px; font-size: 11.5px; }
+      .invoice-footer { margin-top: 30px; page-break-inside: avoid; }
 
-  // Laisser le navigateur rendre le contenu avant d'imprimer
-  requestAnimationFrame(() => {
+      /* ── Reçu thermique ── */
+      .receipt-wrap { width: 80mm; margin: 0 auto; font-size: 11px; }
+      .receipt-header { background: #1a3a6b; color: #fff; padding: 16px; text-align: center; border-radius: 6px 6px 0 0; }
+      .receipt-store { font-size: 18px; font-weight: 900; }
+      .receipt-subtitle { font-size: 11px; color: rgba(255,255,255,0.65); margin-top: 2px; }
+      .receipt-badge { display: inline-block; background: rgba(255,255,255,0.15); padding: 3px 10px; border-radius: 20px; font-size: 10px; margin-top: 8px; }
+      .receipt-tear { height: 12px; background: repeating-linear-gradient(90deg, #f0f0f0 0px, #f0f0f0 8px, #fff 8px, #fff 16px); margin: 0; }
+      .receipt-body { padding: 12px; background: #fff; }
+      .receipt-meta { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; background: #f8f9fb; border-radius: 6px; padding: 10px; margin-bottom: 10px; }
+      .receipt-meta-item { font-size: 10px; }
+      .receipt-meta-label { color: #888; margin-bottom: 2px; }
+      .receipt-meta-value { font-weight: 700; font-size: 11px; color: #222; }
+      .receipt-items-header { display: grid; grid-template-columns: 1fr auto auto; gap: 6px; border-bottom: 1px solid #ddd; padding: 6px 0; font-size: 10px; font-weight: 700; color: #555; margin-bottom: 4px; }
+      .receipt-item { display: grid; grid-template-columns: 1fr auto auto; gap: 6px; padding: 5px 0; border-bottom: 1px solid #f0f0f0; align-items: start; }
+      .receipt-item-name { font-size: 11px; font-weight: 600; }
+      .receipt-item-name span { display: block; font-size: 10px; color: #777; font-weight: 400; }
+      .receipt-item-qty, .receipt-item-price { font-size: 11px; font-weight: 700; text-align: right; white-space: nowrap; }
+      .receipt-totals { background: #1a3a6b; color: #fff; border-radius: 0 0 6px 6px; padding: 12px; }
+      .receipt-total-row { display: flex; justify-content: space-between; align-items: center; font-size: 12px; margin-bottom: 4px; }
+      .receipt-grand-total { display: flex; justify-content: space-between; align-items: center; font-size: 16px; font-weight: 900; border-top: 1px solid rgba(255,255,255,0.2); padding-top: 8px; margin-top: 4px; }
+      .receipt-grand-amount { color: #7ec8e3; }
+      .receipt-footer { padding: 10px; text-align: center; font-size: 10px; color: #999; border-top: 1px dashed #ddd; margin-top: 8px; }
+    </style>
+  `;
+
+  const contentHTML = sourceEl.innerHTML;
+
+  // 3. Ouvrir une fenêtre d'impression dédiée — jamais de blank page
+  const printWin = window.open('', '_blank', 'width=900,height=700');
+  if (!printWin) {
+    // Si popup bloqué → fallback body-swap
+    _printBodySwap(contentHTML, printStyles);
+    return;
+  }
+
+  printWin.document.write(`<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${isFacture ? 'Facture' : 'Reçu'} — ${settings.storeName || 'GestionPro'}</title>
+  ${printStyles}
+</head>
+<body>
+  ${contentHTML}
+  <script>
+    window.onload = function() {
+      setTimeout(function() {
+        window.print();
+        setTimeout(function() { window.close(); }, 800);
+      }, 250);
+    };
+  </script>
+</body>
+</html>`);
+  printWin.document.close();
+}
+
+// Fallback si popup bloqué par le navigateur
+function _printBodySwap(contentHTML, printStyles) {
+  const originalHTML = document.documentElement.innerHTML;
+  try {
+    document.open();
+    document.write(`<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>Facture</title>
+  ${printStyles}
+</head>
+<body>${contentHTML}</body>
+</html>`);
+    document.close();
     setTimeout(() => {
       window.print();
-      // Nettoyer après impression
-      setTimeout(() => { printRoot.innerHTML = ''; }, 500);
-    }, 150);
-  });
+      setTimeout(() => {
+        document.open();
+        document.write('<!DOCTYPE html><html>' + originalHTML + '</html>');
+        document.close();
+      }, 800);
+    }, 250);
+  } catch(e) {
+    location.reload();
+  }
 }
 
 function buildReceiptHTML(sale) {

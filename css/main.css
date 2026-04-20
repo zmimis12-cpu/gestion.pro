@@ -3773,25 +3773,25 @@ select, textarea { font-size: 13.5px; padding: 8.5px 11px; }
 ================================================================ */
 
 @media print {
-  /* ── Masquer TOUT sauf la facture ── */
-  body > *                  { display: none !important; }
-  .modal-overlay            { display: none !important; }
-  #toast-container          { display: none !important; }
-  nav, .topbar, .sidebar    { display: none !important; }
+  /* ── Masquer tout le shell UI ── */
+  .sidebar, nav, .topbar,
+  .modal-overlay, #toast-container,
+  #invoice-print-root          { display: none !important; }
 
-  /* ── Afficher uniquement #invoice-print-root ── */
-  #invoice-print-root {
+  /* ── Révéler uniquement #invoice-print-root quand il a du contenu ── */
+  /* Remplacé par body-swap côté JS — ce block reste pour fallback */
+  body.printing-invoice #invoice-print-root {
     display: block !important;
-    position: fixed !important;
-    inset: 0 !important;
-    z-index: 99999 !important;
-    background: #fff !important;
   }
+  body.printing-invoice .sidebar,
+  body.printing-invoice nav,
+  body.printing-invoice .topbar,
+  body.printing-invoice .modal-overlay { display: none !important; }
 
   /* ── Page A4 ── */
   @page {
     size: A4 portrait;
-    margin: 0;
+    margin: 12mm 15mm 15mm;
   }
 
   html, body {
@@ -3805,48 +3805,29 @@ select, textarea { font-size: 13.5px; padding: 8.5px 11px; }
 
   /* ── Conteneur facture A4 ── */
   .invoice-a4 {
-    width: 210mm !important;
-    min-height: 297mm !important;
-    margin: 0 !important;
-    padding: 15mm 15mm 22mm !important;
-    box-sizing: border-box !important;
+    width: 100% !important;
+    max-width: 210mm !important;
+    margin: 0 auto !important;
+    padding: 0 !important;
     font-family: Arial, Helvetica, sans-serif !important;
     font-size: 12px !important;
     color: #1a1a1a !important;
     background: #fff !important;
     box-shadow: none !important;
-    page-break-inside: avoid;
   }
 
-  /* ── Tableau items ── */
-  .invoice-a4 table {
-    width: 100% !important;
-    border-collapse: collapse !important;
-  }
-
-  .invoice-a4 table thead tr {
-    -webkit-print-color-adjust: exact !important;
-    print-color-adjust: exact !important;
-  }
-
+  /* ── Tableau ── */
+  .invoice-a4 table      { width: 100% !important; border-collapse: collapse !important; }
+  .invoice-a4 table tr   { page-break-inside: avoid; }
+  .invoice-a4 table thead { display: table-header-group; }
+  .invoice-a4 table tfoot { display: table-footer-group; }
   .invoice-a4 table td,
-  .invoice-a4 table th {
-    padding: 8px 10px !important;
-    border-bottom: 1px solid #e0e0e0 !important;
-    font-size: 11.5px !important;
-  }
+  .invoice-a4 table th   { padding: 8px 10px !important; font-size: 11.5px !important; }
 
-  /* ── Éviter les coupures au mauvais endroit ── */
-  .invoice-a4 tr               { page-break-inside: avoid; }
-  .invoice-a4 thead            { display: table-header-group; }
-  .invoice-a4 tfoot            { display: table-footer-group; }
-
-  /* ── Footer de facture fixé en bas ── */
-  .invoice-a4 .invoice-footer {
-    position: fixed !important;
-    bottom: 12mm !important;
-    left: 15mm !important;
-    right: 15mm !important;
+  /* ── Footer ── */
+  .invoice-footer {
+    margin-top: 30px !important;
+    page-break-inside: avoid;
   }
 
   /* ── Reçu thermique ── */
@@ -3857,12 +3838,7 @@ select, textarea { font-size: 13.5px; padding: 8.5px 11px; }
   }
 }
 
-/* ── Conteneur print isolé (hors DOM visible) ── */
+/* ── Conteneur print isolé — masqué à l'écran, utilisé via JS body-swap ── */
 #invoice-print-root {
   display: none;
-  position: fixed;
-  inset: 0;
-  z-index: -1;
-  background: #fff;
-  overflow: auto;
 }
