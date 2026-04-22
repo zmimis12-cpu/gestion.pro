@@ -22,7 +22,13 @@ function navigate(page) {
   }
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-  document.getElementById('page-' + page).classList.add('active');
+  // Activer la page — robuste si élément manquant
+  const pageEl = document.getElementById('page-' + page);
+  if (!pageEl) {
+    console.error('[Nav] Page introuvable : page-' + page + ' — vérifiez que id="page-' + page + '" existe dans index.html');
+    return;
+  }
+  pageEl.classList.add('active');
   // Trouver le bon nav-item par son onclick — insensible aux items cachés
   document.querySelectorAll('.nav-item[onclick]').forEach(el => {
     const match = el.getAttribute('onclick').match(/navigate\('([^']+)'\)/);
