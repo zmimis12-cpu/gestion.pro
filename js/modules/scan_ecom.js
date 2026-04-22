@@ -491,7 +491,8 @@ async function _saveScanMappings() {
     if (!productId) { toast('Sélectionnez un produit pour chaque ligne', 'error'); return; }
 
     const nomExterne   = lines[i].nomExterne;
-    const nomNormalise = nomExterne.toLowerCase().trim();
+    const nomNormalise = normalizeName(nomExterne);
+    console.log('[scanMapping]', JSON.stringify(nomExterne), '→', JSON.stringify(nomNormalise));
 
     // Insérer le mapping
     const { data: ins, error } = await sb.from('gp_store_mapping').insert({

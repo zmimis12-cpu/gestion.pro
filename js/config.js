@@ -688,3 +688,24 @@ const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
 // Aliases pour Edge Functions
 const GP_SUPABASE_URL     = SUPABASE_URL;
 const GP_SUPABASE_ANON_KEY = SUPABASE_ANON;
+
+// ── normalizeName — normalisation robuste pour l'arabe et tous Unicode ──
+// Utilisé partout : import CSV, saveMapping, resolveMappingProduct, scan
+function normalizeName(str) {
+  if (!str) return '';
+  return String(str)
+    // 1. Normalisation Unicode NFC (compose les caractères décomposés)
+    .normalize('NFC')
+    // 2. Supprimer les caractères de contrôle et invisibles Unicode
+    //    RTL/LTR marks, zero-width spaces, BOM, soft hyphens, etc.
+    .replace(/[\u0000-\u001F\u007F-\u009F\u200B-\u200F\u202A-\u202E\u2060-\u2064\uFEFF\u00AD]/g, '')
+    // 3. Remplacer les espaces non-standards par un espace normal
+    //    (non-breaking space, thin space, etc.)
+    .replace(/[\u00A0\u1680\u2000-\u200A\u202F\u205F\u3000]/g, ' ')
+    // 4. Mettre en minuscule
+    .toLowerCase()
+    // 5. Normaliser les espaces multiples en un seul
+    .replace(/\s+/g, ' ')
+    // 6. Trim final
+    .trim();
+}

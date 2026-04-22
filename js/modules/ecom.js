@@ -319,9 +319,11 @@ async function launchCSVImport() {
         const qte        = parseInt(parts[1]) || 1;
         if (!nomExterne) continue;
 
-        const resolved = resolveMappingProduct(storeId, nomExterne);
+        const nomExterneClean = normalizeName(nomExterne);
+        console.log('[CSV import] produit brut:', JSON.stringify(nomExterne), '→ normalisé:', JSON.stringify(nomExterneClean));
+        const resolved = resolveMappingProduct(storeId, nomExterneClean);
         pendingLines.push({
-          nom_externe:   nomExterne,
+          nom_externe:   nomExterneClean,
           product_id:    resolved.found ? resolved.productId : null,
           qte:           qte,
           prix_unitaire: 0,
@@ -339,7 +341,7 @@ async function launchCSVImport() {
           store_id:         storeId,
           num:              num,
           source:           'csv',
-          client_nom:       (cols[colClient]  || '').trim(),
+          client_nom:       (cols[colClient]  || '').replace(/[\u200B-\u200F\uFEFF]/g,'').trim(),
           client_tel:       (cols[colTel]     || '').trim(),
           client_adresse:   (cols[colAdresse] || '').trim(),
           client_ville:     (cols[colVille]   || '').trim(),

@@ -1028,8 +1028,8 @@ async function loadUserData() {
       ecomMappings = (mappingsData || []).map(m => ({
         id: m.id, tenantId: m.tenant_id,
         storeId: m.store_id, productId: m.product_id,
-        nomExterne: m.nom_externe,
-        nomNormalise: m.nom_normalise,
+        nomExterne:   m.nom_externe,
+        nomNormalise: normalizeName(m.nom_externe),  // re-normaliser au chargement
         designationDigylog: m.designation_digylog,
         refDigylog: m.ref_digylog,
         notes: m.notes, actif: m.actif !== false,

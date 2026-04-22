@@ -335,7 +335,8 @@ async function saveMapping() {
   if (!productId)  { toast('Sélectionnez un produit interne', 'error'); return; }
   if (!storeId)    { toast('Aucun store sélectionné', 'error'); return; }
 
-  const nomNormalise = nomExterne.toLowerCase().trim();
+  const nomNormalise = normalizeName(nomExterne);
+  console.log('[saveMapping] nomExterne:', JSON.stringify(nomExterne), '→ normalisé:', JSON.stringify(nomNormalise));
 
   // Vérifier doublon en state local
   const existing = ecomMappings.find(m => m.storeId === storeId && m.nomNormalise === nomNormalise);
@@ -403,8 +404,10 @@ async function deleteMapping(id) {
 
 // Résolution mapping (utilisée par import CSV et futur scan)
 function resolveMappingProduct(storeId, nomExterne) {
-  const nomNormalise = (nomExterne || '').toLowerCase().trim();
+  const nomNormalise = normalizeName(nomExterne);
   const mapping = ecomMappings.find(m => m.storeId === storeId && m.nomNormalise === nomNormalise);
+  console.log('[resolveMapping]', JSON.stringify(nomExterne), '→', JSON.stringify(nomNormalise),
+    '→', mapping ? '✅ trouvé: ' + mapping.productId : '❌ non trouvé');
   if (mapping) {
     const prod = products.find(p => p.id === mapping.productId);
     return { found: true, productId: mapping.productId, product: prod, auto: true };
