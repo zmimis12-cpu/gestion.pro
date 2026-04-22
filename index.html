@@ -1405,37 +1405,86 @@
 
 <!-- ═══════════════════════════════ SCANNER E-COM ═══════════════════════════ -->
       <div class="page" id="page-scan-ecom">
-        <!-- Mode switcher -->
-        <div style="display:flex;gap:8px;margin-bottom:16px;align-items:center;flex-wrap:wrap;">
-          <button id="scan-btn-sortie" class="btn" onclick="setScanMode('sortie')"
-            style="padding:10px 20px;border-radius:var(--radius-sm);border:none;cursor:pointer;font-weight:700;font-size:13px;">
-            📦 Sortie
-          </button>
-          <button id="scan-btn-retour" class="btn" onclick="setScanMode('retour')"
-            style="padding:10px 20px;border-radius:var(--radius-sm);border:none;cursor:pointer;font-weight:700;font-size:13px;">
-            ↩️ Retour
-          </button>
-          <div style="flex:1;display:flex;gap:8px;">
-            <input id="scan-tracking-input" type="text" class="input"
-              placeholder="📦 Scan tracking sortie..." style="flex:1;font-size:14px;padding:10px 14px;"
-              onkeydown="onScanKeydown(event)" autocomplete="off" autofocus>
-            <button class="btn btn-primary" onclick="processScan()" style="padding:10px 20px;">✅ Valider</button>
+
+        <!-- Bandeau mode + input — toujours visible en haut -->
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);padding:14px 16px;margin-bottom:14px;">
+
+          <!-- Mode switcher -->
+          <div style="display:flex;gap:8px;margin-bottom:12px;">
+            <button id="scan-btn-sortie" onclick="setScanMode('sortie')"
+              style="flex:1;padding:12px;border-radius:var(--radius-sm);border:2px solid var(--green);background:var(--green);color:#fff;font-weight:800;font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;">
+              📤 SORTIE
+            </button>
+            <button id="scan-btn-retour" onclick="setScanMode('retour')"
+              style="flex:1;padding:12px;border-radius:var(--radius-sm);border:2px solid var(--border2);background:var(--surface2);color:var(--text2);font-weight:800;font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;">
+              ↩️ RETOUR
+            </button>
+          </div>
+
+          <!-- Champ scan — grand, toujours focus -->
+          <div style="position:relative;">
+            <input id="scan-tracking-input" type="text"
+              placeholder="📡 Scanner le code-barres ou saisir le tracking..."
+              autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
+              style="width:100%;font-size:18px;font-weight:700;font-family:var(--font-mono),monospace;
+                     padding:14px 60px 14px 16px;border:2px solid var(--border2);
+                     border-radius:var(--radius-sm);background:var(--surface2);
+                     color:var(--text);outline:none;box-sizing:border-box;letter-spacing:1px;"
+              onkeydown="onScanKeydown(event)"
+              onfocus="this.style.borderColor='var(--accent)'"
+              onblur="this.style.borderColor='var(--border2)';setTimeout(()=>this.focus(),100)">
+            <span id="scan-spinner" style="display:none;position:absolute;right:16px;top:50%;transform:translateY(-50%);font-size:20px;">⏳</span>
+          </div>
+
+          <!-- Statut mode actuel -->
+          <div id="scan-mode-status" style="text-align:center;margin-top:8px;font-size:12px;font-weight:700;color:var(--green);">
+            📤 Mode SORTIE actif — scannez un code-barres
           </div>
         </div>
 
-        <!-- Résultat scan -->
-        <div id="scan-result-area"></div>
+        <!-- Layout 2 colonnes : résultat + historique -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;align-items:start;">
 
-        <!-- Historique -->
-        <div class="card" style="margin-top:16px;">
-          <div class="card-header">
-            <span>📋 Historique des scans</span>
-            <button class="btn btn-secondary btn-sm" onclick="renderScanHistory()">🔄</button>
+          <!-- Résultat du scan -->
+          <div>
+            <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">Dernier scan</div>
+            <div id="scan-result-area" style="min-height:120px;">
+              <div style="background:var(--surface2);border-radius:var(--radius-sm);padding:20px;text-align:center;color:var(--text3);font-size:13px;">
+                📡 En attente d'un scan...
+              </div>
+            </div>
           </div>
-          <div id="scan-history-list" style="padding:0 16px;max-height:300px;overflow-y:auto;"></div>
+
+          <!-- Historique temps réel -->
+          <div>
+            <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">Historique session</div>
+            <div id="scan-history-list"
+              style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);max-height:400px;overflow-y:auto;padding:8px 12px;">
+              <div style="color:var(--text3);font-size:12px;text-align:center;padding:12px;">Aucun scan cette session</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Stats session -->
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:14px;" id="scan-session-stats">
+          <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px;text-align:center;">
+            <div id="stat-total" style="font-size:22px;font-weight:800;color:var(--accent);">0</div>
+            <div style="font-size:10.5px;color:var(--text3);">Total scans</div>
+          </div>
+          <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px;text-align:center;">
+            <div id="stat-sortie" style="font-size:22px;font-weight:800;color:var(--green);">0</div>
+            <div style="font-size:10.5px;color:var(--text3);">Sorties</div>
+          </div>
+          <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px;text-align:center;">
+            <div id="stat-retour" style="font-size:22px;font-weight:800;color:var(--gold);">0</div>
+            <div style="font-size:10.5px;color:var(--text3);">Retours</div>
+          </div>
+          <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px;text-align:center;">
+            <div id="stat-erreur" style="font-size:22px;font-weight:800;color:var(--red);">0</div>
+            <div style="font-size:10.5px;color:var(--text3);">Erreurs</div>
+          </div>
         </div>
       </div>
-
       <!-- ═══════════════════════════════ RETOURS SHOP ═══════════════════════════════ -->
       <div class="page" id="page-shop-returns">
         <div style="display:flex;gap:10px;align-items:center;margin-bottom:16px;flex-wrap:wrap;">

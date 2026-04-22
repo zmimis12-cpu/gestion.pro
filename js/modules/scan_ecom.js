@@ -1,107 +1,163 @@
 /* ================================================================
-   GestionPro — modules/scan_ecom.js
-   Phase 3 : Scanner E-commerce
-   Logique : Scan tracking → Sortie (stock retour shop d'abord)
-                           → Retour (incrément stock retour shop)
+   GestionPro — modules/scan_ecom.js   (Phase 3 — Étape 2)
+   Scanner E-commerce optimisé code-barres USB/Bluetooth
+   Logique : tracking → commande → mapping → déduction stock
+             Priorité : retour shop d'abord, stock normal en complément
 ================================================================ */
 
-// ── État du scanner ─────────────────────────────────────────────
-let _scanMode          = 'sortie';  // 'sortie' | 'retour'
-let _lastScanResult    = null;      // résultat du dernier scan
-let _pendingMappings   = [];        // lignes sans mapping à résoudre
+// ── État global du scanner ──────────────────────────────────────
+let _scanMode = 'sortie';      // 'sortie' | 'retour'
+let _scanning = false;          // empêche les doubles scans simultanés
+let _sessionStats = { total: 0, sortie: 0, retour: 0, erreur: 0 };
+let _currentScanConfirm  = null;
+let _pendingMappingCallback = null;
+let _pendingMappingLines  = null;
+let _pendingMappingOrder  = null;
 
 // ════════════════════════════════════════════════════════════════
-// RENDER — Page scanner
+// INIT — appelé par renderScanEcom() au navigate()
 // ════════════════════════════════════════════════════════════════
 function renderScanEcom() {
-  // Mettre à jour les compteurs
-  const pending = ecomOrders.filter(o => o.scanStatut === 'non_scanne' || !o.scanStatut).length;
-  const el = document.getElementById('scan-pending-count');
-  if (el) el.textContent = pending;
+  // Réinitialiser les stats visuelles
+  _updateStats();
   renderScanHistory();
+  // Appliquer le mode courant visuellement
+  setScanMode(_scanMode);
+  // Focus immédiat sur le champ
+  setTimeout(() => document.getElementById('scan-tracking-input')?.focus(), 100);
 }
 
 // ════════════════════════════════════════════════════════════════
-// MODE — Basculer sortie / retour
+// MODE — Sortie / Retour
 // ════════════════════════════════════════════════════════════════
 function setScanMode(mode) {
   _scanMode = mode;
-  // Supporter les deux noms d'IDs possibles
-  const btnSortie = document.getElementById('scan-mode-sortie') || document.getElementById('scan-btn-sortie');
-  const btnRetour = document.getElementById('scan-mode-retour') || document.getElementById('scan-btn-retour');
 
-  if (btnSortie) {
-    btnSortie.style.background = mode === 'sortie' ? 'var(--green)' : 'var(--surface2)';
-    btnSortie.style.color      = mode === 'sortie' ? '#fff'          : 'var(--text2)';
+  const btnS = document.getElementById('scan-btn-sortie');
+  const btnR = document.getElementById('scan-btn-retour');
+  const status = document.getElementById('scan-mode-status');
+  const input  = document.getElementById('scan-tracking-input');
+
+  if (btnS) {
+    btnS.style.background   = mode === 'sortie' ? 'var(--green)'   : 'var(--surface2)';
+    btnS.style.color        = mode === 'sortie' ? '#fff'            : 'var(--text2)';
+    btnS.style.borderColor  = mode === 'sortie' ? 'var(--green)'   : 'var(--border2)';
   }
-  if (btnRetour) {
-    btnRetour.style.background = mode === 'retour' ? 'var(--gold)' : 'var(--surface2)';
-    btnRetour.style.color      = mode === 'retour' ? '#fff'         : 'var(--text2)';
+  if (btnR) {
+    btnR.style.background   = mode === 'retour' ? 'var(--gold)'    : 'var(--surface2)';
+    btnR.style.color        = mode === 'retour' ? '#fff'            : 'var(--text2)';
+    btnR.style.borderColor  = mode === 'retour' ? 'var(--gold)'    : 'var(--border2)';
   }
+  if (status) {
+    status.textContent = mode === 'sortie'
+      ? '📤 Mode SORTIE actif — scannez un code-barres'
+      : '↩️ Mode RETOUR actif — scannez un code-barres de retour';
+    status.style.color = mode === 'sortie' ? 'var(--green)' : 'var(--gold)';
+  }
+  if (input) {
+    input.placeholder = mode === 'sortie'
+      ? '📡 Scanner le code-barres de sortie...'
+      : '📡 Scanner le code-barres de retour...';
+    input.focus();
+  }
+
   clearScanResult();
-  document.getElementById('scan-tracking-input')?.focus();
 }
 
 // ════════════════════════════════════════════════════════════════
-// SCAN — Point d'entrée principal
+// KEYDOWN — Déclenché par code-barres (Enter automatique)
+// ════════════════════════════════════════════════════════════════
+function onScanKeydown(e) {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    processScan();
+  }
+}
+
+// ════════════════════════════════════════════════════════════════
+// POINT D'ENTRÉE PRINCIPAL
 // ════════════════════════════════════════════════════════════════
 async function processScan() {
+  if (_scanning) return; // anti-doublon
+
   const input    = document.getElementById('scan-tracking-input');
-  const tracking = (input?.value || '').trim();
+  const tracking = (input?.value || '').trim().replace(/\r?\n/g, '');
+
   if (!tracking) return;
 
-  // Feedback visuel immédiat
+  // Vider immédiatement + focus → prêt pour le prochain scan
   input.value = '';
   input.focus();
-  showScanLoading(tracking);
 
-  if (_scanMode === 'sortie') {
-    await _processScanSortie(tracking);
-  } else {
-    await _processScanRetour(tracking);
+  _scanning = true;
+  _showSpinner(true);
+
+  try {
+    if (_scanMode === 'sortie') {
+      await _processScanSortie(tracking);
+    } else {
+      await _processScanRetour(tracking);
+    }
+  } finally {
+    _scanning = false;
+    _showSpinner(false);
   }
+}
+
+function _showSpinner(show) {
+  const s = document.getElementById('scan-spinner');
+  if (s) s.style.display = show ? 'block' : 'none';
 }
 
 // ════════════════════════════════════════════════════════════════
 // SCAN SORTIE
 // ════════════════════════════════════════════════════════════════
 async function _processScanSortie(tracking) {
-  // 1. Trouver la commande
-  const order = ecomOrders.find(o => o.tracking === tracking || o.num === tracking);
+  // 1. Trouver la commande par tracking OU numéro de commande
+  const order = ecomOrders.find(o =>
+    o.tracking === tracking ||
+    o.num === tracking ||
+    (o.tracking || '').toLowerCase() === tracking.toLowerCase()
+  );
 
   if (!order) {
-    showScanError(tracking, 'Commande introuvable pour ce tracking');
+    _sessionStats.erreur++;
+    _updateStats();
+    showScanError(tracking, '❌ Commande introuvable pour ce tracking');
     await _logScan({ tracking, action: 'not_found', note: 'Tracking non trouvé' });
+    _beep('error');
     return;
   }
 
-  // 2. Vérifier si déjà sorti
+  // 2. Déjà sorti ?
   if (order.scanStatut === 'sorti') {
-    showScanWarning(tracking, order, 'Cette commande a déjà été scannée en sortie');
-    await _logScan({ tracking, action: 'already_done', orderId: order.id,
-      storeId: order.storeId, note: 'Déjà sorti' });
+    _sessionStats.erreur++;
+    _updateStats();
+    showScanWarning(tracking, order, '⚠️ Cette commande a déjà été scannée en sortie');
+    await _logScan({ tracking, action: 'already_done', orderId: order.id, storeId: order.storeId });
+    _beep('warn');
     return;
   }
 
-  // 3. Récupérer les lignes de commande
+  // 3. Lignes de commande
   const lines = ecomOrderLines.filter(l => l.orderId === order.id);
   if (!lines.length) {
-    showScanError(tracking, 'Aucune ligne produit pour cette commande');
+    showScanError(tracking, '❌ Aucune ligne produit pour cette commande');
+    _sessionStats.erreur++; _updateStats();
     return;
   }
 
-  // 4. Vérifier les mappings
+  // 4. Mapping manquant → modal inline
   const unmapped = lines.filter(l => !l.productId || l.mappingError);
   if (unmapped.length > 0) {
-    _pendingMappings = unmapped;
     showMappingModal(order, unmapped, () => _processScanSortie(tracking));
     return;
   }
 
-  // 5. Calculer les déductions (shop return d'abord, puis stock normal)
+  // 5. Calculer les déductions
   const deductions = _calculateDeductions(order.storeId, lines);
 
-  // 6. Afficher le résumé avant confirmation
+  // 6. Afficher résumé + bouton confirmer
   showScanConfirm(tracking, order, lines, deductions, async () => {
     await _executeSortie(tracking, order, lines, deductions);
   });
@@ -112,130 +168,98 @@ async function _processScanSortie(tracking) {
 // ════════════════════════════════════════════════════════════════
 function _calculateDeductions(storeId, lines) {
   return lines.map(line => {
-    const productId  = line.productId;
-    const qteNeeded  = line.qte;
-    const product    = products.find(p => p.id === productId);
-    const shopReturn = shopReturns.find(r => r.storeId === storeId && r.productId === productId);
+    const productId   = line.productId;
+    const qteNeeded   = line.qte;
+    const product     = products.find(p => p.id === productId);
+    const shopReturn  = shopReturns.find(r => r.storeId === storeId && r.productId === productId);
 
-    const qteRetour  = shopReturn?.qte || 0;
-    const stockNormal = product?.stock || 0;
+    const qteRetour   = shopReturn?.qte || 0;
+    const stockNormal = product?.stock   || 0;
 
-    let qteFromReturn = 0;
-    let qteFromStock  = 0;
-    let source        = 'stock_normal';
+    let qteFromReturn = 0, qteFromStock = 0, source = 'stock_normal';
 
     if (qteRetour >= qteNeeded) {
-      // Tout depuis le retour shop
-      qteFromReturn = qteNeeded;
-      qteFromStock  = 0;
-      source        = 'shop_return';
+      qteFromReturn = qteNeeded; qteFromStock = 0;       source = 'shop_return';
     } else if (qteRetour > 0) {
-      // Mixte : retour shop d'abord, stock normal en complément
-      qteFromReturn = qteRetour;
-      qteFromStock  = qteNeeded - qteRetour;
-      source        = 'mixte';
+      qteFromReturn = qteRetour; qteFromStock = qteNeeded - qteRetour; source = 'mixte';
     } else {
-      // Tout depuis le stock normal
-      qteFromReturn = 0;
-      qteFromStock  = qteNeeded;
-      source        = 'stock_normal';
+      qteFromReturn = 0;         qteFromStock = qteNeeded;             source = 'stock_normal';
     }
 
     return {
-      lineId:         line.id,
-      productId,
-      nomExterne:     line.nomExterne,
-      productName:    product?.name || line.nomExterne,
-      qte:            qteNeeded,
-      qteFromReturn,
-      qteFromStock,
-      source,
-      stockAvant:     stockNormal,
-      returnAvant:    qteRetour,
+      lineId: line.id, productId,
+      nomExterne:  line.nomExterne,
+      productName: product?.name || line.nomExterne,
+      qte: qteNeeded, qteFromReturn, qteFromStock, source,
+      stockAvant:  stockNormal, returnAvant: qteRetour,
       stockInsuffisant: qteFromStock > stockNormal,
     };
   });
 }
 
 // ════════════════════════════════════════════════════════════════
-// EXÉCUTER LA SORTIE
+// EXÉCUTER SORTIE
 // ════════════════════════════════════════════════════════════════
 async function _executeSortie(tracking, order, lines, deductions) {
   const tid = GP_TENANT?.id;
   try {
-    // Pour chaque ligne — déduire dans l'ordre
     for (const d of deductions) {
       const product    = products.find(p => p.id === d.productId);
       const shopReturn = shopReturns.find(r => r.storeId === order.storeId && r.productId === d.productId);
 
-      // A. Déduire du stock retour shop (via RPC atomique)
+      // A. Déduire du stock retour shop (RPC atomique)
       if (d.qteFromReturn > 0) {
-        const { data: newReturnQte } = await sb.rpc('gp_upsert_shop_return', {
-          p_tenant_id:  tid,
-          p_store_id:   order.storeId,
-          p_product_id: d.productId,
-          p_delta:      -d.qteFromReturn,
+        const { data: newQte, error } = await sb.rpc('gp_upsert_shop_return', {
+          p_tenant_id: tid, p_store_id: order.storeId,
+          p_product_id: d.productId, p_delta: -d.qteFromReturn,
         });
-        // Mettre à jour state local
-        if (shopReturn) shopReturn.qte = newReturnQte ?? Math.max(0, (shopReturn.qte || 0) - d.qteFromReturn);
+        if (!error && shopReturn) shopReturn.qte = newQte ?? Math.max(0, (shopReturn.qte||0) - d.qteFromReturn);
       }
 
-      // B. Déduire du stock normal (via RPC atomique)
+      // B. Déduire du stock normal (RPC atomique)
       if (d.qteFromStock > 0) {
-        const { data: newStock } = await sb.rpc('gp_deduct_product_stock', {
-          p_product_id: d.productId,
-          p_qte:        d.qteFromStock,
+        const { data: newStock, error } = await sb.rpc('gp_deduct_product_stock', {
+          p_product_id: d.productId, p_qte: d.qteFromStock,
         });
-        // Mettre à jour state local
-        if (product) product.stock = newStock ?? Math.max(0, (product.stock || 0) - d.qteFromStock);
+        if (!error && product) product.stock = newStock ?? Math.max(0, (product.stock||0) - d.qteFromStock);
       }
 
-      // C. Mettre à jour la ligne de commande
+      // C. Mettre à jour la ligne commande
       await sb.from('gp_ecom_order_lines').update({
-        statut:           'sorti',
-        deduction_source: d.source,
-        qte_from_return:  d.qteFromReturn,
-        qte_from_stock:   d.qteFromStock,
+        statut: 'sorti', deduction_source: d.source,
+        qte_from_return: d.qteFromReturn, qte_from_stock: d.qteFromStock,
       }).eq('id', d.lineId);
 
-      // D. Logger chaque ligne
+      // D. Logger
       await _logScan({
-        tracking,
-        action:         'sortie',
-        orderId:        order.id,
-        storeId:        order.storeId,
-        productId:      d.productId,
-        nomExterne:     d.nomExterne,
-        qte:            d.qte,
-        qteFromReturn:  d.qteFromReturn,
-        qteFromStock:   d.qteFromStock,
-        stockAvant:     d.stockAvant,
-        stockApres:     (d.stockAvant || 0) - d.qteFromStock,
-        returnAvant:    d.returnAvant,
-        returnApres:    (d.returnAvant || 0) - d.qteFromReturn,
+        tracking, action: 'sortie', orderId: order.id, storeId: order.storeId,
+        productId: d.productId, nomExterne: d.nomExterne,
+        qte: d.qte, qteFromReturn: d.qteFromReturn, qteFromStock: d.qteFromStock,
+        stockAvant: d.stockAvant, stockApres: (d.stockAvant||0) - d.qteFromStock,
+        returnAvant: d.returnAvant, returnApres: (d.returnAvant||0) - d.qteFromReturn,
       });
     }
 
-    // E. Marquer la commande comme sortie
+    // E. Marquer commande comme sortie
     const now = new Date().toISOString();
     await sb.from('gp_ecom_orders').update({
-      scan_statut: 'sorti',
-      scanned_at:  now,
-      scanned_by:  GP_USER?.id || null,
-      statut:      'prepare',
+      scan_statut: 'sorti', scanned_at: now,
+      scanned_by: GP_USER?.id || null, statut: 'prepare',
     }).eq('id', order.id);
 
-    // Mettre à jour state local
     const localOrder = ecomOrders.find(o => o.id === order.id);
-    if (localOrder) { localOrder.scanStatut = 'sorti'; localOrder.scannedAt = now; }
+    if (localOrder) { localOrder.scanStatut = 'sorti'; localOrder.scannedAt = now; localOrder.statut = 'prepare'; }
 
+    _sessionStats.sortie++; _sessionStats.total++;
+    _updateStats();
     showScanSuccess(tracking, order, deductions);
     renderScanHistory();
-    toast('✅ Sortie confirmée — ' + tracking, 'success');
+    _beep('success');
 
   } catch (e) {
     console.error('[ScanSortie]', e);
-    showScanError(tracking, 'Erreur lors de la sortie : ' + e.message);
+    showScanError(tracking, '💥 Erreur : ' + e.message);
+    _sessionStats.erreur++; _updateStats();
   }
 }
 
@@ -243,98 +267,89 @@ async function _executeSortie(tracking, order, lines, deductions) {
 // SCAN RETOUR
 // ════════════════════════════════════════════════════════════════
 async function _processScanRetour(tracking) {
-  const order = ecomOrders.find(o => o.tracking === tracking || o.num === tracking);
+  const order = ecomOrders.find(o =>
+    o.tracking === tracking ||
+    o.num === tracking ||
+    (o.tracking || '').toLowerCase() === tracking.toLowerCase()
+  );
 
   if (!order) {
-    showScanError(tracking, 'Commande introuvable pour ce tracking');
+    _sessionStats.erreur++; _updateStats();
+    showScanError(tracking, '❌ Commande introuvable pour ce tracking');
     await _logScan({ tracking, action: 'not_found', note: 'Retour : tracking non trouvé' });
+    _beep('error');
     return;
   }
 
   const lines = ecomOrderLines.filter(l => l.orderId === order.id && l.productId);
   if (!lines.length) {
-    showScanError(tracking, 'Aucun produit mappé pour cette commande');
+    showScanError(tracking, '❌ Aucun produit mappé pour cette commande');
+    _sessionStats.erreur++; _updateStats();
     return;
   }
 
   const tid = GP_TENANT?.id;
   try {
     for (const line of lines) {
-      const product    = products.find(p => p.id === line.productId);
       const shopReturn = shopReturns.find(r => r.storeId === order.storeId && r.productId === line.productId);
       const returnAvant = shopReturn?.qte || 0;
 
-      // Incrémenter le stock retour shop (UPSERT atomique)
-      const { data: newQte } = await sb.rpc('gp_upsert_shop_return', {
-        p_tenant_id:  tid,
-        p_store_id:   order.storeId,
-        p_product_id: line.productId,
-        p_delta:      line.qte,
+      const { data: newQte, error } = await sb.rpc('gp_upsert_shop_return', {
+        p_tenant_id: tid, p_store_id: order.storeId,
+        p_product_id: line.productId, p_delta: line.qte,
       });
 
-      // Mettre à jour state local
-      if (shopReturn) {
-        shopReturn.qte = newQte ?? (returnAvant + line.qte);
-      } else {
-        shopReturns.push({
-          id: null, tenantId: tid, storeId: order.storeId,
-          productId: line.productId, qte: newQte ?? line.qte,
-        });
+      if (!error) {
+        if (shopReturn) {
+          shopReturn.qte = newQte ?? (returnAvant + line.qte);
+        } else {
+          shopReturns.push({ id: null, tenantId: tid, storeId: order.storeId,
+            productId: line.productId, qte: newQte ?? line.qte });
+        }
       }
 
-      // Logger
       await _logScan({
-        tracking, action: 'retour',
-        orderId:     order.id,
-        storeId:     order.storeId,
-        productId:   line.productId,
-        nomExterne:  line.nomExterne,
-        qte:         line.qte,
-        returnAvant,
-        returnApres: newQte ?? (returnAvant + line.qte),
+        tracking, action: 'retour', orderId: order.id, storeId: order.storeId,
+        productId: line.productId, nomExterne: line.nomExterne, qte: line.qte,
+        returnAvant, returnApres: newQte ?? (returnAvant + line.qte),
       });
     }
 
-    // Marquer la commande
     await sb.from('gp_ecom_orders').update({
-      scan_statut: 'retour',
-      scanned_at:  new Date().toISOString(),
+      scan_statut: 'retour', scanned_at: new Date().toISOString(),
     }).eq('id', order.id);
 
     const localOrder = ecomOrders.find(o => o.id === order.id);
     if (localOrder) localOrder.scanStatut = 'retour';
 
+    _sessionStats.retour++; _sessionStats.total++;
+    _updateStats();
     showScanRetourSuccess(tracking, order, lines);
     renderScanHistory();
-    toast('↩️ Retour enregistré — ' + tracking, 'success');
+    _beep('success');
 
   } catch (e) {
     console.error('[ScanRetour]', e);
-    showScanError(tracking, 'Erreur retour : ' + e.message);
+    showScanError(tracking, '💥 Erreur retour : ' + e.message);
+    _sessionStats.erreur++; _updateStats();
   }
 }
 
 // ════════════════════════════════════════════════════════════════
-// UI — Affichage des résultats
+// UI — Résultats scan
 // ════════════════════════════════════════════════════════════════
-function showScanLoading(tracking) {
-  const el = document.getElementById('scan-result-area');
-  if (!el) return;
-  el.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text3);">⏳ Recherche de ' + escapeHTML(tracking) + '...</div>';
-}
-
 function clearScanResult() {
   const el = document.getElementById('scan-result-area');
-  if (el) el.innerHTML = '';
+  if (el) el.innerHTML = '<div style="background:var(--surface2);border-radius:var(--radius-sm);padding:20px;text-align:center;color:var(--text3);font-size:13px;">📡 En attente d\'un scan...</div>';
 }
 
 function showScanError(tracking, msg) {
   const el = document.getElementById('scan-result-area');
   if (!el) return;
   el.innerHTML =
-    '<div style="background:rgba(220,38,38,0.07);border:1px solid rgba(220,38,38,0.2);border-radius:var(--radius-sm);padding:16px;">'
-    + '<div style="font-size:15px;font-weight:700;color:var(--red);margin-bottom:6px;">❌ ' + escapeHTML(msg) + '</div>'
-    + '<div style="font-size:12px;color:var(--text3);">Tracking : ' + escapeHTML(tracking) + '</div>'
+    '<div style="background:rgba(220,38,38,0.08);border:2px solid rgba(220,38,38,0.3);border-radius:var(--radius-sm);padding:16px;">'
+    + '<div style="font-size:16px;font-weight:800;color:var(--red);margin-bottom:6px;">' + escapeHTML(msg) + '</div>'
+    + '<div style="font-family:var(--font-mono),monospace;font-size:12px;color:var(--text3);">' + escapeHTML(tracking) + '</div>'
     + '</div>';
 }
 
@@ -343,10 +358,10 @@ function showScanWarning(tracking, order, msg) {
   if (!el) return;
   const store = ecomStores.find(s => s.id === order.storeId);
   el.innerHTML =
-    '<div style="background:rgba(245,158,11,0.07);border:1px solid rgba(245,158,11,0.2);border-radius:var(--radius-sm);padding:16px;">'
-    + '<div style="font-size:15px;font-weight:700;color:var(--gold);margin-bottom:8px;">⚠️ ' + escapeHTML(msg) + '</div>'
-    + '<div style="font-size:13px;"><strong>' + escapeHTML(order.clientNom) + '</strong> — ' + escapeHTML(order.clientVille) + '</div>'
-    + '<div style="font-size:12px;color:var(--text3);margin-top:4px;">Shop : ' + escapeHTML(store?.nom || '—') + ' · ' + escapeHTML(order.num) + '</div>'
+    '<div style="background:rgba(245,158,11,0.08);border:2px solid rgba(245,158,11,0.3);border-radius:var(--radius-sm);padding:16px;">'
+    + '<div style="font-size:15px;font-weight:800;color:var(--gold);margin-bottom:8px;">' + escapeHTML(msg) + '</div>'
+    + '<div style="font-size:13px;font-weight:600;">' + escapeHTML(order.clientNom) + ' — ' + escapeHTML(order.clientVille) + '</div>'
+    + '<div style="font-size:12px;color:var(--text3);margin-top:2px;">' + escapeHTML(store?.nom || '—') + ' · ' + escapeHTML(order.num) + '</div>'
     + '</div>';
 }
 
@@ -356,57 +371,43 @@ function showScanConfirm(tracking, order, lines, deductions, onConfirm) {
   const store = ecomStores.find(s => s.id === order.storeId);
 
   const linesHTML = deductions.map(d => {
-    const sourceLabel = {
-      shop_return:  '<span style="color:var(--green);font-weight:700;">↩️ retour shop</span>',
-      stock_normal: '<span style="color:var(--accent);">📦 stock normal</span>',
-      mixte:        '<span style="color:var(--gold);">⚡ mixte</span>',
-    }[d.source] || d.source;
-
-    const insuffisant = d.stockInsuffisant
-      ? '<div style="font-size:11px;color:var(--red);">⚠️ Stock insuffisant (' + d.stockAvant + ' disponible)</div>' : '';
-
+    const srcIcon = d.source === 'shop_return' ? '↩️' : d.source === 'mixte' ? '⚡' : '📦';
+    const srcColor = d.source === 'shop_return' ? 'var(--green)' : d.source === 'mixte' ? 'var(--gold)' : 'var(--accent)';
+    const alert = d.stockInsuffisant
+      ? '<div style="font-size:10.5px;color:var(--red);margin-top:2px;">⚠️ Stock insuffisant (' + d.stockAvant + ' dispo)</div>' : '';
     return '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border);">'
-      + '<div>'
-      + '<div style="font-size:13px;font-weight:600;">' + escapeHTML(d.productName) + '</div>'
-      + '<div style="font-size:11px;color:var(--text3);">' + escapeHTML(d.nomExterne) + '</div>'
-      + insuffisant
-      + '</div>'
+      + '<div><div style="font-size:13px;font-weight:600;">' + escapeHTML(d.productName) + '</div>'
+      + '<div style="font-size:11px;color:var(--text3);">' + escapeHTML(d.nomExterne) + '</div>' + alert + '</div>'
       + '<div style="text-align:right;">'
-      + '<div style="font-weight:700;">×' + d.qte + '</div>'
-      + '<div style="font-size:11px;">'
-      + (d.qteFromReturn > 0 ? '↩️ ' + d.qteFromReturn + ' retour · ' : '')
-      + (d.qteFromStock > 0  ? '📦 ' + d.qteFromStock + ' stock' : '')
-      + '</div>'
-      + '<div style="font-size:11px;">' + sourceLabel + '</div>'
-      + '</div>'
-      + '</div>';
+      + '<div style="font-weight:800;font-size:15px;">×' + d.qte + '</div>'
+      + '<div style="font-size:11px;color:' + srcColor + ';">' + srcIcon + ' '
+      + (d.qteFromReturn > 0 ? d.qteFromReturn + ' retour' : '')
+      + (d.qteFromReturn > 0 && d.qteFromStock > 0 ? ' + ' : '')
+      + (d.qteFromStock > 0 ? d.qteFromStock + ' stock' : '')
+      + '</div></div></div>';
   }).join('');
 
   el.innerHTML =
-    '<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);overflow:hidden;">'
-    // Header
-    + '<div style="background:var(--accent-light);padding:12px 16px;border-bottom:1px solid var(--border);">'
-    + '<div style="font-size:14px;font-weight:700;color:var(--accent);">📦 Sortie — ' + escapeHTML(tracking) + '</div>'
+    '<div style="background:var(--surface);border:2px solid var(--accent);border-radius:var(--radius-sm);overflow:hidden;">'
+    + '<div style="background:var(--accent-light);padding:10px 14px;border-bottom:1px solid var(--border);">'
+    + '<div style="font-size:14px;font-weight:800;color:var(--accent);">📦 ' + escapeHTML(tracking) + '</div>'
     + '<div style="font-size:12px;color:var(--text2);margin-top:2px;">'
     + escapeHTML(store?.nom || '—') + ' · ' + escapeHTML(order.clientNom) + ' · ' + escapeHTML(order.clientVille)
-    + '</div>'
-    + '</div>'
-    // Lignes
-    + '<div style="padding:0 16px;">' + linesHTML + '</div>'
-    // Bouton confirm
-    + '<div style="padding:12px 16px;">'
-    + '<button class="btn btn-primary" style="width:100%;justify-content:center;font-size:14px;" onclick="_confirmScan()">✅ Confirmer la sortie</button>'
-    + '</div>'
-    + '</div>';
+    + '</div></div>'
+    + '<div style="padding:0 14px;">' + linesHTML + '</div>'
+    + '<div style="padding:12px 14px;">'
+    + '<button class="btn btn-primary" style="width:100%;justify-content:center;font-size:15px;padding:12px;" onclick="_confirmScan()">✅ Confirmer la sortie</button>'
+    + '</div></div>';
 
-  // Stocker le callback
-  window._currentScanConfirm = onConfirm;
+  _currentScanConfirm = onConfirm;
+  // Focus sur le bouton confirmer pour valider aussi par Enter
+  setTimeout(() => el.querySelector('button')?.focus(), 50);
 }
 
 function _confirmScan() {
-  if (window._currentScanConfirm) {
-    window._currentScanConfirm();
-    window._currentScanConfirm = null;
+  if (_currentScanConfirm) {
+    _currentScanConfirm();
+    _currentScanConfirm = null;
   }
 }
 
@@ -415,19 +416,18 @@ function showScanSuccess(tracking, order, deductions) {
   if (!el) return;
   const store = ecomStores.find(s => s.id === order.storeId);
   el.innerHTML =
-    '<div style="background:rgba(5,150,105,0.07);border:1px solid rgba(5,150,105,0.2);border-radius:var(--radius-sm);padding:16px;">'
-    + '<div style="font-size:16px;font-weight:800;color:var(--green);margin-bottom:6px;">✅ Sortie confirmée</div>'
-    + '<div style="font-size:13px;font-weight:600;">' + escapeHTML(order.clientNom) + ' — ' + escapeHTML(order.clientVille) + '</div>'
-    + '<div style="font-size:12px;color:var(--text3);margin-top:2px;">Shop : ' + escapeHTML(store?.nom || '—') + ' · ' + escapeHTML(order.num) + '</div>'
-    + '<div style="margin-top:10px;font-size:12px;">'
+    '<div style="background:rgba(5,150,105,0.08);border:2px solid rgba(5,150,105,0.3);border-radius:var(--radius-sm);padding:14px;">'
+    + '<div style="font-size:18px;font-weight:800;color:var(--green);margin-bottom:6px;">✅ SORTIE OK</div>'
+    + '<div style="font-size:13px;font-weight:700;">' + escapeHTML(order.clientNom) + ' — ' + escapeHTML(order.clientVille) + '</div>'
+    + '<div style="font-size:12px;color:var(--text3);">' + escapeHTML(store?.nom || '—') + ' · ' + escapeHTML(order.num) + '</div>'
+    + '<div style="margin-top:8px;font-size:12px;">'
     + deductions.map(d =>
         '<div>• ' + escapeHTML(d.productName) + ' ×' + d.qte
-        + (d.qteFromReturn > 0 ? ' <span style="color:var(--green);">(↩️ ' + d.qteFromReturn + ' retour)</span>' : '')
-        + (d.qteFromStock > 0  ? ' <span style="color:var(--accent);">(📦 ' + d.qteFromStock + ' stock)</span>' : '')
+        + (d.qteFromReturn > 0 ? ' <span style="color:var(--green);">↩️' + d.qteFromReturn + '</span>' : '')
+        + (d.qteFromStock > 0  ? ' <span style="color:var(--accent);">📦' + d.qteFromStock + '</span>' : '')
         + '</div>'
       ).join('')
-    + '</div>'
-    + '</div>';
+    + '</div></div>';
 }
 
 function showScanRetourSuccess(tracking, order, lines) {
@@ -435,59 +435,56 @@ function showScanRetourSuccess(tracking, order, lines) {
   if (!el) return;
   const store = ecomStores.find(s => s.id === order.storeId);
   el.innerHTML =
-    '<div style="background:rgba(245,158,11,0.07);border:1px solid rgba(245,158,11,0.2);border-radius:var(--radius-sm);padding:16px;">'
-    + '<div style="font-size:16px;font-weight:800;color:var(--gold);margin-bottom:6px;">↩️ Retour enregistré</div>'
-    + '<div style="font-size:13px;font-weight:600;">' + escapeHTML(order.clientNom) + '</div>'
-    + '<div style="font-size:12px;color:var(--text3);margin-top:2px;">Shop : ' + escapeHTML(store?.nom || '—') + '</div>'
-    + '<div style="margin-top:10px;font-size:12px;">'
+    '<div style="background:rgba(245,158,11,0.08);border:2px solid rgba(245,158,11,0.3);border-radius:var(--radius-sm);padding:14px;">'
+    + '<div style="font-size:18px;font-weight:800;color:var(--gold);margin-bottom:6px;">↩️ RETOUR OK</div>'
+    + '<div style="font-size:13px;font-weight:700;">' + escapeHTML(order.clientNom) + '</div>'
+    + '<div style="font-size:12px;color:var(--text3);">' + escapeHTML(store?.nom || '—') + ' · ' + escapeHTML(order.num) + '</div>'
+    + '<div style="margin-top:8px;font-size:12px;">'
     + lines.map(l => {
         const prod = products.find(p => p.id === l.productId);
         const sr   = shopReturns.find(r => r.storeId === order.storeId && r.productId === l.productId);
         return '<div>• ' + escapeHTML(prod?.name || l.nomExterne) + ' ×' + l.qte
-          + ' → Stock retour shop : <strong>' + (sr?.qte || 0) + '</strong></div>';
+          + ' → <strong>stock retour : ' + (sr?.qte || 0) + '</strong></div>';
       }).join('')
-    + '</div>'
-    + '</div>';
+    + '</div></div>';
 }
 
 // ════════════════════════════════════════════════════════════════
-// MAPPING MANQUANT — Modal inline
+// MAPPING INLINE — si produit non mappé au moment du scan
 // ════════════════════════════════════════════════════════════════
 function showMappingModal(order, unmappedLines, onComplete) {
   const store = ecomStores.find(s => s.id === order.storeId);
   const el    = document.getElementById('scan-result-area');
   if (!el) return;
 
-  const lineHTML = unmappedLines.map((l, idx) =>
+  const linesHTML = unmappedLines.map((l, i) =>
     '<div style="margin-bottom:10px;">'
-    + '<label class="label" style="font-size:11px;">Produit externe : <strong>' + escapeHTML(l.nomExterne) + '</strong></label>'
-    + '<select class="input" id="scan-map-prod-' + idx + '" style="margin-top:4px;">'
+    + '<label style="font-size:12px;font-weight:700;display:block;margin-bottom:4px;">Produit externe : <span style="color:var(--accent);">' + escapeHTML(l.nomExterne) + '</span></label>'
+    + '<select class="input" id="scan-map-prod-' + i + '">'
     + '<option value="">— Sélectionner un produit interne —</option>'
     + [...products].sort((a,b) => a.name.localeCompare(b.name))
-        .map(p => '<option value="' + p.id + '">' + escapeHTML(p.name) + (p.code ? ' · ' + escapeHTML(p.code) : '') + '</option>')
+        .map(p => '<option value="' + p.id + '">' + escapeHTML(p.name) + (p.code ? ' · ' + p.code : '') + '</option>')
         .join('')
-    + '</select>'
-    + '</div>'
+    + '</select></div>'
   ).join('');
 
   el.innerHTML =
-    '<div style="background:rgba(245,158,11,0.07);border:1px solid rgba(245,158,11,0.2);border-radius:var(--radius-sm);padding:16px;">'
-    + '<div style="font-size:14px;font-weight:700;color:var(--gold);margin-bottom:12px;">🔗 Mapping requis — ' + escapeHTML(store?.nom || '') + '</div>'
-    + '<div style="font-size:12px;color:var(--text2);margin-bottom:12px;">Ces produits ne sont pas mappés. Associez-les pour continuer.</div>'
-    + lineHTML
-    + '<button class="btn btn-primary" style="width:100%;justify-content:center;margin-top:8px;" onclick="_saveScanMappings(' + order.id + ')">✅ Enregistrer et continuer</button>'
+    '<div style="background:rgba(245,158,11,0.08);border:2px solid rgba(245,158,11,0.3);border-radius:var(--radius-sm);padding:16px;">'
+    + '<div style="font-size:14px;font-weight:800;color:var(--gold);margin-bottom:4px;">🔗 Mapping requis</div>'
+    + '<div style="font-size:12px;color:var(--text2);margin-bottom:12px;">Shop : ' + escapeHTML(store?.nom || '') + ' — associez les produits pour continuer</div>'
+    + linesHTML
+    + '<button class="btn btn-primary" style="width:100%;justify-content:center;" onclick="_saveScanMappings()">✅ Enregistrer et continuer</button>'
     + '</div>';
 
-  window._pendingMappingCallback = onComplete;
-  window._pendingMappingLines    = unmappedLines;
-  window._pendingMappingOrder    = order;
+  _pendingMappingCallback = onComplete;
+  _pendingMappingLines    = unmappedLines;
+  _pendingMappingOrder    = order;
 }
 
-async function _saveScanMappings(orderId) {
-  const order = window._pendingMappingOrder;
-  const lines = window._pendingMappingLines;
+async function _saveScanMappings() {
+  const order = _pendingMappingOrder;
+  const lines = _pendingMappingLines;
   const tid   = GP_TENANT?.id;
-  let ok      = true;
 
   for (let i = 0; i < lines.length; i++) {
     const productId = document.getElementById('scan-map-prod-' + i)?.value;
@@ -496,135 +493,107 @@ async function _saveScanMappings(orderId) {
     const nomExterne   = lines[i].nomExterne;
     const nomNormalise = nomExterne.toLowerCase().trim();
 
-    // Sauvegarder le mapping dans gp_store_mapping
-    const { data: inserted, error } = await sb.from('gp_store_mapping')
-      .insert({
-        tenant_id:    tid,
-        store_id:     order.storeId,
-        product_id:   productId,
-        nom_externe:  nomExterne,
-        nom_normalise: nomNormalise,
-        created_by:   GP_USER?.id || null,
-      })
-      .select('id').single();
+    // Insérer le mapping
+    const { data: ins, error } = await sb.from('gp_store_mapping').insert({
+      tenant_id: tid, store_id: order.storeId, product_id: productId,
+      nom_externe: nomExterne, nom_normalise: nomNormalise,
+      created_by: GP_USER?.id || null,
+    }).select('id').single();
 
-    if (error && !error.message.includes('duplicate')) {
-      toast('Erreur mapping : ' + error.message, 'error'); ok = false; continue;
+    if (!error || error.code === '23505') { // 23505 = duplicate → déjà mappé
+      ecomMappings.push({ id: ins?.id || null, storeId: order.storeId,
+        productId, nomExterne, nomNormalise });
     }
 
-    // Mettre à jour state local
-    ecomMappings.push({
-      id: inserted?.id || null, storeId: order.storeId,
-      productId, nomExterne, nomNormalise,
-    });
-
-    // Mettre à jour la ligne de commande en DB et en local
+    // Mettre à jour la ligne en DB
     await sb.from('gp_ecom_order_lines').update({
-      product_id:    productId,
-      mapping_auto:  false,
-      mapping_error: false,
+      product_id: productId, mapping_auto: false, mapping_error: false,
     }).eq('id', lines[i].id);
 
     const localLine = ecomOrderLines.find(l => l.id === lines[i].id);
     if (localLine) { localLine.productId = productId; localLine.mappingError = false; }
   }
 
-  if (ok) {
-    toast('✅ Mappings sauvegardés', 'success');
-    if (window._pendingMappingCallback) window._pendingMappingCallback();
-  }
+  toast('✅ Mappings sauvegardés', 'success');
+  if (_pendingMappingCallback) _pendingMappingCallback();
 }
 
 // ════════════════════════════════════════════════════════════════
-// HISTORIQUE DES SCANS
+// HISTORIQUE SESSION
 // ════════════════════════════════════════════════════════════════
 function renderScanHistory() {
-  const el = document.getElementById('scan-history-list') || document.getElementById('scan-history-table');
+  const el = document.getElementById('scan-history-list');
   if (!el) return;
 
-  const recent = [...scanLogs].slice(0, 20);
+  const recent = [...scanLogs].slice(0, 30);
   if (!recent.length) {
-    el.innerHTML = '<div class="empty-state" style="padding:20px;"><div class="emoji">📡</div><p>Aucun scan enregistré</p></div>';
+    el.innerHTML = '<div style="color:var(--text3);font-size:12px;text-align:center;padding:12px;">Aucun scan cette session</div>';
     return;
   }
 
-  const actionIcon = {
-    sortie:          '📤', retour:  '↩️', not_found: '❌',
-    already_done:    '⚠️', error:   '💥', mapping_missing: '🔗',
-  };
-  const actionColor = {
-    sortie: 'var(--green)', retour: 'var(--gold)',
-    not_found: 'var(--red)', already_done: 'var(--gold)',
-    error: 'var(--red)', mapping_missing: 'var(--accent)',
-  };
+  const actionIcon  = { sortie:'📤', retour:'↩️', not_found:'❌', already_done:'⚠️', error:'💥', mapping_missing:'🔗' };
+  const actionColor = { sortie:'var(--green)', retour:'var(--gold)', not_found:'var(--red)', already_done:'var(--gold)', error:'var(--red)' };
 
   el.innerHTML = recent.map(l => {
     const store   = ecomStores.find(s => s.id === l.storeId);
     const product = products.find(p => p.id === l.productId);
-    const dateStr = new Date(l.scannedAt).toLocaleTimeString('fr-FR', {
-      hour: '2-digit', minute: '2-digit', second: '2-digit'
-    });
-    const sourceStr = l.action === 'sortie'
-      ? (l.qteFromReturn > 0 && l.qteFromStock > 0 ? '⚡ mixte'
-        : l.qteFromReturn > 0 ? '↩️ retour shop' : '📦 stock normal')
-      : '';
+    const time    = new Date(l.scannedAt).toLocaleTimeString('fr-FR', { hour:'2-digit', minute:'2-digit', second:'2-digit' });
+    const src     = l.action === 'sortie'
+      ? (l.qteFromReturn > 0 && l.qteFromStock > 0 ? '⚡'
+        : l.qteFromReturn > 0 ? '↩️' : '📦') : '';
 
-    return '<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);font-size:12px;">'
-      + '<span style="color:var(--text3);font-size:11px;white-space:nowrap;">' + dateStr + '</span>'
-      + '<span style="font-size:14px;color:' + (actionColor[l.action] || 'var(--text)') + ';">' + (actionIcon[l.action] || '?') + '</span>'
-      + '<span style="font-family:var(--font-mono),monospace;font-size:11px;color:var(--accent);flex-shrink:0;">' + escapeHTML(l.tracking || '—') + '</span>'
-      + '<span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'
-      + escapeHTML(product?.name || l.nomExterne || '—')
-      + (l.qte > 1 ? ' ×' + l.qte : '')
-      + '</span>'
-      + '<span style="font-size:10.5px;color:var(--text3);white-space:nowrap;">'
-      + escapeHTML(store?.nom || '—')
-      + (sourceStr ? ' · ' + sourceStr : '')
-      + '</span>'
+    return '<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border);font-size:11.5px;">'
+      + '<span style="color:var(--text3);font-size:10px;white-space:nowrap;min-width:52px;">' + time + '</span>'
+      + '<span style="font-size:13px;color:' + (actionColor[l.action]||'var(--text)') + ';">' + (actionIcon[l.action]||'?') + '</span>'
+      + '<span style="font-family:var(--font-mono),monospace;font-size:10.5px;color:var(--accent);flex-shrink:0;max-width:90px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + escapeHTML(l.tracking||'—') + '</span>'
+      + '<span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px;">' + escapeHTML(product?.name || l.nomExterne || '—') + (l.qte > 1 ? ' ×'+l.qte : '') + '</span>'
+      + (src ? '<span style="font-size:11px;color:var(--text3);">' + src + '</span>' : '')
       + '</div>';
   }).join('');
 }
 
 // ════════════════════════════════════════════════════════════════
-// LOGGER UN SCAN
+// STATS SESSION
 // ════════════════════════════════════════════════════════════════
-async function _logScan(data) {
-  const tid = GP_TENANT?.id;
-  const log = {
-    tenant_id:       tid,
-    store_id:        data.storeId     || null,
-    order_id:        data.orderId     || null,
-    tracking:        data.tracking,
-    action:          data.action,
-    product_id:      data.productId   || null,
-    nom_externe:     data.nomExterne  || null,
-    qte:             data.qte         || 1,
-    qte_from_return: data.qteFromReturn || 0,
-    qte_from_stock:  data.qteFromStock  || 0,
-    stock_avant:     data.stockAvant  ?? null,
-    stock_apres:     data.stockApres  ?? null,
-    return_avant:    data.returnAvant ?? null,
-    return_apres:    data.returnApres ?? null,
-    note:            data.note        || null,
-    scanned_by:      GP_USER?.id      || null,
-  };
+function _updateStats() {
+  const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+  set('stat-total',  _sessionStats.total);
+  set('stat-sortie', _sessionStats.sortie);
+  set('stat-retour', _sessionStats.retour);
+  set('stat-erreur', _sessionStats.erreur);
+}
+
+// ════════════════════════════════════════════════════════════════
+// BIPS — Feedback sonore (Web Audio API — pas de fichier externe)
+// ════════════════════════════════════════════════════════════════
+function _beep(type) {
   try {
-    const { data: inserted } = await sb.from('gp_scan_logs').insert(log).select('id').single();
-    scanLogs.unshift({ ...log, id: inserted?.id, scannedAt: new Date().toISOString() });
-    if (scanLogs.length > 50) scanLogs.pop();
-  } catch(e) {
-    console.warn('[ScanLog]', e.message);
-  }
+    const ctx  = new (window.AudioContext || window.webkitAudioContext)();
+    const osc  = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain); gain.connect(ctx.destination);
+
+    if (type === 'success') {
+      osc.frequency.value = 880; gain.gain.value = 0.15;
+      osc.start(); osc.stop(ctx.currentTime + 0.12);
+    } else if (type === 'warn') {
+      osc.frequency.value = 440; gain.gain.value = 0.1;
+      osc.start(); osc.stop(ctx.currentTime + 0.2);
+    } else {
+      osc.frequency.value = 220; gain.gain.value = 0.1;
+      osc.start(); osc.stop(ctx.currentTime + 0.3);
+    }
+  } catch(e) { /* Web Audio non dispo — silencieux */ }
 }
 
 // ════════════════════════════════════════════════════════════════
 // PAGE RETOURS SHOP
 // ════════════════════════════════════════════════════════════════
 function renderShopReturns() {
-  const tbody = document.getElementById('shop-returns-table');
+  const tbody  = document.getElementById('shop-returns-table');
   if (!tbody) return;
-
   const storeF = document.getElementById('shop-returns-filter-store')?.value || 'all';
+
   let list = shopReturns.filter(r => r.qte > 0);
   if (storeF !== 'all') list = list.filter(r => r.storeId === storeF);
 
@@ -633,20 +602,40 @@ function renderShopReturns() {
     return;
   }
 
-  tbody.innerHTML = list.map(r => {
-    const store   = ecomStores.find(s => s.id === r.storeId);
-    const product = products.find(p => p.id === r.productId);
-    return '<tr>'
-      + '<td style="font-size:13px;font-weight:600;">' + escapeHTML(store?.nom || '—') + '</td>'
-      + '<td style="font-size:13px;">' + escapeHTML(product?.name || r.productId) + '</td>'
-      + '<td><span style="font-size:16px;font-weight:800;color:var(--green);">' + r.qte + '</span>'
-      + '<span style="font-size:11px;color:var(--text3);margin-left:4px;">' + escapeHTML(product?.unit || 'unités') + '</span></td>'
-      + '<td style="font-size:11px;color:var(--text3);">' + (r.updatedAt ? new Date(r.updatedAt).toLocaleDateString('fr-FR') : '—') + '</td>'
-      + '</tr>';
-  }).join('');
+  tbody.innerHTML = list
+    .sort((a,b) => b.qte - a.qte)
+    .map(r => {
+      const store   = ecomStores.find(s => s.id === r.storeId);
+      const product = products.find(p => p.id === r.productId);
+      return '<tr>'
+        + '<td style="font-size:13px;font-weight:600;">' + escapeHTML(store?.nom || '—') + '</td>'
+        + '<td style="font-size:13px;">' + escapeHTML(product?.name || r.productId) + '</td>'
+        + '<td><span style="font-size:18px;font-weight:800;color:var(--green);">' + r.qte + '</span>'
+        + ' <span style="font-size:11px;color:var(--text3);">' + escapeHTML(product?.unit || 'unités') + '</span></td>'
+        + '<td style="font-size:11px;color:var(--text3);">'
+        + (r.updatedAt ? new Date(r.updatedAt).toLocaleDateString('fr-FR') : '—') + '</td>'
+        + '</tr>';
+    }).join('');
 }
 
-// ── Alias pour compatibilité HTML (onkeydown="onScanKeydown(event)") ──
-function onScanKeydown(e) {
-  if (e.key === 'Enter') processScan();
+// ════════════════════════════════════════════════════════════════
+// LOGGER
+// ════════════════════════════════════════════════════════════════
+async function _logScan(data) {
+  const tid = GP_TENANT?.id;
+  const log = {
+    tenant_id: tid, store_id: data.storeId||null, order_id: data.orderId||null,
+    tracking: data.tracking, action: data.action,
+    product_id: data.productId||null, nom_externe: data.nomExterne||null,
+    qte: data.qte||1, qte_from_return: data.qteFromReturn||0,
+    qte_from_stock: data.qteFromStock||0,
+    stock_avant: data.stockAvant??null, stock_apres: data.stockApres??null,
+    return_avant: data.returnAvant??null, return_apres: data.returnApres??null,
+    note: data.note||null, scanned_by: GP_USER?.id||null,
+  };
+  try {
+    const { data: ins } = await sb.from('gp_scan_logs').insert(log).select('id').single();
+    scanLogs.unshift({ ...log, id: ins?.id, scannedAt: new Date().toISOString() });
+    if (scanLogs.length > 100) scanLogs.pop();
+  } catch(e) { console.warn('[ScanLog]', e.message); }
 }
