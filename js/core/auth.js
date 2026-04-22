@@ -1037,6 +1037,47 @@ async function loadUserData() {
       }));
     } catch(e) { ecomMappings = []; console.warn('[SB] gp_store_mapping:', e.message); }
 
+    // ── Stock retour par shop ───────────────────────────────────
+    try {
+      const { data: srData } = await sb.from('gp_shop_returns')
+        .select('*').eq('tenant_id', tid);
+      shopReturns = (srData || []).map(r => ({
+        id:        r.id,
+        tenantId:  r.tenant_id,
+        storeId:   r.store_id,
+        productId: r.product_id,
+        qte:       r.qte || 0,
+        updatedAt: r.updated_at,
+      }));
+    } catch(e) { shopReturns = []; console.warn('[SB] gp_shop_returns:', e.message); }
+
+    // ── Scan logs (50 derniers) ─────────────────────────────────
+    try {
+      const { data: slData } = await sb.from('gp_scan_logs')
+        .select('*').eq('tenant_id', tid)
+        .order('scanned_at', { ascending: false }).limit(50);
+      scanLogs = (slData || []).map(l => ({
+        id:             l.id,
+        tenantId:       l.tenant_id,
+        storeId:        l.store_id,
+        orderId:        l.order_id,
+        tracking:       l.tracking,
+        action:         l.action,
+        productId:      l.product_id,
+        nomExterne:     l.nom_externe,
+        qte:            l.qte || 1,
+        qteFromReturn:  l.qte_from_return || 0,
+        qteFromStock:   l.qte_from_stock || 0,
+        stockAvant:     l.stock_avant,
+        stockApres:     l.stock_apres,
+        returnAvant:    l.return_avant,
+        returnApres:    l.return_apres,
+        note:           l.note,
+        scannedBy:      l.scanned_by,
+        scannedAt:      l.scanned_at,
+      }));
+    } catch(e) { scanLogs = []; console.warn('[SB] gp_scan_logs:', e.message); }
+
     // ── Commandes e-commerce ───────────────────────────────
     try {
       const { data: ordersData } = await sb.from('gp_ecom_orders')
@@ -1054,6 +1095,7 @@ async function loadUserData() {
         portType: o.port_type || 1,
         statut: o.statut || 'importe',
         hasMappingError: o.has_mapping_error || false,
+        scanStatut: o.scan_statut || 'non_scanne',
         tracking: o.tracking,
         digylogId: o.digylog_id,
         digylogBl: o.digylog_bl,
@@ -1090,6 +1132,37 @@ async function loadUserData() {
         ecomOrderLines = [];
       }
     } catch(e) { ecomOrderLines = []; console.warn('[SB] gp_ecom_order_lines:', e.message); }
+
+    // ── Stock retour par shop ──────────────────────────────────
+    try {
+      const { data: srData } = await sb.from('gp_shop_returns')
+        .select('*').eq('tenant_id', tid);
+      shopReturns = (srData || []).map(r => ({
+        id: r.id, tenantId: r.tenant_id,
+        storeId: r.store_id, productId: r.product_id,
+        qte: r.qte || 0, updatedAt: r.updated_at,
+      }));
+    } catch(e) { shopReturns = []; console.warn('[SB] gp_shop_returns:', e.message); }
+
+    // ── Historique scans (50 derniers) ────────────────────────
+    try {
+      const { data: slData } = await sb.from('gp_scan_logs')
+        .select('*').eq('tenant_id', tid)
+        .order('scanned_at', { ascending: false }).limit(50);
+      scanLogs = (slData || []).map(l => ({
+        id: l.id, tenantId: l.tenant_id,
+        storeId: l.store_id, orderId: l.order_id,
+        tracking: l.tracking, action: l.action,
+        productId: l.product_id, nomExterne: l.nom_externe,
+        qte: l.qte || 1,
+        qteFromReturn: l.qte_from_return || 0,
+        qteFromStock: l.qte_from_stock || 0,
+        stockAvant: l.stock_avant, stockApres: l.stock_apres,
+        returnAvant: l.return_avant, returnApres: l.return_apres,
+        note: l.note, scannedBy: l.scanned_by,
+        scannedAt: l.scanned_at,
+      }));
+    } catch(e) { scanLogs = []; console.warn('[SB] gp_scan_logs:', e.message); }
 
     // ── Settings GLOBAUX — localStorage uniquement (pas de table dédiée) ──
     try {

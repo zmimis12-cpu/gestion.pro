@@ -78,8 +78,10 @@ let conteneurs = [];
 let ordres     = []
 let retours    = []
 let ecomStores     = []   // gp_stores
+let shopReturns    = []   // gp_shop_returns
+let scanLogs       = []   // gp_scan_logs
 let ecomOrders     = []   // gp_ecom_orders
 let ecomOrderLines = []   // gp_ecom_order_lines
-let ecomMappings   = []   // gp_store_mapping;
+let ecomMappings   = []   // gp_store_mapping
 let settings   = {tva:20,showTva:false,storeName:'GestionPro',storeAddress:'',storePhone:'',storeEmail:'',storeWebsite:'',invoicePrefix:'FAC',storeIce:'',storeLogo:null,bankName:'',bankIban:'',bankSwift:'',invoiceNotes:'',invoicePaymentTerms:'30 jours',invoiceCounter:1};
 

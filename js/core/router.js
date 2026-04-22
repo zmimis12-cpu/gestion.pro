@@ -40,7 +40,7 @@ function navigate(page) {
     openCaisseLocalModal();
   }
 
-  const titles = { depenses:'💸 Gestion des Dépenses', dashboard:'Tableau de bord', caisse:'Caisse & Ventes', conteneurs:'Gestion Conteneurs', commandes:'Ordres & Ventes', docscont:'Documents Conteneurs', retours:'↩️ Gestion des Retours', fonds:'Fonds de Caisse', stock:'Gestion du Stock', locaux:'Gestion des Locaux / Zones', clients:'Gestion Clients', alerts:'Alertes & Notifications', settings:'Paramètres', superadmin:'👑 Super Admin — Panneau Central', 'owner-admin':'🏢 Mes Clients GestionPro', employes:'👨‍💼 Gestion des Employés', conges:'🏖️ Gestion des Congés', livraisons:'🚚 Bons de Livraison', 'docs-rh':'📋 Documents RH', 'docs-admin':'🏢 Documents Administratifs', stores:'🏪 Gestion des Stores', ecom:'📦 Commandes E-commerce' };
+  const titles = { depenses:'💸 Gestion des Dépenses', dashboard:'Tableau de bord', caisse:'Caisse & Ventes', conteneurs:'Gestion Conteneurs', commandes:'Ordres & Ventes', docscont:'Documents Conteneurs', retours:'↩️ Gestion des Retours', fonds:'Fonds de Caisse', stock:'Gestion du Stock', locaux:'Gestion des Locaux / Zones', clients:'Gestion Clients', alerts:'Alertes & Notifications', settings:'Paramètres', superadmin:'👑 Super Admin — Panneau Central', 'owner-admin':'🏢 Mes Clients GestionPro', employes:'👨‍💼 Gestion des Employés', conges:'🏖️ Gestion des Congés', livraisons:'🚚 Bons de Livraison', 'docs-rh':'📋 Documents RH', 'docs-admin':'🏢 Documents Administratifs', stores:'🏪 Gestion des Stores', ecom:'📦 Commandes E-commerce', 'scan-ecom':'📡 Scanner E-commerce', 'shop-returns':'↩️ Retours Shop', 'scan-ecom':'📡 Scanner', 'shop-returns':'↩️ Retours Shop' };
   document.getElementById('page-title').textContent = titles[page] || page;
 
   // Actions topbar filtrées par RBAC
@@ -64,6 +64,10 @@ function navigate(page) {
     'depenses':  { perm: null, icon:'➕', text:'Nouvelle dépense', fn: () => { document.getElementById('dep-montant')?.focus(); } },
     stores:      { perm: null, icon:'🏪', text:'Nouveau store',    fn: () => openNewStore() },
     ecom:        { perm: null, icon:'📥', text:'Importer CSV',     fn: () => openImportCSVModal() },
+    'scan-ecom': { perm: null, icon:'📡', text:'Scanner',          fn: () => document.getElementById('scan-tracking-input')?.focus() },
+    'shop-returns':{ perm: null, icon:'🔄', text:'Actualiser',     fn: () => renderShopReturns() },
+    'scan-ecom': { perm: null, icon:'📡', text:'Scanner',           fn: () => document.getElementById('scan-tracking-input')?.focus() },
+    'shop-returns': { perm: null, icon:'🔄', text:'Actualiser',     fn: () => renderShopReturns() },
   };
   const actionDef = actionsDef[page];
   const topbarBtn = document.getElementById('topbar-action');
@@ -94,6 +98,18 @@ function navigate(page) {
   if (page === 'retours') renderRetours();
   if (page === 'stores') renderStores();
   if (page === 'ecom') renderEcom();
+  if (page === 'scan-ecom') renderScanEcom();
+  if (page === 'shop-returns') {
+    // Remplir le select stores dans la page retours
+    const sel = document.getElementById('shop-returns-filter-store');
+    if (sel) {
+      sel.innerHTML = '<option value="all">Tous les shops</option>'
+        + ecomStores.map(s => '<option value="' + s.id + '">' + escapeHTML(s.nom) + '</option>').join('');
+    }
+    renderShopReturns();
+  }
+  if (page === 'scan-ecom') { renderScanEcom(); renderScanHistory(); }
+  if (page === 'shop-returns') { renderShopReturns(); }
   if (page === 'depenses') renderDepenses();
   if (page === 'docs-admin') {}
   // Apply lang to dynamic elements after page switch
