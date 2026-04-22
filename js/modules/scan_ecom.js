@@ -26,12 +26,18 @@ function renderScanEcom() {
 // ════════════════════════════════════════════════════════════════
 function setScanMode(mode) {
   _scanMode = mode;
-  document.getElementById('scan-mode-sortie').classList.toggle('active', mode === 'sortie');
-  document.getElementById('scan-mode-retour').classList.toggle('active', mode === 'retour');
-  document.getElementById('scan-mode-label').textContent =
-    mode === 'sortie' ? '📤 Mode Sortie' : '↩️ Mode Retour';
-  document.getElementById('scan-mode-label').style.color =
-    mode === 'sortie' ? 'var(--green)' : 'var(--gold)';
+  // Supporter les deux noms d'IDs possibles
+  const btnSortie = document.getElementById('scan-mode-sortie') || document.getElementById('scan-btn-sortie');
+  const btnRetour = document.getElementById('scan-mode-retour') || document.getElementById('scan-btn-retour');
+
+  if (btnSortie) {
+    btnSortie.style.background = mode === 'sortie' ? 'var(--green)' : 'var(--surface2)';
+    btnSortie.style.color      = mode === 'sortie' ? '#fff'          : 'var(--text2)';
+  }
+  if (btnRetour) {
+    btnRetour.style.background = mode === 'retour' ? 'var(--gold)' : 'var(--surface2)';
+    btnRetour.style.color      = mode === 'retour' ? '#fff'         : 'var(--text2)';
+  }
   clearScanResult();
   document.getElementById('scan-tracking-input')?.focus();
 }
@@ -533,43 +539,49 @@ async function _saveScanMappings(orderId) {
 // HISTORIQUE DES SCANS
 // ════════════════════════════════════════════════════════════════
 function renderScanHistory() {
-  const tbody = document.getElementById('scan-history-table');
-  if (!tbody) return;
+  const el = document.getElementById('scan-history-list') || document.getElementById('scan-history-table');
+  if (!el) return;
 
   const recent = [...scanLogs].slice(0, 20);
   if (!recent.length) {
-    tbody.innerHTML = '<tr><td colspan="6"><div class="empty-state"><div class="emoji">📡</div><p>Aucun scan enregistré</p></div></td></tr>';
+    el.innerHTML = '<div class="empty-state" style="padding:20px;"><div class="emoji">📡</div><p>Aucun scan enregistré</p></div>';
     return;
   }
 
-  const actionBadge = {
-    sortie:          '<span class="chip chip-green" style="font-size:10px;">📤 Sortie</span>',
-    retour:          '<span class="chip chip-orange" style="font-size:10px;">↩️ Retour</span>',
-    not_found:       '<span class="chip chip-red" style="font-size:10px;">❌ Introuvable</span>',
-    already_done:    '<span class="chip chip-gold" style="font-size:10px;">⚠️ Déjà fait</span>',
-    mapping_missing: '<span class="chip chip-blue" style="font-size:10px;">🔗 Mapping requis</span>',
-    error:           '<span class="chip chip-red" style="font-size:10px;">💥 Erreur</span>',
+  const actionIcon = {
+    sortie:          '📤', retour:  '↩️', not_found: '❌',
+    already_done:    '⚠️', error:   '💥', mapping_missing: '🔗',
+  };
+  const actionColor = {
+    sortie: 'var(--green)', retour: 'var(--gold)',
+    not_found: 'var(--red)', already_done: 'var(--gold)',
+    error: 'var(--red)', mapping_missing: 'var(--accent)',
   };
 
-  tbody.innerHTML = recent.map(l => {
+  el.innerHTML = recent.map(l => {
     const store   = ecomStores.find(s => s.id === l.storeId);
     const product = products.find(p => p.id === l.productId);
-    const dateStr = new Date(l.scannedAt).toLocaleString('fr-FR', {
-      day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit'
+    const dateStr = new Date(l.scannedAt).toLocaleTimeString('fr-FR', {
+      hour: '2-digit', minute: '2-digit', second: '2-digit'
     });
     const sourceStr = l.action === 'sortie'
       ? (l.qteFromReturn > 0 && l.qteFromStock > 0 ? '⚡ mixte'
-        : l.qteFromReturn > 0 ? '↩️ retour shop' : '📦 stock')
-      : '—';
+        : l.qteFromReturn > 0 ? '↩️ retour shop' : '📦 stock normal')
+      : '';
 
-    return '<tr>'
-      + '<td style="font-size:11.5px;color:var(--text3);">' + dateStr + '</td>'
-      + '<td style="font-family:var(--font-mono),monospace;font-size:11.5px;">' + escapeHTML(l.tracking || '—') + '</td>'
-      + '<td>' + (actionBadge[l.action] || l.action) + '</td>'
-      + '<td style="font-size:12px;">' + escapeHTML(store?.nom || '—') + '</td>'
-      + '<td style="font-size:12px;">' + escapeHTML(product?.name || l.nomExterne || '—') + (l.qte > 1 ? ' ×' + l.qte : '') + '</td>'
-      + '<td style="font-size:11px;color:var(--text3);">' + sourceStr + '</td>'
-      + '</tr>';
+    return '<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);font-size:12px;">'
+      + '<span style="color:var(--text3);font-size:11px;white-space:nowrap;">' + dateStr + '</span>'
+      + '<span style="font-size:14px;color:' + (actionColor[l.action] || 'var(--text)') + ';">' + (actionIcon[l.action] || '?') + '</span>'
+      + '<span style="font-family:var(--font-mono),monospace;font-size:11px;color:var(--accent);flex-shrink:0;">' + escapeHTML(l.tracking || '—') + '</span>'
+      + '<span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'
+      + escapeHTML(product?.name || l.nomExterne || '—')
+      + (l.qte > 1 ? ' ×' + l.qte : '')
+      + '</span>'
+      + '<span style="font-size:10.5px;color:var(--text3);white-space:nowrap;">'
+      + escapeHTML(store?.nom || '—')
+      + (sourceStr ? ' · ' + sourceStr : '')
+      + '</span>'
+      + '</div>';
   }).join('');
 }
 
@@ -632,4 +644,9 @@ function renderShopReturns() {
       + '<td style="font-size:11px;color:var(--text3);">' + (r.updatedAt ? new Date(r.updatedAt).toLocaleDateString('fr-FR') : '—') + '</td>'
       + '</tr>';
   }).join('');
+}
+
+// ── Alias pour compatibilité HTML (onkeydown="onScanKeydown(event)") ──
+function onScanKeydown(e) {
+  if (e.key === 'Enter') processScan();
 }
