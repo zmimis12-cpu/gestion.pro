@@ -297,198 +297,173 @@ async function launchCSVImport() {
   if (!storeId) { toast('Sélectionnez un store', 'error'); return; }
   if (!file)    { toast('Sélectionnez un fichier CSV', 'error'); return; }
 
-  const colNum      = parseInt(document.getElementById('ecom-col-num').value);
-  const colClient   = parseInt(document.getElementById('ecom-col-client').value);
-  const colTel      = parseInt(document.getElementById('ecom-col-tel').value);
-  const colAdresse  = parseInt(document.getElementById('ecom-col-adresse').value);
-  const colVille    = parseInt(document.getElementById('ecom-col-ville').value);
-  const colProduits = parseInt(document.getElementById('ecom-col-produits').value);
-  const colMontant   = parseInt(document.getElementById('ecom-col-montant').value);
-  const colQte       = parseInt(document.getElementById('ecom-col-qte')?.value ?? '7');
-  const colNotes     = parseInt(document.getElementById('ecom-col-notes')?.value ?? '8');
-  const colTracking  = parseInt(document.getElementById('ecom-col-tracking')?.value ?? '9');
-  const colStatutExt = parseInt(document.getElementById('ecom-col-statut-ext')?.value ?? '10');
+  const hasHeader = document.getElementById('csv-has-header').checked;
+  const prodSep   = document.getElementById('csv-prod-separator').value || ';';
+  const tid       = GP_TENANT?.id;
 
-  console.log('[CSV Import] Colonnes:', { colNum, colClient, colTel, colAdresse, colVille, colMontant, colProduits, colQte, colNotes, colTracking });
-  const separator   = document.getElementById('csv-separator').value || ',';
-  const prodSep     = document.getElementById('csv-prod-separator').value || ';';
-  const hasHeader   = document.getElementById('csv-has-header').checked;
-
-  const tid = GP_TENANT?.id;
   const btn = document.getElementById('csv-import-btn');
   if (btn) { btn.disabled = true; btn.textContent = '⏳ Importation...'; }
 
-  async function processCSVText(text) {
+  _readCSVFile(file, async (text) => {
+    // ── 1. Détecter le séparateur ────────────────────────────────
     const rawLines  = text.split(/\r?\n/).filter(l => l.trim());
-    const dataLines = hasHeader ? rawLines.slice(1) : rawLines;
-
-    // ── Auto-détection du séparateur réel depuis la 1ère ligne ──────────
-    // Ignorer le séparateur choisi dans le modal si le fichier utilise autre chose
     const firstLine = rawLines[0] || '';
-    const tabCount   = (firstLine.match(/\t/g) || []).length;
-    const semicCount = (firstLine.match(/;/g) || []).length;
-    const commaCount = (firstLine.match(/,/g) || []).length;
-    // Choisir le séparateur qui produit le plus de colonnes
-    const detectedSep = tabCount > semicCount && tabCount > commaCount ? '\t'
-      : semicCount > commaCount ? ';'
-      : ',';
-    if (detectedSep !== separator) {
-      console.warn('[CSV Import] Séparateur auto-corrigé:', JSON.stringify(separator),
-        '→', JSON.stringify(detectedSep),
-        '(tab:', tabCount, 'semi:', semicCount, 'comma:', commaCount, ')');
-    }
-    const effectiveSep = detectedSep;
+    const tabCount  = (firstLine.match(/\t/g) || []).length;
+    const semiCount = (firstLine.match(/;/g)  || []).length;
+    const comCount  = (firstLine.match(/,/g)  || []).length;
+    const sep = tabCount > semiCount && tabCount > comCount ? '\t'
+              : semiCount > comCount ? ';' : ',';
 
-    // Vérifier que les colonnes détectées correspondent à la structure attendue
+    console.log('[CSV] Séparateur détecté:', JSON.stringify(sep),
+      `(tab:${tabCount} semi:${semiCount} comma:${comCount})`);
+
+    // ── 2. Parser le header et détecter les colonnes ─────────────
+    const dataLines = hasHeader ? rawLines.slice(1) : rawLines;
+    let colNum = 0, colClient = 1, colTel = 2, colAdresse = 3, colVille = 4;
+    let colMontant = 5, colProduits = 6, colQte = 7, colNotes = 8;
+    let colTracking = 9, colStatut = 10;
+
     if (hasHeader && rawLines[0]) {
-      const headerCols = _parseCSVLine(rawLines[0], effectiveSep);
-      console.log('[CSV Import] Headers détectés:', headerCols);
-      console.log('[CSV Import] Séparateur:', JSON.stringify(effectiveSep), '→', headerCols.length, 'colonnes');
-      // Re-détecter les colonnes automatiquement avec le bon séparateur
-      _autoDetectColumns(headerCols);
-      // Relire les valeurs après auto-détection
-      Object.assign(window._csvCols = window._csvCols || {}, {
-        num:      parseInt(document.getElementById('ecom-col-num')?.value) || 0,
-        client:   parseInt(document.getElementById('ecom-col-client')?.value) || 1,
-        tel:      parseInt(document.getElementById('ecom-col-tel')?.value) || 2,
-        adresse:  parseInt(document.getElementById('ecom-col-adresse')?.value) || 3,
-        ville:    parseInt(document.getElementById('ecom-col-ville')?.value) || 4,
-        montant:  parseInt(document.getElementById('ecom-col-montant')?.value) || 5,
-        produits: parseInt(document.getElementById('ecom-col-produits')?.value) || 6,
-        qte:      parseInt(document.getElementById('ecom-col-qte')?.value ?? 7) || 7,
-        notes:    parseInt(document.getElementById('ecom-col-notes')?.value ?? 8),
-        tracking: parseInt(document.getElementById('ecom-col-tracking')?.value ?? 9),
+      const headers = _parseCSVLine(rawLines[0], sep).map(h => normalizeName(h));
+      console.log('[CSV] Headers:', headers);
+
+      const find = (...synonyms) => {
+        for (const syn of synonyms) {
+          const i = headers.findIndex(h => h === syn || h.includes(syn));
+          if (i >= 0) return i;
+        }
+        return -1;
+      };
+
+      colNum      = find('order reference','order ref','reference','num','commande','order id') ?? 0;
+      colClient   = find('name','customer name','client','destinataire') ?? 1;
+      colTel      = find('phone','telephone','mobile','tel','gsm') ?? 2;
+      colAdresse  = find('address','adresse','delivery address') ?? 3;
+      colVille    = find('city','ville','wilaya') ?? 4;
+      colMontant  = find('cod amount','cod','montant','amount','total') ?? 5;
+      colProduits = find('produits','product','article','sku','items') ?? 6;
+      colQte      = find('quantity','qty','qte','quantite') ?? 7;
+      colNotes    = find('notes','note','remarque') ?? 8;
+      colTracking = find('tracking number','tracking','track') ?? 9;
+      colStatut   = find('status','statut','etat') ?? 10;
+
+      console.log('[CSV] Colonnes:', {
+        num:colNum, client:colClient, tel:colTel, adresse:colAdresse,
+        ville:colVille, montant:colMontant, produits:colProduits,
+        qte:colQte, notes:colNotes, tracking:colTracking, statut:colStatut
       });
-      console.log('[CSV Import] Colonnes finales:', window._csvCols);
     }
 
+    // ── 3. Parser les lignes ─────────────────────────────────────
     let nbImportees = 0, nbDoublons = 0, nbErreurs = 0;
-
-    // ── Étape 1 : Parser les lignes du CSV ──────────────────────
-    const ordersToInsert = []; // { orderPayload, pendingLines[] }
-
-    // Utiliser les colonnes et séparateur finaux (après auto-détection)
-    const finalCols = window._csvCols || {
-      num:0, client:1, tel:2, adresse:3, ville:4,
-      montant:5, produits:6, qte:7, notes:8, tracking:9
-    };
-    const colNumF      = finalCols.num;
-    const colClientF   = finalCols.client;
-    const colTelF      = finalCols.tel;
-    const colAdresseF  = finalCols.adresse;
-    const colVilleF    = finalCols.ville;
-    const colMontantF  = finalCols.montant;
-    const colProduitsF = finalCols.produits;
-    const colQteF      = finalCols.qte;
-    const colNotesF    = finalCols.notes;
-    const colTrackingF = finalCols.tracking;
+    const ordersToInsert = [];
 
     for (const rawLine of dataLines) {
-      const cols        = _parseCSVLine(rawLine, effectiveSep);
-      const num         = (cols[colNumF] || '').trim();
+      const cols = _parseCSVLine(rawLine, sep);
+      if (!cols.length) continue;
+
+      const num         = (cols[colNum]      || '').trim();
+      const clientName  = (cols[colClient]   || '').trim();
+      const clientTel   = (cols[colTel]      || '').trim();
+      const clientAddr  = (cols[colAdresse]  || '').trim();
+      const clientCity  = (cols[colVille]    || '').trim();
+      const montantRaw  = (cols[colMontant]  || '0').replace(/[^\d.,]/g, '').replace(',', '.');
+      const montant     = parseFloat(montantRaw) || 0;
+      const produitsRaw = (cols[colProduits] || '').trim();
+      const qteRaw      = (cols[colQte]      || '1').trim();
+      const notesRaw    = colNotes >= 0 ? (cols[colNotes] || '').trim() : '';
+      const trackingRaw = colTracking >= 0 ? (cols[colTracking] || '').trim() : '';
+
       if (!num) continue;
-      const clientName  = (cols[colClientF] || '').trim();
-      const produitsRaw = (cols[colProduitsF] || '').trim();
 
-      // GUARD : si produitsStr = clientName → décalage de colonnes → stopper
+      // LOG EXPLICITE pour chaque ligne
+      console.log(`[CSV] num="${num}" | client="${clientName}" | produit="${produitsRaw}" | qte="${qteRaw}" | tracking="${trackingRaw}" | montant=${montant}`);
+
+      // Guard : jamais utiliser clientName comme produit
       if (produitsRaw && normalizeName(produitsRaw) === normalizeName(clientName)) {
-        console.error('[CSV Import] ⚠️ DÉCALAGE COLONNES DÉTECTÉ :',
-          'produits=', JSON.stringify(produitsRaw), '= clientName=', JSON.stringify(clientName),
-          '| cols=', cols.slice(0, 12));
+        console.error(`[CSV] ⚠️ ALERTE : produit="${produitsRaw}" == client="${clientName}" → décalage colonnes probable!`);
+        console.error('[CSV] Toutes les colonnes:', cols);
       }
 
-      console.log('[CSV Import] ligne:', num,
-        '| client:', JSON.stringify(clientName),
-        '| produit col', colProduitsF, ':', JSON.stringify(produitsRaw),
-        '| tracking col', colTrackingF, ':', JSON.stringify(cols[colTrackingF]));
-
-      // Vérifier doublon en state local
+      // Doublon
       if (ecomOrders.find(o => o.storeId === storeId && o.num === num)) {
-        nbDoublons++;
-        continue;
+        nbDoublons++; continue;
       }
 
+      // Parser les produits
       let hasMappingError = false;
       const pendingLines  = [];
-      // produitsRaw déjà calculé dans le log ci-dessus
-      const produitsStr = produitsRaw;
-      const entries     = produitsStr ? produitsStr.split(prodSep) : [];
 
-      for (const entry of entries) {
-        // Support format "nom:qte" (inline) OU nom seul + colonne Quantity dédiée
-        const parts       = entry.trim().split(':');
-        const hasInlineQte = parts.length > 1 && /^\d+$/.test((parts[parts.length - 1] || '').trim());
-        const nomExterne  = hasInlineQte ? parts.slice(0, -1).join(':').trim() : entry.trim();
-        const qteFromCol  = (colQte >= 0 && cols[colQte]) ? parseInt(cols[colQte]) || 1 : 1;
-        const qte         = hasInlineQte ? parseInt(parts[parts.length - 1]) || 1 : qteFromCol;
+      if (produitsRaw) {
+        const entries = produitsRaw.split(prodSep).map(e => e.trim()).filter(Boolean);
+        for (const entry of entries) {
+          // Format possible : "nom:qte" OU juste "nom"
+          const colonIdx    = entry.lastIndexOf(':');
+          const hasInlineQte = colonIdx > 0 && /^\d+$/.test(entry.slice(colonIdx + 1).trim());
+          const nomExterne  = hasInlineQte ? entry.slice(0, colonIdx).trim() : entry;
+          const qteInline   = hasInlineQte ? parseInt(entry.slice(colonIdx + 1)) || 1 : null;
+          const qte         = qteInline !== null ? qteInline : (parseInt(qteRaw) || 1);
 
-        if (!nomExterne) continue;
+          if (!nomExterne) continue;
 
-        const nomExterneClean = normalizeName(nomExterne);
-        console.log('[CSV Import] produit brut:', JSON.stringify(nomExterne),
-          '→ normalisé:', JSON.stringify(nomExterneClean), '| qte:', qte);
+          const nomClean = normalizeName(nomExterne);
+          const resolved = resolveMappingProduct(storeId, nomClean);
 
-        const resolved = resolveMappingProduct(storeId, nomExterneClean);
-        console.log('[CSV Import] mapping:', resolved.found
-          ? '✅ productId=' + resolved.productId
-          : '❌ non trouvé pour clé: ' + JSON.stringify(nomExterneClean));
+          console.log(`[CSV]   → produit_brut="${nomExterne}" | normalisé="${nomClean}" | mapping=${resolved.found ? '✅ '+resolved.productId : '❌ non trouvé'} | qte=${qte}`);
 
-        pendingLines.push({
-          nom_externe:   nomExterneClean,
-          product_id:    resolved.found ? resolved.productId : null,
-          qte:           Math.max(1, qte),
-          prix_unitaire: 0,
-          statut:        'en_attente',
-          mapping_auto:  resolved.auto,
-          mapping_error: !resolved.found,
-        });
-        if (!resolved.found) hasMappingError = true;
+          pendingLines.push({
+            nom_externe:   nomClean,
+            product_id:    resolved.found ? resolved.productId : null,
+            qte:           Math.max(1, qte),
+            prix_unitaire: 0,
+            statut:        'en_attente',
+            mapping_auto:  resolved.auto,
+            mapping_error: !resolved.found,
+          });
+          if (!resolved.found) hasMappingError = true;
+        }
+      } else {
+        console.warn(`[CSV] ⚠️ num="${num}" — colonne produits VIDE (col ${colProduits})`);
+        hasMappingError = true;
       }
 
-      // Payload order sans id — Supabase génère l'UUID
-      ordersToInsert.push({
-        orderPayload: {
-          tenant_id:        tid,
-          store_id:         storeId,
-          num:              num,
-          source:           'csv',
-          client_nom:       clientName,
-          client_tel:       (cols[colTelF]     || '').trim(),
-          client_adresse:   (cols[colAdresseF] || '').trim(),
-          client_ville:     (cols[colVilleF]   || '').trim(),
-          montant:          parseFloat((cols[colMontantF] || '0').replace(/[^\d.,]/g, '').replace(',', '.')) || 0,
-          tracking:         colTrackingF >= 0 ? (cols[colTrackingF] || '').trim() || null : null,
-          statut:           hasMappingError ? 'importe' : 'mapping_ok',
-          has_mapping_error: hasMappingError,
-          notes:            colNotesF >= 0 ? (cols[colNotesF] || '').trim() || null : null,
-        },
-        pendingLines,
-      });
-      console.log('[CSV Import] order prêt:', num,
-        '| tracking:', orderPayload.tracking,
-        '| produits:', pendingLines.map(l => l.nom_externe + ' x' + l.qte),
-        '| mapping erreur:', hasMappingError);
+      const orderPayload = {
+        tenant_id:        tid,
+        store_id:         storeId,
+        num,
+        source:           'csv',
+        client_nom:       clientName,
+        client_tel:       clientTel,
+        client_adresse:   clientAddr,
+        client_ville:     clientCity,
+        montant,
+        tracking:         trackingRaw || null,
+        statut:           hasMappingError ? 'importe' : 'mapping_ok',
+        has_mapping_error: hasMappingError,
+        notes:            notesRaw || null,
+      };
+
+      console.log('[CSV] orderPayload:', { num, client_nom: clientName, tracking: trackingRaw, produits: pendingLines.length });
+
+      ordersToInsert.push({ orderPayload, pendingLines });
       if (hasMappingError) nbErreurs++;
     }
 
-    // ── Étape 2 : Insérer les orders et récupérer les UUIDs ─────
+    // ── 4. Insérer les orders → récupérer UUIDs → insérer les lignes ─
     if (ordersToInsert.length > 0) {
       try {
         const allInserted = [];
-
         for (let i = 0; i < ordersToInsert.length; i += 50) {
           const batch = ordersToInsert.slice(i, i + 50).map(x => x.orderPayload);
-          const { data: inserted, error } = await sb.from('gp_ecom_orders')
+          const { data: ins, error } = await sb.from('gp_ecom_orders')
             .insert(batch)
             .select('id, num, store_id, statut, has_mapping_error, client_nom, client_tel, client_adresse, client_ville, montant, notes, source, tracking');
-          if (error) {
-            console.error('[CSV Import] orders insert error:', error);
-            throw error;
-          }
-          allInserted.push(...(inserted || []));
+          if (error) { console.error('[CSV] INSERT orders error:', error); throw error; }
+          allInserted.push(...(ins || []));
         }
+        console.log('[CSV] Orders insérés:', allInserted.length, allInserted.map(o => ({ id: o.id, num: o.num, tracking: o.tracking })));
 
-        // ── Étape 3 : Insérer les lignes avec les vrais UUIDs ───
+        // Insérer les lignes avec les vrais UUIDs
         const allLines = [];
         for (const item of ordersToInsert) {
           const ins = allInserted.find(x => x.num === item.orderPayload.num);
@@ -497,17 +472,14 @@ async function launchCSVImport() {
             allLines.push({ order_id: ins.id, ...l });
           }
         }
+        console.log('[CSV] Lignes à insérer:', allLines.length, allLines.map(l => ({ nom: l.nom_externe, qte: l.qte, mapping_error: l.mapping_error })));
 
         for (let i = 0; i < allLines.length; i += 100) {
-          const batch = allLines.slice(i, i + 100);
-          const { error } = await sb.from('gp_ecom_order_lines').insert(batch);
-          if (error) {
-            console.error('[CSV Import] lines insert error:', error);
-            throw error;
-          }
+          const { error } = await sb.from('gp_ecom_order_lines').insert(allLines.slice(i, i + 100));
+          if (error) { console.error('[CSV] INSERT lines error:', error); throw error; }
         }
 
-        // ── Étape 4 : Mettre à jour le state local ────────────────
+        // Mettre à jour le state local
         allInserted.forEach(ins => {
           ecomOrders.push({
             id: ins.id, storeId: ins.store_id, num: ins.num,
@@ -517,69 +489,55 @@ async function launchCSVImport() {
             montant: ins.montant, statut: ins.statut,
             hasMappingError: ins.has_mapping_error, notes: ins.notes,
             tracking: ins.tracking || null,
+            scanStatut: 'non_scanne',
             createdAt: new Date().toISOString(),
           });
           const item = ordersToInsert.find(x => x.orderPayload.num === ins.num);
-          if (item) {
-            item.pendingLines.forEach(l => {
-              ecomOrderLines.push({
-                id: null, orderId: ins.id, nomExterne: l.nom_externe,
-                productId: l.product_id, qte: l.qte, prixUnitaire: l.prix_unitaire,
-                statut: l.statut, mappingAuto: l.mapping_auto, mappingError: l.mapping_error,
-              });
-            });
-          }
+          if (item) item.pendingLines.forEach(l => ecomOrderLines.push({
+            id: null, orderId: ins.id, nomExterne: l.nom_externe,
+            productId: l.product_id, qte: l.qte, prixUnitaire: l.prix_unitaire,
+            statut: l.statut, mappingAuto: l.mapping_auto, mappingError: l.mapping_error,
+          }));
         });
 
         nbImportees = allInserted.length;
       } catch (err) {
+        console.error('[CSV] Erreur insertion:', err);
         toast('Erreur insertion: ' + err.message, 'error');
         if (btn) { btn.disabled = false; btn.textContent = '📥 Lancer l\'import'; }
         return;
       }
     }
 
-    // ── Étape 5 : Afficher le rapport ────────────────────────────
+    // ── 5. Rapport ───────────────────────────────────────────────
     const resultEl = document.getElementById('csv-import-result');
-    resultEl.style.display = '';
-    resultEl.innerHTML =
-      '<div style="background:var(--surface2);border-radius:var(--radius-sm);padding:14px;">'
-      + '<div style="font-weight:700;margin-bottom:10px;font-size:13px;">📊 Rapport d\'import</div>'
-      + '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:10px;">'
-      + '<div style="text-align:center;background:var(--surface);border-radius:var(--radius-sm);padding:10px;">'
-      + '<div style="font-size:22px;font-weight:800;color:var(--green);">' + nbImportees + '</div>'
-      + '<div style="font-size:10.5px;color:var(--text3);">Importées</div></div>'
-      + '<div style="text-align:center;background:var(--surface);border-radius:var(--radius-sm);padding:10px;">'
-      + '<div style="font-size:22px;font-weight:800;color:var(--gold);">' + nbDoublons + '</div>'
-      + '<div style="font-size:10.5px;color:var(--text3);">Doublons ignorés</div></div>'
-      + '<div style="text-align:center;background:var(--surface);border-radius:var(--radius-sm);padding:10px;">'
-      + '<div style="font-size:22px;font-weight:800;color:' + (nbErreurs > 0 ? 'var(--red)' : 'var(--text3)') + ';">' + nbErreurs + '</div>'
-      + '<div style="font-size:10.5px;color:var(--text3);">Mapping manquant</div></div>'
-      + '</div>'
-      + (nbErreurs > 0
-        ? '<div style="font-size:12px;color:var(--red);padding:8px 10px;background:rgba(220,38,38,0.06);border-radius:var(--radius-sm);">⚠️ '
-          + nbErreurs + ' commande(s) avec produits non mappés — allez dans <strong>Stores → Mapping</strong> pour corriger.</div>'
-        : '<div style="font-size:12px;color:var(--green);">✅ Tous les produits ont été mappés automatiquement.</div>')
-      + '</div>';
+    if (resultEl) {
+      resultEl.style.display = '';
+      resultEl.innerHTML =
+        '<div style="background:var(--surface2);border-radius:var(--radius-sm);padding:14px;">'
+        + '<div style="font-weight:700;margin-bottom:10px;font-size:13px;">📊 Rapport d\'import</div>'
+        + '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:10px;">'
+        + `<div style="text-align:center;background:var(--surface);border-radius:var(--radius-sm);padding:10px;"><div style="font-size:22px;font-weight:800;color:var(--green);">${nbImportees}</div><div style="font-size:10.5px;color:var(--text3);">Importées</div></div>`
+        + `<div style="text-align:center;background:var(--surface);border-radius:var(--radius-sm);padding:10px;"><div style="font-size:22px;font-weight:800;color:var(--gold);">${nbDoublons}</div><div style="font-size:10.5px;color:var(--text3);">Doublons ignorés</div></div>`
+        + `<div style="text-align:center;background:var(--surface);border-radius:var(--radius-sm);padding:10px;"><div style="font-size:22px;font-weight:800;color:${nbErreurs > 0 ? 'var(--red)' : 'var(--text3)'};">${nbErreurs}</div><div style="font-size:10.5px;color:var(--text3);">Mapping manquant</div></div>`
+        + '</div>'
+        + (nbErreurs > 0 ? `<div style="font-size:12px;color:var(--red);">⚠️ ${nbErreurs} commande(s) avec produits non mappés — allez dans <strong>Stores → Mapping</strong>.</div>` : '<div style="font-size:12px;color:var(--green);">✅ Tous les produits mappés.</div>')
+        + '</div>';
+    }
 
     if (btn) { btn.disabled = false; btn.textContent = '📥 Lancer l\'import'; }
-    // Rafraîchir l'UI — forcer la navigation vers la page ecom
-    renderStores();
 
+    // ── 6. Refresh UI immédiat ───────────────────────────────────
     if (nbImportees > 0) {
-      // Fermer le modal
       closeModal('modal-import-csv');
-      // Naviguer vers la page commandes pour que l'user voie immédiatement
-      setTimeout(() => {
-        navigate('ecom');       // active la page + appelle renderEcom via router
-      }, 200);
-      toast('✅ ' + nbImportees + ' commande(s) importée(s) !', 'success');
+      // Naviguer vers la page ecom — le router appellera renderEcom()
+      setTimeout(() => navigate('ecom'), 150);
+      toast(`✅ ${nbImportees} commande(s) importée(s) !`, 'success');
     } else {
-      renderEcom(true);         // juste rafraîchir sans naviguer
-      toast('ℹ️ Import terminé — ' + nbImportees + ' importée(s)', 'warn');
+      renderEcom(true);
+      toast(nbDoublons > 0 ? `ℹ️ ${nbDoublons} doublon(s) ignoré(s)` : 'ℹ️ Aucune nouvelle commande', 'warn');
     }
-  }
-  _readCSVFile(file, processCSVText);
+  });
 }
 
 

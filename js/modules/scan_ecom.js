@@ -114,11 +114,27 @@ function _showSpinner(show) {
 // ════════════════════════════════════════════════════════════════
 async function _processScanSortie(tracking) {
   // 1. Trouver la commande par tracking OU numéro de commande
-  const order = ecomOrders.find(o =>
-    o.tracking === tracking ||
-    o.num === tracking ||
-    (o.tracking || '').toLowerCase() === tracking.toLowerCase()
-  );
+  const trackingClean = tracking.trim();
+  console.log('[Scanner] tracking scanné:', JSON.stringify(trackingClean));
+  console.log('[Scanner] ecomOrders disponibles:', ecomOrders.length,
+    'avec tracking:', ecomOrders.filter(o => o.tracking).length);
+
+  const order = ecomOrders.find(o => {
+    const t = (o.tracking || '').trim();
+    const n = (o.num || '').trim();
+    const match = t === trackingClean ||
+      n === trackingClean ||
+      t.toLowerCase() === trackingClean.toLowerCase() ||
+      n.toLowerCase() === trackingClean.toLowerCase();
+    if (match) console.log('[Scanner] ✅ Commande trouvée:', o.id, '| num:', n, '| tracking:', t);
+    return match;
+  });
+
+  if (!order) {
+    // Debug : afficher les 5 premiers trackings disponibles
+    const sample = ecomOrders.slice(0, 5).map(o => ({ num: o.num, tracking: o.tracking }));
+    console.log('[Scanner] ❌ Non trouvé. Échantillon commandes:', sample);
+  }
 
   if (!order) {
     _sessionStats.erreur++;
@@ -267,11 +283,27 @@ async function _executeSortie(tracking, order, lines, deductions) {
 // SCAN RETOUR
 // ════════════════════════════════════════════════════════════════
 async function _processScanRetour(tracking) {
-  const order = ecomOrders.find(o =>
-    o.tracking === tracking ||
-    o.num === tracking ||
-    (o.tracking || '').toLowerCase() === tracking.toLowerCase()
-  );
+  const trackingClean = tracking.trim();
+  console.log('[Scanner] tracking scanné:', JSON.stringify(trackingClean));
+  console.log('[Scanner] ecomOrders disponibles:', ecomOrders.length,
+    'avec tracking:', ecomOrders.filter(o => o.tracking).length);
+
+  const order = ecomOrders.find(o => {
+    const t = (o.tracking || '').trim();
+    const n = (o.num || '').trim();
+    const match = t === trackingClean ||
+      n === trackingClean ||
+      t.toLowerCase() === trackingClean.toLowerCase() ||
+      n.toLowerCase() === trackingClean.toLowerCase();
+    if (match) console.log('[Scanner] ✅ Commande trouvée:', o.id, '| num:', n, '| tracking:', t);
+    return match;
+  });
+
+  if (!order) {
+    // Debug : afficher les 5 premiers trackings disponibles
+    const sample = ecomOrders.slice(0, 5).map(o => ({ num: o.num, tracking: o.tracking }));
+    console.log('[Scanner] ❌ Non trouvé. Échantillon commandes:', sample);
+  }
 
   if (!order) {
     _sessionStats.erreur++; _updateStats();
