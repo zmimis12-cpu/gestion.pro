@@ -221,8 +221,18 @@ function previewCSV() {
   const file = document.getElementById('csv-file-input').files[0];
   if (!file) return;
   _readCSVFile(file, text => {
-    const sep   = document.getElementById('csv-separator').value || ',';
     const lines = text.split(/\r?\n/).filter(l => l.trim());
+    // Auto-détecter le séparateur pour l'aperçu
+    const firstLine = lines[0] || '';
+    const tabCount   = (firstLine.match(/\t/g) || []).length;
+    const semicCount = (firstLine.match(/;/g) || []).length;
+    const commaCount = (firstLine.match(/,/g) || []).length;
+    const sep = tabCount > semicCount && tabCount > commaCount ? '\t'
+      : semicCount > commaCount ? ';' : ',';
+    // Mettre à jour le select séparateur dans le modal
+    const sepEl = document.getElementById('csv-separator');
+    if (sepEl) sepEl.value = sep;
+    console.log('[CSV Preview] Séparateur détecté:', JSON.stringify(sep));
     const preview = document.getElementById('csv-preview');
     if (!lines.length) { preview.innerHTML = '<p style="color:var(--red);">Fichier vide</p>'; return; }
 
@@ -312,15 +322,85 @@ async function launchCSVImport() {
     const rawLines  = text.split(/\r?\n/).filter(l => l.trim());
     const dataLines = hasHeader ? rawLines.slice(1) : rawLines;
 
+    // ── Auto-détection du séparateur réel depuis la 1ère ligne ──────────
+    // Ignorer le séparateur choisi dans le modal si le fichier utilise autre chose
+    const firstLine = rawLines[0] || '';
+    const tabCount   = (firstLine.match(/\t/g) || []).length;
+    const semicCount = (firstLine.match(/;/g) || []).length;
+    const commaCount = (firstLine.match(/,/g) || []).length;
+    // Choisir le séparateur qui produit le plus de colonnes
+    const detectedSep = tabCount > semicCount && tabCount > commaCount ? '\t'
+      : semicCount > commaCount ? ';'
+      : ',';
+    if (detectedSep !== separator) {
+      console.warn('[CSV Import] Séparateur auto-corrigé:', JSON.stringify(separator),
+        '→', JSON.stringify(detectedSep),
+        '(tab:', tabCount, 'semi:', semicCount, 'comma:', commaCount, ')');
+    }
+    const effectiveSep = detectedSep;
+
+    // Vérifier que les colonnes détectées correspondent à la structure attendue
+    if (hasHeader && rawLines[0]) {
+      const headerCols = _parseCSVLine(rawLines[0], effectiveSep);
+      console.log('[CSV Import] Headers détectés:', headerCols);
+      console.log('[CSV Import] Séparateur:', JSON.stringify(effectiveSep), '→', headerCols.length, 'colonnes');
+      // Re-détecter les colonnes automatiquement avec le bon séparateur
+      _autoDetectColumns(headerCols);
+      // Relire les valeurs après auto-détection
+      Object.assign(window._csvCols = window._csvCols || {}, {
+        num:      parseInt(document.getElementById('ecom-col-num')?.value) || 0,
+        client:   parseInt(document.getElementById('ecom-col-client')?.value) || 1,
+        tel:      parseInt(document.getElementById('ecom-col-tel')?.value) || 2,
+        adresse:  parseInt(document.getElementById('ecom-col-adresse')?.value) || 3,
+        ville:    parseInt(document.getElementById('ecom-col-ville')?.value) || 4,
+        montant:  parseInt(document.getElementById('ecom-col-montant')?.value) || 5,
+        produits: parseInt(document.getElementById('ecom-col-produits')?.value) || 6,
+        qte:      parseInt(document.getElementById('ecom-col-qte')?.value ?? 7) || 7,
+        notes:    parseInt(document.getElementById('ecom-col-notes')?.value ?? 8),
+        tracking: parseInt(document.getElementById('ecom-col-tracking')?.value ?? 9),
+      });
+      console.log('[CSV Import] Colonnes finales:', window._csvCols);
+    }
+
     let nbImportees = 0, nbDoublons = 0, nbErreurs = 0;
 
     // ── Étape 1 : Parser les lignes du CSV ──────────────────────
     const ordersToInsert = []; // { orderPayload, pendingLines[] }
 
+    // Utiliser les colonnes et séparateur finaux (après auto-détection)
+    const finalCols = window._csvCols || {
+      num:0, client:1, tel:2, adresse:3, ville:4,
+      montant:5, produits:6, qte:7, notes:8, tracking:9
+    };
+    const colNumF      = finalCols.num;
+    const colClientF   = finalCols.client;
+    const colTelF      = finalCols.tel;
+    const colAdresseF  = finalCols.adresse;
+    const colVilleF    = finalCols.ville;
+    const colMontantF  = finalCols.montant;
+    const colProduitsF = finalCols.produits;
+    const colQteF      = finalCols.qte;
+    const colNotesF    = finalCols.notes;
+    const colTrackingF = finalCols.tracking;
+
     for (const rawLine of dataLines) {
-      const cols = _parseCSVLine(rawLine, separator);
-      const num  = (cols[colNum] || '').trim();
+      const cols        = _parseCSVLine(rawLine, effectiveSep);
+      const num         = (cols[colNumF] || '').trim();
       if (!num) continue;
+      const clientName  = (cols[colClientF] || '').trim();
+      const produitsRaw = (cols[colProduitsF] || '').trim();
+
+      // GUARD : si produitsStr = clientName → décalage de colonnes → stopper
+      if (produitsRaw && normalizeName(produitsRaw) === normalizeName(clientName)) {
+        console.error('[CSV Import] ⚠️ DÉCALAGE COLONNES DÉTECTÉ :',
+          'produits=', JSON.stringify(produitsRaw), '= clientName=', JSON.stringify(clientName),
+          '| cols=', cols.slice(0, 12));
+      }
+
+      console.log('[CSV Import] ligne:', num,
+        '| client:', JSON.stringify(clientName),
+        '| produit col', colProduitsF, ':', JSON.stringify(produitsRaw),
+        '| tracking col', colTrackingF, ':', JSON.stringify(cols[colTrackingF]));
 
       // Vérifier doublon en state local
       if (ecomOrders.find(o => o.storeId === storeId && o.num === num)) {
@@ -330,8 +410,9 @@ async function launchCSVImport() {
 
       let hasMappingError = false;
       const pendingLines  = [];
-      const produitsStr   = (cols[colProduits] || '').trim();
-      const entries       = produitsStr ? produitsStr.split(prodSep) : [];
+      // produitsRaw déjà calculé dans le log ci-dessus
+      const produitsStr = produitsRaw;
+      const entries     = produitsStr ? produitsStr.split(prodSep) : [];
 
       for (const entry of entries) {
         // Support format "nom:qte" (inline) OU nom seul + colonne Quantity dédiée
@@ -371,15 +452,15 @@ async function launchCSVImport() {
           store_id:         storeId,
           num:              num,
           source:           'csv',
-          client_nom:       normalizeName(cols[colClient]  || ''),
-          client_tel:       (cols[colTel]     || '').trim(),
-          client_adresse:   (cols[colAdresse] || '').trim(),
-          client_ville:     (cols[colVille]   || '').trim(),
-          montant:          parseFloat((cols[colMontant] || '0').replace(/[^\d.,]/g, '').replace(',', '.')) || 0,
-          tracking:         colTracking >= 0 ? (cols[colTracking] || '').trim() || null : null,
+          client_nom:       clientName,
+          client_tel:       (cols[colTelF]     || '').trim(),
+          client_adresse:   (cols[colAdresseF] || '').trim(),
+          client_ville:     (cols[colVilleF]   || '').trim(),
+          montant:          parseFloat((cols[colMontantF] || '0').replace(/[^\d.,]/g, '').replace(',', '.')) || 0,
+          tracking:         colTrackingF >= 0 ? (cols[colTrackingF] || '').trim() || null : null,
           statut:           hasMappingError ? 'importe' : 'mapping_ok',
           has_mapping_error: hasMappingError,
-          notes:            colNotes >= 0 ? (cols[colNotes] || '').trim() || null : null,
+          notes:            colNotesF >= 0 ? (cols[colNotesF] || '').trim() || null : null,
         },
         pendingLines,
       });
@@ -482,14 +563,21 @@ async function launchCSVImport() {
       + '</div>';
 
     if (btn) { btn.disabled = false; btn.textContent = '📥 Lancer l\'import'; }
-    // Toujours rafraîchir l'UI après import
-    renderEcom(true);
+    // Rafraîchir l'UI — forcer la navigation vers la page ecom
     renderStores();
-    // Fermer le modal si au moins 1 commande importée
+
     if (nbImportees > 0) {
-      setTimeout(() => closeModal('modal-import-csv'), 1200);
+      // Fermer le modal
+      closeModal('modal-import-csv');
+      // Naviguer vers la page commandes pour que l'user voie immédiatement
+      setTimeout(() => {
+        navigate('ecom');       // active la page + appelle renderEcom via router
+      }, 200);
+      toast('✅ ' + nbImportees + ' commande(s) importée(s) !', 'success');
+    } else {
+      renderEcom(true);         // juste rafraîchir sans naviguer
+      toast('ℹ️ Import terminé — ' + nbImportees + ' importée(s)', 'warn');
     }
-    toast('✅ Import terminé — ' + nbImportees + ' importée(s)', 'success');
   }
   _readCSVFile(file, processCSVText);
 }
