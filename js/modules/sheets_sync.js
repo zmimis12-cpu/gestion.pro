@@ -91,7 +91,15 @@ async function launchSheetsSync() {
     }
 
     _showSyncResult(result.importees, result.doublons, result.erreurs);
-    if (result.importees > 0) { renderEcom(true); renderStores(); }
+
+    if (result.importees > 0) {
+      // Recharger les commandes depuis Supabase (le state local ne les a pas encore)
+      await _reloadEcomOrders();
+      // Naviguer vers la page commandes pour affichage immédiat
+      closeModal('modal-sheets-sync');
+      setTimeout(() => navigate('ecom'), 150);
+      renderStores();
+    }
     toast('✅ Sync terminée — ' + result.importees + ' commande(s)', 'success');
 
   } catch (e) {
@@ -138,7 +146,11 @@ async function quickSyncStore(storeId) {
     if (!result.ok) throw new Error(result.error);
 
     if (s) { s.sheetsLastSync = new Date().toISOString(); s.sheetsLastRow = result.lastRow; }
-    if (result.importees > 0) { renderEcom(true); renderStores(); }
+    if (result.importees > 0) {
+      await _reloadEcomOrders();
+      renderEcom(true);
+      renderStores();
+    }
     toast('🔄 ' + s.nom + ' — ' + result.importees + ' importée(s), ' + result.doublons + ' doublon(s)', 'success');
 
   } catch (e) {
@@ -254,4 +266,40 @@ function _kpi(val, label, color) {
   return '<div style="text-align:center;background:var(--surface);border-radius:var(--radius-sm);padding:10px;">' +
     '<div style="font-size:22px;font-weight:800;color:' + color + ';">' + val + '</div>' +
     '<div style="font-size:10.5px;color:var(--text3);">' + label + '</div>' + '</div>';
+}
+
+// ── Recharger les commandes depuis Supabase après sync Sheets ────
+async function _reloadEcomOrders() {
+  const tid = GP_TENANT?.id;
+  if (!tid) return;
+  try {
+    const { data: ordersData } = await sb.from('gp_ecom_orders')
+      .select('*').eq('tenant_id', tid)
+      .order('created_at', { ascending: false }).limit(500);
+    ecomOrders = (ordersData || []).map(o => ({
+      id: o.id, tenantId: o.tenant_id, storeId: o.store_id, num: o.num,
+      source: o.source || 'sheets',
+      clientNom: o.client_nom || '', clientTel: o.client_tel || '',
+      clientAdresse: o.client_adresse || '', clientVille: o.client_ville || '',
+      montant: o.montant || 0, statut: o.statut || 'importe',
+      hasMappingError: o.has_mapping_error || false,
+      tracking: o.tracking || null,
+      scanStatut: o.scan_statut || 'non_scanne',
+      notes: o.notes, createdAt: o.created_at,
+    }));
+    const ids = ecomOrders.slice(0, 200).map(o => o.id);
+    if (ids.length > 0) {
+      const { data: linesData } = await sb.from('gp_ecom_order_lines')
+        .select('*').in('order_id', ids);
+      ecomOrderLines = (linesData || []).map(l => ({
+        id: l.id, orderId: l.order_id, nomExterne: l.nom_externe,
+        productId: l.product_id, qte: l.qte || 1, prixUnitaire: l.prix_unitaire || 0,
+        statut: l.statut || 'en_attente', mappingAuto: l.mapping_auto || false,
+        mappingError: l.mapping_error || false,
+      }));
+    }
+    console.log('[Sync] Rechargé:', ecomOrders.length, 'commandes,', ecomOrderLines.length, 'lignes');
+  } catch(e) {
+    console.error('[Sync] Erreur rechargement:', e.message);
+  }
 }
