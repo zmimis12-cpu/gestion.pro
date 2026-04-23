@@ -2789,41 +2789,54 @@
       </div>
     </div>
 
-    <!-- Mapping colonnes -->
+    <!-- Mapping colonnes — structure par défaut : A=num B=client C=tel D=adresse E=ville F=montant G=produits H=qte I=notes J=tracking -->
     <div style="background:var(--surface2);border-radius:var(--radius-sm);padding:12px;margin-bottom:12px;">
-      <div style="font-size:12px;font-weight:700;color:var(--text2);margin-bottom:8px;">📋 Index des colonnes (commence à 0)</div>
+      <div style="font-size:12px;font-weight:700;color:var(--text2);margin-bottom:4px;">📋 Index des colonnes (0=A, 1=B, 2=C...)</div>
+      <div style="font-size:10.5px;color:var(--accent);margin-bottom:8px;">Structure détectée automatiquement — vérifiez si différente</div>
       <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;">
         <div>
-          <label class="label" style="font-size:10.5px;">N° Commande *</label>
+          <label class="label" style="font-size:10.5px;">A — N° Commande *</label>
           <input id="ecom-col-num" type="number" class="input" value="0" min="0">
         </div>
         <div>
-          <label class="label" style="font-size:10.5px;">Nom client *</label>
+          <label class="label" style="font-size:10.5px;">B — Nom client *</label>
           <input id="ecom-col-client" type="number" class="input" value="1" min="0">
         </div>
         <div>
-          <label class="label" style="font-size:10.5px;">Téléphone *</label>
+          <label class="label" style="font-size:10.5px;">C — Téléphone</label>
           <input id="ecom-col-tel" type="number" class="input" value="2" min="0">
         </div>
         <div>
-          <label class="label" style="font-size:10.5px;">Adresse</label>
+          <label class="label" style="font-size:10.5px;">D — Adresse</label>
           <input id="ecom-col-adresse" type="number" class="input" value="3" min="0">
         </div>
         <div>
-          <label class="label" style="font-size:10.5px;">Ville</label>
+          <label class="label" style="font-size:10.5px;">E — Ville</label>
           <input id="ecom-col-ville" type="number" class="input" value="4" min="0">
         </div>
         <div>
-          <label class="label" style="font-size:10.5px;">Produits * (nom:qte;nom:qte)</label>
-          <input id="ecom-col-produits" type="number" class="input" value="5" min="0">
+          <label class="label" style="font-size:10.5px;">F — Montant COD</label>
+          <input id="ecom-col-montant" type="number" class="input" value="5" min="0">
         </div>
         <div>
-          <label class="label" style="font-size:10.5px;">Montant COD</label>
-          <input id="ecom-col-montant" type="number" class="input" value="6" min="0">
+          <label class="label" style="font-size:10.5px;">G — Produit externe *</label>
+          <input id="ecom-col-produits" type="number" class="input" value="6" min="0">
         </div>
         <div>
-          <label class="label" style="font-size:10.5px;">Notes</label>
-          <input id="ecom-col-notes" type="number" class="input" value="-1" min="-1">
+          <label class="label" style="font-size:10.5px;">H — Quantité</label>
+          <input id="ecom-col-qte" type="number" class="input" value="7" min="0">
+        </div>
+        <div>
+          <label class="label" style="font-size:10.5px;">I — Notes</label>
+          <input id="ecom-col-notes" type="number" class="input" value="8" min="-1">
+        </div>
+        <div>
+          <label class="label" style="font-size:10.5px;">J — Tracking Number</label>
+          <input id="ecom-col-tracking" type="number" class="input" value="9" min="-1">
+        </div>
+        <div>
+          <label class="label" style="font-size:10.5px;">K — Statut externe</label>
+          <input id="ecom-col-statut-ext" type="number" class="input" value="10" min="-1">
         </div>
       </div>
     </div>
