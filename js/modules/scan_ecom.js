@@ -180,9 +180,9 @@ async function _processScanSortie(tracking) {
   }
 
   const deductions = _calculateDeductions(order.storeId, lines);
-  showScanConfirm(tracking, order, lines, deductions, async () => {
-    await _executeSortie(tracking, order, lines, deductions);
-  });
+  // Exécution directe — pas de confirmation manuelle requise
+  showScanLoading(tracking, order, deductions);
+  await _executeSortie(tracking, order, lines, deductions);
 }
 
 // ════════════════════════════════════════════════════════════════
@@ -362,6 +362,18 @@ async function _processScanRetour(tracking) {
 // ════════════════════════════════════════════════════════════════
 // UI — RÉSULTATS SCAN
 // ════════════════════════════════════════════════════════════════
+function showScanLoading(tracking, order, deductions) {
+  const el = document.getElementById('scan-result-area');
+  if (!el) return;
+  const store = ecomStores.find(s => s.id === order.storeId);
+  el.innerHTML =
+    '<div style="background:rgba(37,99,235,0.07);border:2px solid rgba(37,99,235,0.2);border-radius:var(--radius-sm);padding:14px;">'
+    + '<div style="font-size:14px;font-weight:800;color:var(--accent);">⏳ Traitement...</div>'
+    + '<div style="font-size:12px;color:var(--text2);margin-top:4px;">' + escapeHTML(order.clientNom) + ' — ' + escapeHTML(store?.nom || '—') + '</div>'
+    + '<div style="font-family:var(--font-mono),monospace;font-size:11px;color:var(--text3);margin-top:2px;">' + escapeHTML(tracking) + '</div>'
+    + '</div>';
+}
+
 function clearScanResult() {
   const el = document.getElementById('scan-result-area');
   if (el) el.innerHTML = '<div style="background:var(--surface2);border-radius:var(--radius-sm);padding:20px;text-align:center;color:var(--text3);font-size:13px;">📡 En attente d\'un scan...</div>';
