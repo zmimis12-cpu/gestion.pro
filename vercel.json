@@ -2,15 +2,14 @@
   "cleanUrls": true,
   "rewrites": [
     { "source": "/magasinier", "destination": "/magasinier.html" },
-    { "source": "/((?!magasinier).*)", "destination": "/index.html" }
+    { "source": "/((?!js|css|images|favicon|magasinier).*)", "destination": "/index.html" }
   ],
   "headers": [
     {
       "source": "/(.*)",
       "headers": [
         { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" },
-        { "key": "X-Content-Type-Options", "value": "nosniff" },
-        { "key": "Content-Security-Policy", "value": "default-src 'self' 'unsafe-inline' 'unsafe-eval' https: data: blob:; img-src 'self' data: blob: https: http:; connect-src 'self' https:;" }
+        { "key": "Content-Security-Policy", "value": "default-src 'self' 'unsafe-inline' 'unsafe-eval' https: data: blob:; img-src 'self' data: blob: https: http:;" }
       ]
     }
   ]
