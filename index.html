@@ -516,8 +516,8 @@
       <!-- ═══════════════════════════════ STOCK ═══════════════════════════════ -->
       <div class="page" id="page-stock">
         <!-- Stock filters bar -->
-        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:14px;">
-          <input type="text" id="stock-search" placeholder="🔍 Nom, code, référence..." style="max-width:240px;" oninput="debouncedRenderStock()">
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:14px;width:100%;box-sizing:border-box;">
+          <input type="text" id="stock-search" placeholder="🔍 Nom, code, référence..." style="flex:1;min-width:140px;max-width:100%;box-sizing:border-box;" oninput="debouncedRenderStock()">
           <select id="stock-filter-local" onchange="renderStockTable()" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px 10px;color:var(--text);font-family:var(--font),sans-serif;font-size:13px;">
             <option value="">🏪 Tous les locaux</option>
           </select>
@@ -561,6 +561,7 @@
             📦 <span id="lbl-stock-inventory">Inventaire produits</span>
             <span id="stock-count" style="font-size:12px;color:var(--text2);font-weight:400;">0 produits</span>
           </div>
+          <div class="table-wrap" style="overflow-x:auto;-webkit-overflow-scrolling:touch;width:100%;max-width:100%;">
           <table>
             <thead>
               <tr>
@@ -582,6 +583,7 @@
               <tr><td colspan="11"><div class="empty-state"><div class="emoji">📦</div><p>Aucun produit</p></div></td></tr>
             </tbody>
           </table>
+          </div><!-- /table-wrap -->
           <div id="stock-pagination"></div>
         </div>
       </div>
@@ -2940,39 +2942,57 @@
 <script>
 // ════ MOBILE RESPONSIVE JS ════════════════════════════════════
 (function() {
-  function isMobile() { return window.innerWidth <= 430; }
+  var BREAKPOINT = 480;
+
+  function isMobile() { return window.innerWidth <= BREAKPOINT; }
+
+  // Wrap les tableaux dans un container scrollable si pas déjà fait
+  function wrapTables() {
+    document.querySelectorAll('.page.active table, #page-stock table').forEach(function(tbl) {
+      if (tbl.parentElement.classList.contains('table-wrap')) return;
+      var wrap = document.createElement('div');
+      wrap.className = 'table-wrap';
+      wrap.style.cssText = 'overflow-x:auto;-webkit-overflow-scrolling:touch;width:100%;max-width:100%';
+      tbl.parentNode.insertBefore(wrap, tbl);
+      wrap.appendChild(tbl);
+    });
+  }
 
   function initMobile() {
-    const btn = document.getElementById('mob-menu-btn');
-    if (btn) btn.style.display = isMobile() ? 'flex' : 'none';
+    if (isMobile()) {
+      wrapTables();
+    }
   }
 
   window.mobToggleSidebar = function() {
-    const sidebar  = document.getElementById('main-sidebar');
-    const overlay  = document.getElementById('mob-sidebar-overlay');
+    var sidebar = document.getElementById('main-sidebar');
+    var overlay = document.getElementById('mob-sidebar-overlay');
     if (!sidebar) return;
-    const isOpen = sidebar.classList.contains('mob-open');
+    var isOpen = sidebar.classList.contains('mob-open');
     sidebar.classList.toggle('mob-open', !isOpen);
-    overlay.classList.toggle('mob-open', !isOpen);
+    if (overlay) overlay.classList.toggle('mob-open', !isOpen);
     document.body.style.overflow = isOpen ? '' : 'hidden';
-  }
+  };
 
-  // Fermer sidebar quand on navigue
-  const origNavigate = window.navigate;
+  // Fermer sidebar quand on navigue + wrapper les tableaux
+  var _origNav = window.navigate;
   window.navigate = function(page) {
     if (isMobile()) {
-      const sidebar = document.getElementById('main-sidebar');
-      const overlay = document.getElementById('mob-sidebar-overlay');
+      var sidebar = document.getElementById('main-sidebar');
+      var overlay = document.getElementById('mob-sidebar-overlay');
       if (sidebar) sidebar.classList.remove('mob-open');
       if (overlay) overlay.classList.remove('mob-open');
       document.body.style.overflow = '';
+      // Wrap tables après navigation
+      setTimeout(wrapTables, 100);
     }
-    if (origNavigate) origNavigate(page);
+    if (_origNav) _origNav(page);
   };
 
   window.addEventListener('resize', initMobile);
   document.addEventListener('DOMContentLoaded', initMobile);
-  setTimeout(initMobile, 500);
+  // Attendre que le JS app soit chargé
+  setTimeout(initMobile, 800);
 })();
 </script>
 

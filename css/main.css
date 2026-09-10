@@ -3845,193 +3845,308 @@ select, textarea { font-size: 13.5px; padding: 8.5px 11px; }
 
 /* ════════════════════════════════════════════════════════════
    MOBILE RESPONSIVE — 430px et moins
-   ════════════════════════════════════════════════════════════ */
-@media (max-width: 430px) {
 
-  /* ── Sidebar : cachée sur mobile, remplacée par drawer ── */
+/* ════════════════════════════════════════════════════════════
+   MOBILE RESPONSIVE — correction complète layout
+   ════════════════════════════════════════════════════════════ */
+
+/* ── Overlay sidebar mobile ── */
+.sidebar-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.45);
+  z-index: 998;
+  cursor: pointer;
+}
+.sidebar-overlay.mob-open { display: block; }
+
+/* ── Bouton hamburger ── */
+#mob-menu-btn {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  background: none;
+  border: none;
+  font-size: 22px;
+  cursor: pointer;
+  color: var(--text);
+  flex-shrink: 0;
+  padding: 0;
+}
+
+/* ════════════════════════════════
+   MAX 768px — sidebar icon-only
+════════════════════════════════ */
+@media (max-width: 768px) {
+  .sidebar {
+    width: 52px !important;
+    flex-shrink: 0;
+  }
+  .logo-title, .logo-sub, .nav-label,
+  .nav-item span:not(.icon),
+  .sb-name, .sb-role, .badge {
+    display: none !important;
+  }
+  .nav-item {
+    padding: 10px !important;
+    justify-content: center !important;
+  }
+}
+
+/* ════════════════════════════════
+   MAX 480px — vrai mobile
+════════════════════════════════ */
+@media (max-width: 480px) {
+
+  /* 1. LAYOUT ROOT — sidebar cachée, main 100% */
+  .app {
+    overflow-x: hidden !important;
+  }
+
   .sidebar {
     position: fixed !important;
     left: -280px !important;
-    top: 0; bottom: 0;
+    top: 0;
+    bottom: 0;
     width: 260px !important;
     z-index: 999 !important;
     transition: left 0.25s ease !important;
-    box-shadow: 4px 0 20px rgba(0,0,0,0.15) !important;
+    box-shadow: 4px 0 24px rgba(0,0,0,0.18) !important;
+    flex-shrink: 0 !important;
+    /* Réafficher les labels dans le drawer */
   }
   .sidebar.mob-open {
     left: 0 !important;
   }
-  .sidebar-overlay {
-    display: none;
-    position: fixed; inset: 0;
-    background: rgba(0,0,0,0.4);
-    z-index: 998;
-  }
-  .sidebar-overlay.mob-open { display: block; }
-
-  /* Tous les labels sidebar visibles quand drawer ouvert */
   .sidebar.mob-open .logo-title,
   .sidebar.mob-open .logo-sub,
   .sidebar.mob-open .nav-label,
   .sidebar.mob-open .nav-item span:not(.icon),
   .sidebar.mob-open .sb-name,
-  .sidebar.mob-open .sb-role,
-  .sidebar.mob-open .badge { display: block !important; }
-  .sidebar.mob-open .nav-item { padding: 9px 14px !important; justify-content: flex-start !important; }
+  .sidebar.mob-open .sb-role {
+    display: block !important;
+  }
+  .sidebar.mob-open .nav-item {
+    padding: 9px 16px !important;
+    justify-content: flex-start !important;
+    gap: 10px !important;
+  }
 
-  /* ── Main : prend 100% largeur ── */
-  .main { width: 100% !important; }
+  .main {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    overflow-x: hidden !important;
+  }
 
-  /* ── Topbar mobile ── */
+  /* 2. TOPBAR */
+  #mob-menu-btn {
+    display: flex !important;
+  }
   .topbar {
-    padding: 0 12px !important;
-    height: 52px !important;
-    flex-wrap: nowrap !important;
+    padding: 0 10px !important;
+    gap: 8px !important;
+    height: 50px !important;
     overflow: hidden !important;
   }
   .topbar-title {
     font-size: 14px !important;
+    font-weight: 600 !important;
     white-space: nowrap !important;
     overflow: hidden !important;
     text-overflow: ellipsis !important;
     flex: 1 !important;
     min-width: 0 !important;
   }
-  .topbar-date { display: none !important; }
-
-  /* Bouton hamburger — ajouté par JS */
-  #mob-menu-btn {
-    display: flex !important;
-    align-items: center; justify-content: center;
-    width: 36px; height: 36px;
-    background: none; border: none;
-    font-size: 20px; cursor: pointer;
-    color: var(--text); flex-shrink: 0;
+  .topbar-date {
+    display: none !important;
+  }
+  /* Actions topbar */
+  #topbar-action-btn {
+    padding: 6px 10px !important;
+    font-size: 12px !important;
+    white-space: nowrap !important;
+    flex-shrink: 0 !important;
   }
 
-  /* ── Content ── */
+  /* 3. CONTENT */
   .content {
     padding: 12px !important;
     overflow-x: hidden !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
   }
 
-  /* ── Stock header / page header ── */
-  .stock-header, .page-header {
+  /* 4. STOCK HEADER / PAGE HEADER */
+  .stock-header,
+  .page-header {
+    display: flex !important;
     flex-direction: column !important;
     align-items: stretch !important;
     gap: 8px !important;
+    width: 100% !important;
   }
-  .stock-header input, .page-header input {
-    min-width: unset !important;
+  .stock-header > *,
+  .page-header > * {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    box-sizing: border-box !important;
+  }
+  .stock-header input,
+  .page-header input,
+  .stock-header select,
+  .page-header select {
+    min-width: 0 !important;
     max-width: 100% !important;
     width: 100% !important;
   }
-  .stock-header select, .page-header select {
-    width: 100% !important;
-    min-width: unset !important;
-  }
 
-  /* ── Filtres ── */
-  .stock-filters, .filters-row {
+  /* 5. FILTRES */
+  .stock-filters,
+  .filters-row {
+    display: flex !important;
     flex-direction: column !important;
     gap: 8px !important;
-  }
-  .stock-filters input, .stock-filters select,
-  .filters-row input, .filters-row select {
     width: 100% !important;
-    min-width: unset !important;
+  }
+  .stock-filters input,
+  .stock-filters select,
+  .filters-row input,
+  .filters-row select {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
   }
 
-  /* ── Boutons d'action — wrappent en lignes ── */
-  .stock-header .btn, .page-header .btn,
-  .stock-header button, .page-header button {
-    width: 100% !important;
-    justify-content: center !important;
-    padding: 11px 14px !important;
-    font-size: 14px !important;
-  }
-
-  /* Groupe de boutons — flex wrap */
-  .btn-group, .action-bar, .actions-row,
-  [class*="btn-group"], [class*="action-row"] {
+  /* 6. BOUTONS D'ACTION */
+  .stock-header .btn-group,
+  .page-header .btn-group,
+  .stock-actions,
+  .page-actions {
+    display: flex !important;
     flex-wrap: wrap !important;
     gap: 8px !important;
+    width: 100% !important;
   }
-  .btn-group .btn, .action-bar .btn {
+  .stock-header .btn,
+  .page-header .btn,
+  .stock-actions .btn,
+  .page-actions .btn,
+  .stock-header button:not(#mob-menu-btn),
+  .page-header button {
     flex: 1 1 calc(50% - 4px) !important;
     min-width: 120px !important;
+    max-width: 100% !important;
+    padding: 10px 8px !important;
+    font-size: 13px !important;
     justify-content: center !important;
+    box-sizing: border-box !important;
   }
 
-  /* ── Tableau → scroll horizontal limité + cards ── */
-  .table-wrap, [class*="table-container"] {
+  /* 7. TABLEAU — scroll horizontal isolé */
+  .table-wrap,
+  .table-container,
+  #stock-table-wrap,
+  .card > .table-responsive {
     overflow-x: auto !important;
     -webkit-overflow-scrolling: touch !important;
     width: 100% !important;
-  }
-  table {
-    min-width: 500px !important;
-  }
-
-  /* Cache colonnes secondaires dans les tableaux sur mobile */
-  .mob-hide { display: none !important; }
-
-  /* ── Cards produits ── */
-  .product-card {
-    flex-direction: column !important;
-    align-items: flex-start !important;
-  }
-
-  /* ── Modals : plein écran sur mobile ── */
-  .modal-box, .modal-content {
-    width: 100% !important;
     max-width: 100% !important;
-    margin: 0 !important;
-    border-radius: 16px 16px 0 0 !important;
-    max-height: 90vh !important;
-    overflow-y: auto !important;
   }
+  /* Le tableau garde sa largeur min mais scroll seul */
+  .table-wrap table,
+  .table-container table,
+  #stock-table-wrap table {
+    min-width: 480px;
+  }
+
+  /* 8. CARDS & GRIDS */
+  .dashboard-grid,
+  .grid-2, .grid-3, .grid-4,
+  .stats-grid, .kpi-grid {
+    grid-template-columns: 1fr 1fr !important;
+    gap: 8px !important;
+  }
+  .caisse-layout {
+    grid-template-columns: 1fr !important;
+  }
+
+  .card {
+    padding: 12px !important;
+  }
+  .stat-card .stat-value {
+    font-size: 20px !important;
+  }
+
+  /* 9. MODALS */
   .modal-overlay {
     align-items: flex-end !important;
     padding: 0 !important;
   }
-
-  /* ── Dashboard grids ── */
-  .dashboard-grid,
-  [class*="grid-"] {
-    grid-template-columns: 1fr !important;
-  }
-  .grid-2, .grid-3, .grid-4 {
-    grid-template-columns: 1fr 1fr !important;
-  }
-  .grid-4 { grid-template-columns: 1fr 1fr !important; }
-
-  /* ── KPI cards ── */
-  .stat-card, .kpi-card {
-    padding: 12px !important;
-  }
-  .stat-card .stat-value, .kpi-card .value {
-    font-size: 20px !important;
+  .modal-box {
+    width: 100% !important;
+    max-width: 100% !important;
+    border-radius: 16px 16px 0 0 !important;
+    max-height: 90vh !important;
+    overflow-y: auto !important;
+    margin: 0 !important;
   }
 
-  /* ── Overflow global ── */
-  body, #app-wrapper, .app {
+  /* 10. ANTI-OVERFLOW GLOBAL */
+  html, body {
     overflow-x: hidden !important;
+    width: 100% !important;
+    max-width: 100% !important;
   }
-  * { max-width: 100vw; }
-  img, video { max-width: 100% !important; }
+  #app-wrapper {
+    overflow-x: hidden !important;
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+  img, video, iframe {
+    max-width: 100% !important;
+  }
 }
 
-/* ════════════════════════════════════════════════════════════
-   MOBILE — 768px : sidebar en mode icon seulement
-   ════════════════════════════════════════════════════════════ */
-@media (min-width: 431px) and (max-width: 768px) {
-  .sidebar { width: 52px !important; }
-  .logo-title, .logo-sub, .nav-label,
-  .nav-item span:not(.icon), .sb-name, .sb-role { display: none !important; }
-  .nav-item { padding: 10px !important; justify-content: center !important; }
-  .topbar-date { display: none !important; }
-  .content { padding: 14px !important; }
-  .stock-header, .page-header { flex-wrap: wrap !important; }
-  .stock-header input, .page-header input { min-width: 150px !important; }
+/* ── Stock filters — mobile override direct (inline styles) ── */
+@media (max-width: 480px) {
+  #page-stock > div:first-child {
+    flex-direction: column !important;
+  }
+  #page-stock > div:first-child > *,
+  #stock-search,
+  #stock-filter-local,
+  #stock-filter-cat,
+  #stock-filter-cont,
+  #stock-filter-zone,
+  #stock-filter-statut,
+  #stock-sort {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    box-sizing: border-box !important;
+    flex: unset !important;
+  }
+
+  /* Boutons actions stock — 2 par ligne */
+  #page-stock .btn {
+    flex: 1 1 calc(50% - 4px) !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    justify-content: center !important;
+    font-size: 12px !important;
+    padding: 9px 6px !important;
+    box-sizing: border-box !important;
+  }
+
+  /* Sidebar overlay filter wrapper */
+  .stock-filters-wrap {
+    flex-direction: column !important;
+  }
 }
