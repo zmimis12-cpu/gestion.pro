@@ -1,0 +1,1135 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="theme-color" content="#1a56db" />
+  <title>Magasin — Stock & Retours</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+    :root {
+      --blue:    #1a56db;
+      --blue-lt: #e8f0fe;
+      --green:   #057a55;
+      --green-lt:#def7ec;
+      --red:     #c81e1e;
+      --red-lt:  #fde8e8;
+      --orange:  #c27803;
+      --orange-lt:#fdf6b2;
+      --gray:    #6b7280;
+      --bg:      #f3f4f6;
+      --surface: #ffffff;
+      --border:  #e5e7eb;
+      --text:    #111827;
+      --text2:   #6b7280;
+      --nav-h:   60px;
+      --safe-bottom: env(safe-area-inset-bottom, 0px);
+    }
+
+    html, body {
+      height: 100%;
+      background: var(--bg);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      font-size: 15px;
+      color: var(--text);
+      overflow: hidden;
+    }
+
+    /* ── Login ── */
+    #login-screen {
+      position: fixed; inset: 0;
+      background: var(--blue);
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      padding: 32px 24px; z-index: 1000;
+    }
+    #login-screen .logo {
+      width: 72px; height: 72px; border-radius: 20px;
+      background: rgba(255,255,255,0.2);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 34px; margin-bottom: 20px;
+    }
+    #login-screen h1 { color: #fff; font-size: 24px; font-weight: 700; margin-bottom: 6px; }
+    #login-screen p  { color: rgba(255,255,255,0.7); font-size: 14px; margin-bottom: 32px; }
+    #login-screen input {
+      width: 100%; padding: 14px 16px; border-radius: 12px;
+      border: none; font-size: 16px; margin-bottom: 12px;
+      background: rgba(255,255,255,0.15); color: #fff;
+    }
+    #login-screen input::placeholder { color: rgba(255,255,255,0.6); }
+    #login-screen input:focus { outline: none; background: rgba(255,255,255,0.25); }
+    #login-btn {
+      width: 100%; padding: 15px; border-radius: 12px;
+      background: #fff; color: var(--blue);
+      font-size: 16px; font-weight: 700; border: none;
+      cursor: pointer; margin-top: 4px;
+    }
+    #login-err { color: #fca5a5; font-size: 13px; text-align: center; margin-top: 8px; min-height: 20px; }
+
+    /* ── App shell ── */
+    #app { display: none; height: 100%; flex-direction: column; }
+    #app.visible { display: flex; }
+
+    /* Top bar */
+    .topbar {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 12px 16px;
+      display: flex; align-items: center; gap: 12px;
+      flex-shrink: 0;
+    }
+    .topbar .page-title { font-size: 17px; font-weight: 700; flex: 1; }
+    .topbar .user-badge {
+      font-size: 12px; color: var(--text2);
+      background: var(--bg); padding: 4px 10px;
+      border-radius: 20px; border: 1px solid var(--border);
+    }
+    .topbar .logout-btn {
+      font-size: 18px; background: none; border: none;
+      color: var(--text2); cursor: pointer; padding: 4px;
+    }
+
+    /* Content */
+    .content {
+      flex: 1; overflow-y: auto; overflow-x: hidden;
+      -webkit-overflow-scrolling: touch;
+      padding: 16px;
+      padding-bottom: calc(var(--nav-h) + var(--safe-bottom) + 16px);
+    }
+
+    /* Bottom nav */
+    .bottom-nav {
+      position: fixed; bottom: 0; left: 0; right: 0;
+      height: calc(var(--nav-h) + var(--safe-bottom));
+      padding-bottom: var(--safe-bottom);
+      background: var(--surface);
+      border-top: 1px solid var(--border);
+      display: flex; align-items: stretch;
+      z-index: 100;
+    }
+    .nav-btn {
+      flex: 1; display: flex; flex-direction: column;
+      align-items: center; justify-content: center; gap: 3px;
+      border: none; background: none; cursor: pointer;
+      font-size: 11px; color: var(--text2); font-weight: 500;
+      padding: 0; transition: color 0.15s;
+    }
+    .nav-btn .icon { font-size: 22px; line-height: 1; }
+    .nav-btn.active { color: var(--blue); }
+    .nav-btn.active .icon { transform: scale(1.1); }
+
+    /* ── Screens ── */
+    .screen { display: none; }
+    .screen.active { display: block; }
+
+    /* ── Search bar ── */
+    .search-wrap {
+      position: relative; margin-bottom: 16px;
+    }
+    .search-wrap input {
+      width: 100%; padding: 12px 16px 12px 44px;
+      border-radius: 12px; border: 1.5px solid var(--border);
+      font-size: 15px; background: var(--surface);
+      color: var(--text);
+    }
+    .search-wrap input:focus { outline: none; border-color: var(--blue); }
+    .search-wrap .search-icon {
+      position: absolute; left: 14px; top: 50%;
+      transform: translateY(-50%); font-size: 18px; color: var(--text2);
+      pointer-events: none;
+    }
+
+    /* ── Product card ── */
+    .product-card {
+      background: var(--surface); border-radius: 14px;
+      border: 1.5px solid var(--border);
+      padding: 14px 16px; margin-bottom: 10px;
+      display: flex; align-items: center; gap: 14px;
+      cursor: pointer; transition: border-color 0.15s;
+      -webkit-user-select: none;
+    }
+    .product-card:active { background: #f9fafb; }
+    .product-card.low-stock { border-color: var(--orange); }
+    .product-card.no-stock  { border-color: var(--red); }
+
+    .product-img {
+      width: 54px; height: 54px; border-radius: 10px;
+      object-fit: cover; background: var(--bg);
+      flex-shrink: 0; display: flex; align-items: center;
+      justify-content: center; font-size: 24px;
+    }
+    .product-img img { width: 100%; height: 100%; border-radius: 10px; object-fit: cover; }
+
+    .product-info { flex: 1; min-width: 0; }
+    .product-name { font-weight: 600; font-size: 15px; margin-bottom: 3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .product-code { font-size: 12px; color: var(--text2); margin-bottom: 6px; font-family: monospace; }
+    .product-meta { display: flex; gap: 8px; flex-wrap: wrap; }
+    .meta-tag {
+      font-size: 12px; padding: 2px 8px; border-radius: 20px;
+      font-weight: 500;
+    }
+    .meta-tag.stock-ok     { background: var(--green-lt); color: var(--green); }
+    .meta-tag.stock-low    { background: var(--orange-lt); color: var(--orange); }
+    .meta-tag.stock-empty  { background: var(--red-lt); color: var(--red); }
+    .meta-tag.price        { background: var(--blue-lt); color: var(--blue); }
+    .meta-tag.zone         { background: #f3e8ff; color: #7c3aed; }
+
+    .stock-number { font-size: 22px; font-weight: 800; flex-shrink: 0; text-align: right; }
+    .stock-number.ok    { color: var(--green); }
+    .stock-number.low   { color: var(--orange); }
+    .stock-number.empty { color: var(--red); }
+
+    /* ── Section header ── */
+    .section-head {
+      font-size: 13px; font-weight: 600; color: var(--text2);
+      text-transform: uppercase; letter-spacing: 0.05em;
+      margin-bottom: 10px; margin-top: 4px;
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .section-head .count {
+      background: var(--blue-lt); color: var(--blue);
+      font-size: 12px; padding: 2px 8px; border-radius: 20px;
+    }
+
+    /* ── Stats bar ── */
+    .stats-bar {
+      display: grid; grid-template-columns: repeat(3,1fr);
+      gap: 10px; margin-bottom: 16px;
+    }
+    .stat-box {
+      background: var(--surface); border-radius: 12px;
+      border: 1px solid var(--border); padding: 12px;
+      text-align: center;
+    }
+    .stat-box .val { font-size: 22px; font-weight: 800; }
+    .stat-box .lbl { font-size: 11px; color: var(--text2); margin-top: 2px; }
+
+    /* ── Retour form ── */
+    .retour-form {
+      background: var(--surface); border-radius: 14px;
+      border: 1.5px solid var(--border); padding: 16px;
+      margin-bottom: 12px;
+    }
+    .retour-form label {
+      display: block; font-size: 13px; font-weight: 600;
+      color: var(--text2); margin-bottom: 6px; margin-top: 12px;
+    }
+    .retour-form label:first-child { margin-top: 0; }
+    .retour-form input, .retour-form select, .retour-form textarea {
+      width: 100%; padding: 12px 14px; border-radius: 10px;
+      border: 1.5px solid var(--border); font-size: 15px;
+      background: var(--bg); color: var(--text);
+    }
+    .retour-form input:focus, .retour-form select:focus, .retour-form textarea:focus {
+      outline: none; border-color: var(--blue); background: #fff;
+    }
+    .retour-form textarea { resize: none; }
+
+    /* ── Buttons ── */
+    .btn {
+      display: flex; align-items: center; justify-content: center;
+      gap: 8px; width: 100%; padding: 15px;
+      border-radius: 12px; border: none; font-size: 16px;
+      font-weight: 600; cursor: pointer; transition: opacity 0.15s;
+    }
+    .btn:active { opacity: 0.8; }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn-primary { background: var(--blue); color: #fff; }
+    .btn-success { background: var(--green); color: #fff; }
+    .btn-danger  { background: var(--red); color: #fff; }
+    .btn-outline { background: #fff; color: var(--blue); border: 2px solid var(--blue); }
+
+    /* ── Movement type selector ── */
+    .type-grid {
+      display: grid; grid-template-columns: 1fr 1fr;
+      gap: 10px; margin-bottom: 4px;
+    }
+    .type-btn {
+      padding: 12px; border-radius: 10px; border: 2px solid var(--border);
+      background: var(--bg); font-size: 14px; font-weight: 600;
+      cursor: pointer; text-align: center; transition: all 0.15s;
+      color: var(--text2);
+    }
+    .type-btn.selected { border-color: var(--blue); background: var(--blue-lt); color: var(--blue); }
+
+    /* ── Return log card ── */
+    .retour-card {
+      background: var(--surface); border-radius: 12px;
+      border: 1.5px solid var(--border); padding: 14px;
+      margin-bottom: 10px;
+    }
+    .retour-card .rc-head {
+      display: flex; justify-content: space-between;
+      align-items: flex-start; margin-bottom: 8px;
+    }
+    .retour-card .rc-id { font-weight: 700; font-size: 14px; }
+    .retour-card .rc-date { font-size: 12px; color: var(--text2); }
+    .retour-card .rc-body { font-size: 13px; color: var(--text2); line-height: 1.6; }
+    .statut-badge {
+      display: inline-block; padding: 3px 10px; border-radius: 20px;
+      font-size: 12px; font-weight: 600;
+    }
+    .statut-badge.en_attente  { background: var(--orange-lt); color: var(--orange); }
+    .statut-badge.traite      { background: var(--green-lt); color: var(--green); }
+    .statut-badge.rejete      { background: var(--red-lt); color: var(--red); }
+
+    /* ── Modal ── */
+    .modal-overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.5);
+      z-index: 500; display: flex; align-items: flex-end;
+      display: none;
+    }
+    .modal-overlay.open { display: flex; }
+    .modal-box {
+      background: var(--surface); border-radius: 20px 20px 0 0;
+      width: 100%; max-height: 85vh; overflow-y: auto;
+      padding: 20px 20px calc(20px + var(--safe-bottom));
+      animation: slideUp 0.25s ease;
+    }
+    @keyframes slideUp {
+      from { transform: translateY(100%); }
+      to   { transform: translateY(0); }
+    }
+    .modal-handle {
+      width: 40px; height: 4px; border-radius: 2px;
+      background: var(--border); margin: 0 auto 16px;
+    }
+    .modal-title { font-size: 18px; font-weight: 700; margin-bottom: 16px; }
+
+    /* ── Toast ── */
+    .toast {
+      position: fixed; top: 16px; left: 16px; right: 16px;
+      padding: 14px 16px; border-radius: 12px; font-size: 14px;
+      font-weight: 600; z-index: 999; text-align: center;
+      transform: translateY(-100px); opacity: 0;
+      transition: all 0.3s ease;
+    }
+    .toast.show { transform: translateY(0); opacity: 1; }
+    .toast.success { background: var(--green); color: #fff; }
+    .toast.error   { background: var(--red); color: #fff; }
+
+    /* ── Loading ── */
+    .loading {
+      text-align: center; padding: 40px 20px; color: var(--text2);
+    }
+    .spinner {
+      width: 32px; height: 32px; border: 3px solid var(--border);
+      border-top-color: var(--blue); border-radius: 50%;
+      animation: spin 0.7s linear infinite; margin: 0 auto 12px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Empty ── */
+    .empty { text-align: center; padding: 48px 20px; color: var(--text2); }
+    .empty .empty-icon { font-size: 44px; margin-bottom: 12px; }
+    .empty p { font-size: 14px; }
+
+    /* Filter pills */
+    .filter-pills {
+      display: flex; gap: 8px; overflow-x: auto;
+      padding-bottom: 4px; margin-bottom: 14px;
+      scrollbar-width: none;
+    }
+    .filter-pills::-webkit-scrollbar { display: none; }
+    .pill {
+      flex-shrink: 0; padding: 6px 14px; border-radius: 20px;
+      border: 1.5px solid var(--border); font-size: 13px;
+      font-weight: 500; background: var(--surface); color: var(--text2);
+      cursor: pointer; white-space: nowrap;
+    }
+    .pill.active { background: var(--blue); border-color: var(--blue); color: #fff; }
+  </style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="login-screen">
+  <div class="logo">📦</div>
+  <h1>Magasin</h1>
+  <p>Stock & Retours — Accès magasinier</p>
+  <input type="email" id="login-email" placeholder="Email" autocomplete="email" />
+  <input type="password" id="login-pass" placeholder="Mot de passe" autocomplete="current-password" />
+  <button id="login-btn" onclick="doLogin()">Se connecter</button>
+  <div id="login-err"></div>
+</div>
+
+<!-- APP -->
+<div id="app">
+
+  <!-- Top bar -->
+  <div class="topbar">
+    <div class="page-title" id="page-title">Stock</div>
+    <div class="user-badge" id="user-badge">—</div>
+    <button class="logout-btn" onclick="doLogout()" title="Déconnexion">⎋</button>
+  </div>
+
+  <!-- Content -->
+  <div class="content" id="content">
+    <!-- filled by JS -->
+  </div>
+
+  <!-- Bottom nav -->
+  <nav class="bottom-nav">
+    <button class="nav-btn active" id="nav-stock" onclick="showScreen('stock')">
+      <span class="icon">📦</span>
+      Stock
+    </button>
+    <button class="nav-btn" id="nav-mouvement" onclick="showScreen('mouvement')">
+      <span class="icon">🔄</span>
+      Mouvement
+    </button>
+    <button class="nav-btn" id="nav-retours" onclick="showScreen('retours')">
+      <span class="icon">↩️</span>
+      Retours
+    </button>
+    <button class="nav-btn" id="nav-nouveau-retour" onclick="showScreen('nouveau-retour')">
+      <span class="icon">➕</span>
+      Nouveau
+    </button>
+  </nav>
+</div>
+
+<!-- Product detail modal -->
+<div class="modal-overlay" id="product-modal" onclick="closeModal(event)">
+  <div class="modal-box">
+    <div class="modal-handle"></div>
+    <div id="modal-content"></div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ── CONFIG — remplace avec tes vraies clés ──────────────────
+const SUPABASE_URL = 'https://xyaispmikggrgjczyghk.supabase.co'
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh5YWlzcG1pa2dncmdqY3p5Z2hrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE3OTc4NjUsImV4cCI6MjA4NzM3Mzg2NX0.ohiqpHyEuzMyhPLoktFe7SakgfnRRj2TT4ysuQOER3o'
+let TENANT_ID = null
+let LOCAL_ID  = null
+let currentUser = null
+
+// ── Supabase API ─────────────────────────────────────────────
+const sb = {
+  async query(table, params = '') {
+    const r = await fetch(`${SUPABASE_URL}/rest/v1/${table}${params}`, {
+      headers: {
+        'apikey': SUPABASE_KEY,
+        'Authorization': `Bearer ${SUPABASE_KEY}`,
+        'Content-Type': 'application/json',
+      }
+    })
+    if (!r.ok) throw new Error(await r.text())
+    return r.json()
+  },
+  async insert(table, data) {
+    const r = await fetch(`${SUPABASE_URL}/rest/v1/${table}`, {
+      method: 'POST',
+      headers: {
+        'apikey': SUPABASE_KEY,
+        'Authorization': `Bearer ${SUPABASE_KEY}`,
+        'Content-Type': 'application/json',
+        'Prefer': 'return=representation',
+      },
+      body: JSON.stringify(data),
+    })
+    if (!r.ok) throw new Error(await r.text())
+    return r.json()
+  },
+  async update(table, id, data) {
+    const r = await fetch(`${SUPABASE_URL}/rest/v1/${table}?id=eq.${id}`, {
+      method: 'PATCH',
+      headers: {
+        'apikey': SUPABASE_KEY,
+        'Authorization': `Bearer ${SUPABASE_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(data),
+    })
+    if (!r.ok) throw new Error(await r.text())
+    return true
+  },
+  async auth(email, password) {
+    const r = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=password`, {
+      method: 'POST',
+      headers: {
+        'apikey': SUPABASE_KEY,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ email, password }),
+    })
+    return r.json()
+  }
+}
+
+// ── Auth ─────────────────────────────────────────────────────
+async function doLogin() {
+  const email = document.getElementById('login-email').value.trim()
+  const pass  = document.getElementById('login-pass').value
+  const err   = document.getElementById('login-err')
+  const btn   = document.getElementById('login-btn')
+
+  if (!email || !pass) { err.textContent = 'Email et mot de passe requis'; return }
+  btn.textContent = 'Connexion...'
+  btn.disabled = true
+  err.textContent = ''
+
+  try {
+    // Login via gp_users table
+    const users = await sb.query('gp_users',
+      `?email=eq.${encodeURIComponent(email)}&password=eq.${encodeURIComponent(pass)}&actif=eq.true&select=*&limit=1`
+    )
+
+    if (!users || users.length === 0) {
+      err.textContent = 'Email ou mot de passe incorrect'
+      return
+    }
+
+    const user = users[0]
+
+    // Check role — magasinier, admin, super_admin
+    const allowedRoles = ['magasinier','admin','admin_local','super_admin','caissier','manager']
+    if (!allowedRoles.some(r => user.role?.toLowerCase().includes(r))) {
+      err.textContent = 'Accès non autorisé pour ce rôle : ' + user.role
+      return
+    }
+
+    currentUser = user
+    TENANT_ID   = user.tenant_id
+    LOCAL_ID    = user.local_id || null
+
+    localStorage.setItem('mag_user', JSON.stringify(user))
+    startApp()
+
+  } catch (e) {
+    err.textContent = 'Erreur de connexion — réessayez'
+    console.error(e)
+  } finally {
+    btn.textContent = 'Se connecter'
+    btn.disabled = false
+  }
+}
+
+function doLogout() {
+  localStorage.removeItem('mag_user')
+  currentUser = null
+  document.getElementById('login-screen').style.display = 'flex'
+  document.getElementById('app').classList.remove('visible')
+}
+
+function startApp() {
+  document.getElementById('login-screen').style.display = 'none'
+  document.getElementById('app').classList.add('visible')
+  document.getElementById('user-badge').textContent =
+    `${currentUser.prenom || ''} ${currentUser.nom || ''}`.trim() || currentUser.email?.split('@')[0] || 'Magasinier'
+  showScreen('stock')
+}
+
+// Auto-login
+window.addEventListener('load', () => {
+  const saved = localStorage.getItem('mag_user')
+  if (saved) {
+    try {
+      currentUser = JSON.parse(saved)
+      TENANT_ID   = currentUser.tenant_id
+      LOCAL_ID    = currentUser.local_id || null
+      startApp()
+    } catch { localStorage.removeItem('mag_user') }
+  }
+})
+
+// ── Navigation ───────────────────────────────────────────────
+let currentScreen = 'stock'
+
+function showScreen(name) {
+  currentScreen = name
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'))
+  const navId = name === 'nouveau-retour' ? 'nav-nouveau-retour' : `nav-${name}`
+  const navBtn = document.getElementById(navId)
+  if (navBtn) navBtn.classList.add('active')
+
+  const titles = {
+    'stock': 'Stock', 'mouvement': 'Mouvement de stock',
+    'retours': 'Retours', 'nouveau-retour': 'Nouveau retour'
+  }
+  document.getElementById('page-title').textContent = titles[name] || name
+
+  const screens = { stock: renderStock, mouvement: renderMouvement, retours: renderRetours, 'nouveau-retour': renderNouveauRetour }
+  if (screens[name]) screens[name]()
+}
+
+// ── Toast ────────────────────────────────────────────────────
+function showToast(msg, type = 'success') {
+  const t = document.getElementById('toast')
+  t.textContent = msg
+  t.className = `toast ${type} show`
+  setTimeout(() => { t.className = 'toast' }, 3000)
+}
+
+// ── Modal ────────────────────────────────────────────────────
+function openModal(html) {
+  document.getElementById('modal-content').innerHTML = html
+  document.getElementById('product-modal').classList.add('open')
+}
+function closeModal(e) {
+  if (e.target.id === 'product-modal') {
+    document.getElementById('product-modal').classList.remove('open')
+  }
+}
+function closeModalDirect() {
+  document.getElementById('product-modal').classList.remove('open')
+}
+
+// ── STOCK SCREEN ─────────────────────────────────────────────
+let allProducts = []
+let stockFilter = 'all'
+let stockSearch = ''
+
+async function renderStock() {
+  const c = document.getElementById('content')
+  c.innerHTML = `<div class="loading"><div class="spinner"></div>Chargement du stock...</div>`
+
+  try {
+    let url = `?tenant_id=eq.${TENANT_ID}&select=*&order=name.asc`
+    if (LOCAL_ID) url += `&local_id=eq.${LOCAL_ID}`
+    allProducts = await sb.query('gp_products', url)
+    renderStockView()
+  } catch (e) {
+    c.innerHTML = `<div class="empty"><div class="empty-icon">⚠️</div><p>Erreur: ${e.message}</p></div>`
+  }
+}
+
+function renderStockView() {
+  const low   = allProducts.filter(p => p.stock > 0 && p.stock <= (p.min_stock || 5))
+  const empty = allProducts.filter(p => p.stock <= 0)
+  const ok    = allProducts.filter(p => p.stock > (p.min_stock || 5))
+
+  let filtered = allProducts
+  if (stockFilter === 'low')   filtered = low
+  if (stockFilter === 'empty') filtered = empty
+  if (stockFilter === 'ok')    filtered = ok
+  if (stockSearch) {
+    const s = stockSearch.toLowerCase()
+    filtered = filtered.filter(p =>
+      p.name?.toLowerCase().includes(s) ||
+      p.code?.toLowerCase().includes(s) ||
+      p.category?.toLowerCase().includes(s)
+    )
+  }
+
+  document.getElementById('content').innerHTML = `
+    <div class="stats-bar">
+      <div class="stat-box">
+        <div class="val" style="color:var(--green)">${ok.length}</div>
+        <div class="lbl">En stock</div>
+      </div>
+      <div class="stat-box">
+        <div class="val" style="color:var(--orange)">${low.length}</div>
+        <div class="lbl">Stock bas</div>
+      </div>
+      <div class="stat-box">
+        <div class="val" style="color:var(--red)">${empty.length}</div>
+        <div class="lbl">Rupture</div>
+      </div>
+    </div>
+
+    <div class="search-wrap">
+      <span class="search-icon">🔍</span>
+      <input type="search" placeholder="Rechercher produit, code..." value="${stockSearch}"
+        oninput="stockSearch=this.value; renderStockView()" />
+    </div>
+
+    <div class="filter-pills">
+      <div class="pill ${stockFilter==='all'?'active':''}" onclick="stockFilter='all';renderStockView()">Tous (${allProducts.length})</div>
+      <div class="pill ${stockFilter==='ok'?'active':''}" onclick="stockFilter='ok';renderStockView()">✓ OK (${ok.length})</div>
+      <div class="pill ${stockFilter==='low'?'active':''}" onclick="stockFilter='low';renderStockView()">⚠ Bas (${low.length})</div>
+      <div class="pill ${stockFilter==='empty'?'active':''}" onclick="stockFilter='empty';renderStockView()">✕ Rupture (${empty.length})</div>
+    </div>
+
+    <div class="section-head">
+      Produits <span class="count">${filtered.length}</span>
+    </div>
+
+    ${filtered.length === 0 ? `
+      <div class="empty">
+        <div class="empty-icon">📭</div>
+        <p>Aucun produit trouvé</p>
+      </div>` : filtered.map(p => productCard(p)).join('')}
+  `
+}
+
+function productCard(p) {
+  const stock = Number(p.stock) || 0
+  const min   = Number(p.min_stock) || 5
+  const cls   = stock <= 0 ? 'no-stock' : stock <= min ? 'low-stock' : ''
+  const sNum  = stock <= 0 ? 'empty' : stock <= min ? 'low' : 'ok'
+  const sTag  = stock <= 0 ? 'stock-empty' : stock <= min ? 'stock-low' : 'stock-ok'
+  const sLbl  = stock <= 0 ? '✕ Rupture' : stock <= min ? '⚠ Stock bas' : '✓ En stock'
+  const img   = p.photo_url
+    ? `<img src="${p.photo_url}" alt="${p.name}" />`
+    : `<span>${p.category === 'Vêtements' ? '👕' : p.category === 'Électronique' ? '📱' : '📦'}</span>`
+
+  return `
+    <div class="product-card ${cls}" onclick='openProductDetail(${JSON.stringify(p).replace(/'/g, "&#39;")})'>
+      <div class="product-img">${img}</div>
+      <div class="product-info">
+        <div class="product-name">${p.name}</div>
+        <div class="product-code">${p.code || p.id}</div>
+        <div class="product-meta">
+          <span class="meta-tag ${sTag}">${sLbl}</span>
+          <span class="meta-tag price">${p.price || 0} MAD</span>
+          ${p.zone ? `<span class="meta-tag zone">📍 ${p.zone}</span>` : ''}
+        </div>
+      </div>
+      <div class="stock-number ${sNum}">${stock}<br><span style="font-size:11px;font-weight:500;color:var(--text2)">${p.unit||'pcs'}</span></div>
+    </div>`
+}
+
+function openProductDetail(p) {
+  const stock = Number(p.stock) || 0
+  const min   = Number(p.min_stock) || 5
+  const sColor = stock <= 0 ? 'var(--red)' : stock <= min ? 'var(--orange)' : 'var(--green)'
+
+  let sizesHtml = ''
+  if (p.sizes && Object.keys(p.sizes).length > 0) {
+    sizesHtml = `<div style="margin-top:12px">
+      <div style="font-size:13px;color:var(--text2);margin-bottom:6px">Tailles</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">${
+        Object.entries(p.sizes).map(([s,q]) =>
+          `<div style="padding:6px 12px;border-radius:8px;background:var(--bg);border:1px solid var(--border);text-align:center">
+            <div style="font-weight:700">${s}</div>
+            <div style="font-size:12px;color:var(--text2)">${q}</div>
+          </div>`
+        ).join('')
+      }</div>
+    </div>`
+  }
+
+  openModal(`
+    <div class="modal-title">${p.name}</div>
+    <div style="font-family:monospace;font-size:13px;color:var(--text2);margin-bottom:16px">${p.code || p.id}</div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px">
+      <div style="background:var(--bg);border-radius:10px;padding:12px;text-align:center">
+        <div style="font-size:11px;color:var(--text2);margin-bottom:4px">STOCK</div>
+        <div style="font-size:28px;font-weight:800;color:${sColor}">${stock}</div>
+        <div style="font-size:11px;color:var(--text2)">${p.unit||'pcs'}</div>
+      </div>
+      <div style="background:var(--bg);border-radius:10px;padding:12px;text-align:center">
+        <div style="font-size:11px;color:var(--text2);margin-bottom:4px">MINIMUM</div>
+        <div style="font-size:28px;font-weight:800;color:var(--text)">${min}</div>
+        <div style="font-size:11px;color:var(--text2)">${p.unit||'pcs'}</div>
+      </div>
+      <div style="background:var(--bg);border-radius:10px;padding:12px;text-align:center">
+        <div style="font-size:11px;color:var(--text2);margin-bottom:4px">PRIX VENTE</div>
+        <div style="font-size:20px;font-weight:800;color:var(--blue)">${p.price||0}</div>
+        <div style="font-size:11px;color:var(--text2)">MAD</div>
+      </div>
+      <div style="background:var(--bg);border-radius:10px;padding:12px;text-align:center">
+        <div style="font-size:11px;color:var(--text2);margin-bottom:4px">COÛT</div>
+        <div style="font-size:20px;font-weight:800;color:var(--text)">${p.cost||0}</div>
+        <div style="font-size:11px;color:var(--text2)">MAD</div>
+      </div>
+    </div>
+
+    ${p.category ? `<div style="margin-bottom:8px"><span style="font-size:13px;color:var(--text2)">Catégorie: </span><span style="font-weight:600">${p.category}</span></div>` : ''}
+    ${p.zone ? `<div style="margin-bottom:8px"><span style="font-size:13px;color:var(--text2)">Zone: </span><span style="font-weight:600">${p.zone}</span></div>` : ''}
+
+    ${sizesHtml}
+
+    <div style="margin-top:16px;display:flex;flex-direction:column;gap:10px">
+      <button class="btn btn-primary" onclick="quickMovement('${p.id}','${p.name}','entree'); closeModalDirect()">
+        ➕ Entrée stock
+      </button>
+      <button class="btn btn-outline" onclick="quickMovement('${p.id}','${p.name}','sortie'); closeModalDirect()">
+        ➖ Sortie stock
+      </button>
+      <button class="btn" style="background:var(--bg);color:var(--text);border:1.5px solid var(--border)" onclick="closeModalDirect()">
+        Fermer
+      </button>
+    </div>
+  `)
+}
+
+// ── MOUVEMENT SCREEN ─────────────────────────────────────────
+let mvtType = 'entree'
+let selectedProductId = null
+let selectedProductName = ''
+
+function quickMovement(productId, productName, type) {
+  showScreen('mouvement')
+  setTimeout(() => {
+    selectedProductId   = productId
+    selectedProductName = productName
+    mvtType = type
+    renderMouvementView()
+  }, 50)
+}
+
+async function renderMouvement() {
+  selectedProductId   = null
+  selectedProductName = ''
+  mvtType = 'entree'
+  if (!allProducts.length) {
+    try {
+      let url = `?tenant_id=eq.${TENANT_ID}&select=id,name,code,stock,unit&order=name.asc`
+      if (LOCAL_ID) url += `&local_id=eq.${LOCAL_ID}`
+      allProducts = await sb.query('gp_products', url)
+    } catch(e) {}
+  }
+  renderMouvementView()
+}
+
+function renderMouvementView() {
+  const opts = allProducts.map(p =>
+    `<option value="${p.id}" ${p.id === selectedProductId ? 'selected' : ''}>${p.name} (stock: ${p.stock||0})</option>`
+  ).join('')
+
+  document.getElementById('content').innerHTML = `
+    <div class="retour-form">
+      <label>Type de mouvement</label>
+      <div class="type-grid">
+        <div class="type-btn ${mvtType==='entree'?'selected':''}" onclick="mvtType='entree';document.querySelectorAll('.type-btn').forEach(b=>b.classList.remove('selected'));this.classList.add('selected')">
+          ➕ Entrée
+        </div>
+        <div class="type-btn ${mvtType==='sortie'?'selected':''}" onclick="mvtType='sortie';document.querySelectorAll('.type-btn').forEach(b=>b.classList.remove('selected'));this.classList.add('selected')">
+          ➖ Sortie
+        </div>
+        <div class="type-btn ${mvtType==='transfert'?'selected':''}" onclick="mvtType='transfert';document.querySelectorAll('.type-btn').forEach(b=>b.classList.remove('selected'));this.classList.add('selected')">
+          🔄 Transfert
+        </div>
+        <div class="type-btn ${mvtType==='inventaire'?'selected':''}" onclick="mvtType='inventaire';document.querySelectorAll('.type-btn').forEach(b=>b.classList.remove('selected'));this.classList.add('selected')">
+          📋 Inventaire
+        </div>
+      </div>
+
+      <label>Produit</label>
+      <select id="mvt-product">
+        <option value="">-- Choisir un produit --</option>
+        ${opts}
+      </select>
+
+      <label>Quantité</label>
+      <input type="number" id="mvt-qty" placeholder="Ex: 10" min="0.01" step="any" inputmode="decimal" />
+
+      <label>Note (optionnel)</label>
+      <textarea id="mvt-note" rows="2" placeholder="Raison du mouvement..."></textarea>
+
+      <div style="margin-top:16px">
+        <button class="btn btn-primary" onclick="saveMouvement()" id="mvt-btn">
+          ✓ Enregistrer le mouvement
+        </button>
+      </div>
+    </div>
+
+    <div class="section-head" style="margin-top:20px">
+      Derniers mouvements
+    </div>
+    <div id="mvt-history">
+      <div class="loading"><div class="spinner"></div></div>
+    </div>
+  `
+
+  loadMvtHistory()
+}
+
+async function loadMvtHistory() {
+  try {
+    let url = `?tenant_id=eq.${TENANT_ID}&order=created_at.desc&limit=15&select=*`
+    if (LOCAL_ID) url += `&from_local=eq.${LOCAL_ID}`
+    const mvts = await sb.query('gp_stock_movements', url)
+    const el = document.getElementById('mvt-history')
+    if (!el) return
+    if (!mvts.length) {
+      el.innerHTML = `<div class="empty"><p>Aucun mouvement récent</p></div>`
+      return
+    }
+    el.innerHTML = mvts.map(m => `
+      <div style="background:#fff;border-radius:10px;border:1px solid var(--border);padding:12px 14px;margin-bottom:8px">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:4px">
+          <div style="font-weight:600;font-size:14px">${m.product_name}</div>
+          <div style="font-size:16px;font-weight:800;color:${m.qty>0?'var(--green)':'var(--red)'}">
+            ${m.qty>0?'+':''}${m.qty}
+          </div>
+        </div>
+        <div style="font-size:12px;color:var(--text2)">
+          ${m.note || '—'} · ${new Date(m.created_at).toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})}
+        </div>
+      </div>
+    `).join('')
+  } catch(e) {
+    const el = document.getElementById('mvt-history')
+    if (el) el.innerHTML = `<div class="empty"><p>Erreur chargement</p></div>`
+  }
+}
+
+async function saveMouvement() {
+  const productId = document.getElementById('mvt-product').value
+  const qtyRaw    = document.getElementById('mvt-qty').value
+  const note      = document.getElementById('mvt-note').value.trim()
+  const btn       = document.getElementById('mvt-btn')
+
+  if (!productId) { showToast('Choisissez un produit', 'error'); return }
+  if (!qtyRaw || isNaN(qtyRaw) || Number(qtyRaw) <= 0) { showToast('Quantité invalide', 'error'); return }
+
+  const qty    = mvtType === 'sortie' ? -Math.abs(Number(qtyRaw)) : Math.abs(Number(qtyRaw))
+  const prod   = allProducts.find(p => p.id === productId)
+  btn.disabled = true
+  btn.textContent = 'Enregistrement...'
+
+  try {
+    // Insert movement
+    await sb.insert('gp_stock_movements', {
+      product_id:   productId,
+      product_name: prod?.name || '',
+      from_local:   LOCAL_ID || '',
+      to_local:     LOCAL_ID || '',
+      qty:          qty,
+      note:         note || `${mvtType} — magasinier`,
+      user_id:      currentUser?.id || '',
+      tenant_id:    TENANT_ID,
+    })
+
+    // Update product stock
+    const newStock = (Number(prod?.stock) || 0) + qty
+    await sb.update('gp_products', productId, { stock: newStock, updated_at: new Date().toISOString() })
+
+    // Update local cache
+    if (prod) prod.stock = newStock
+
+    showToast(`✓ Mouvement enregistré (${qty > 0 ? '+' : ''}${qty} ${prod?.unit||'pcs'})`)
+    document.getElementById('mvt-qty').value = ''
+    document.getElementById('mvt-note').value = ''
+    document.getElementById('mvt-product').value = ''
+    loadMvtHistory()
+
+  } catch(e) {
+    showToast('Erreur: ' + e.message, 'error')
+  } finally {
+    btn.disabled = false
+    btn.textContent = '✓ Enregistrer le mouvement'
+  }
+}
+
+// ── RETOURS SCREEN ────────────────────────────────────────────
+let retourFilter = 'all'
+
+async function renderRetours() {
+  const c = document.getElementById('content')
+  c.innerHTML = `<div class="loading"><div class="spinner"></div>Chargement des retours...</div>`
+  try {
+    let url = `?tenant_id=eq.${TENANT_ID}&order=created_at.desc&limit=50&select=*`
+    if (LOCAL_ID) url += `&local_id=eq.${LOCAL_ID}`
+    if (retourFilter !== 'all') url += `&statut=eq.${retourFilter}`
+    const retours = await sb.query('gp_retours', url)
+    renderRetoursView(retours)
+  } catch(e) {
+    c.innerHTML = `<div class="empty"><div class="empty-icon">⚠️</div><p>${e.message}</p></div>`
+  }
+}
+
+function renderRetoursView(retours) {
+  const counts = {
+    all: retours.length,
+    en_attente: retours.filter(r => r.statut === 'en_attente').length,
+    traite:     retours.filter(r => r.statut === 'traite').length,
+    rejete:     retours.filter(r => r.statut === 'rejete').length,
+  }
+
+  document.getElementById('content').innerHTML = `
+    <div class="filter-pills">
+      <div class="pill ${retourFilter==='all'?'active':''}" onclick="retourFilter='all';renderRetours()">Tous (${counts.all})</div>
+      <div class="pill ${retourFilter==='en_attente'?'active':''}" onclick="retourFilter='en_attente';renderRetours()">⏳ En attente (${counts.en_attente})</div>
+      <div class="pill ${retourFilter==='traite'?'active':''}" onclick="retourFilter='traite';renderRetours()">✓ Traités (${counts.traite})</div>
+      <div class="pill ${retourFilter==='rejete'?'active':''}" onclick="retourFilter='rejete';renderRetours()">✕ Rejetés (${counts.rejete})</div>
+    </div>
+
+    <div class="section-head">
+      Retours <span class="count">${retours.length}</span>
+    </div>
+
+    ${retours.length === 0 ? `
+      <div class="empty">
+        <div class="empty-icon">↩️</div>
+        <p>Aucun retour trouvé</p>
+      </div>` : retours.map(r => retourCardHtml(r)).join('')}
+  `
+}
+
+function retourCardHtml(r) {
+  const lines = r.lines || []
+  const itemsSummary = Array.isArray(lines)
+    ? lines.map(l => `${l.name||l.product_name||'Produit'} ×${l.qty||l.quantity||1}`).join(', ')
+    : ''
+  const date = new Date(r.created_at).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' })
+
+  return `
+    <div class="retour-card">
+      <div class="rc-head">
+        <div>
+          <div class="rc-id">↩ ${r.id?.slice(0,8)?.toUpperCase() || '—'}</div>
+          ${r.client_name ? `<div style="font-size:13px;color:var(--text2);margin-top:2px">👤 ${r.client_name}</div>` : ''}
+        </div>
+        <div style="text-align:right">
+          <span class="statut-badge ${r.statut||'en_attente'}">${
+            r.statut === 'traite' ? '✓ Traité' :
+            r.statut === 'rejete' ? '✕ Rejeté' : '⏳ En attente'
+          }</span>
+          <div class="rc-date" style="margin-top:4px">${date}</div>
+        </div>
+      </div>
+      <div class="rc-body">
+        ${itemsSummary ? `📦 ${itemsSummary}<br>` : ''}
+        ${r.note ? `💬 ${r.note}` : ''}
+      </div>
+      ${r.statut === 'en_attente' ? `
+        <div style="display:flex;gap:8px;margin-top:12px">
+          <button class="btn btn-success" style="flex:1;padding:10px;font-size:14px" onclick="updateRetourStatut('${r.id}','traite')">
+            ✓ Traiter
+          </button>
+          <button class="btn btn-danger" style="flex:1;padding:10px;font-size:14px" onclick="updateRetourStatut('${r.id}','rejete')">
+            ✕ Rejeter
+          </button>
+        </div>` : ''}
+    </div>`
+}
+
+async function updateRetourStatut(id, statut) {
+  try {
+    await sb.update('gp_retours', id, { statut })
+    showToast(statut === 'traite' ? '✓ Retour traité' : '✕ Retour rejeté')
+    renderRetours()
+  } catch(e) {
+    showToast('Erreur: ' + e.message, 'error')
+  }
+}
+
+// ── NOUVEAU RETOUR SCREEN ─────────────────────────────────────
+let retourLines = []
+
+async function renderNouveauRetour() {
+  if (!allProducts.length) {
+    try {
+      let url = `?tenant_id=eq.${TENANT_ID}&select=id,name,code,stock,unit&order=name.asc`
+      if (LOCAL_ID) url += `&local_id=eq.${LOCAL_ID}`
+      allProducts = await sb.query('gp_products', url)
+    } catch(e) {}
+  }
+  retourLines = []
+  renderNouveauRetourView()
+}
+
+function renderNouveauRetourView() {
+  const opts = allProducts.map(p =>
+    `<option value="${p.id}" data-name="${p.name}">${p.name}</option>`
+  ).join('')
+
+  const linesHtml = retourLines.length ? `
+    <div class="section-head">Articles ajoutés <span class="count">${retourLines.length}</span></div>
+    ${retourLines.map((l,i) => `
+      <div style="display:flex;align-items:center;gap:10px;background:#fff;padding:12px;border-radius:10px;border:1px solid var(--border);margin-bottom:8px">
+        <div style="flex:1">
+          <div style="font-weight:600;font-size:14px">${l.name}</div>
+          <div style="font-size:13px;color:var(--text2)">×${l.qty} ${l.unit||'pcs'}</div>
+        </div>
+        <button onclick="retourLines.splice(${i},1);renderNouveauRetourView()"
+          style="background:var(--red-lt);color:var(--red);border:none;border-radius:8px;padding:6px 10px;cursor:pointer;font-size:14px">✕</button>
+      </div>
+    `).join('')}
+  ` : ''
+
+  document.getElementById('content').innerHTML = `
+    <div class="retour-form">
+      <label>Nom du client (optionnel)</label>
+      <input type="text" id="ret-client" placeholder="Ex: Mohamed Alami" />
+
+      <label>Ajouter un article</label>
+      <select id="ret-product">
+        <option value="">-- Choisir un produit --</option>
+        ${opts}
+      </select>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:8px">
+        <input type="number" id="ret-qty" placeholder="Quantité" min="1" step="1" inputmode="numeric" value="1" />
+        <button class="btn btn-outline" style="padding:12px" onclick="addRetourLine()">
+          ➕ Ajouter
+        </button>
+      </div>
+    </div>
+
+    ${linesHtml}
+
+    <div class="retour-form" style="margin-top:4px">
+      <label>Motif du retour</label>
+      <select id="ret-motif">
+        <option value="defaut">Défaut / Produit endommagé</option>
+        <option value="mauvais_produit">Mauvais produit reçu</option>
+        <option value="client_change_avis">Client a changé d'avis</option>
+        <option value="quantite_incorrecte">Quantité incorrecte</option>
+        <option value="autre">Autre</option>
+      </select>
+
+      <label>Note</label>
+      <textarea id="ret-note" rows="3" placeholder="Détails supplémentaires..."></textarea>
+
+      <div style="margin-top:16px">
+        <button class="btn btn-success" onclick="saveRetour()" id="ret-btn" ${retourLines.length===0?'disabled':''}>
+          ↩ Enregistrer le retour
+        </button>
+      </div>
+    </div>
+  `
+}
+
+function addRetourLine() {
+  const sel  = document.getElementById('ret-product')
+  const qty  = parseInt(document.getElementById('ret-qty').value) || 1
+  const id   = sel.value
+  const name = sel.options[sel.selectedIndex]?.dataset?.name || ''
+
+  if (!id) { showToast('Choisissez un produit', 'error'); return }
+  const prod = allProducts.find(p => p.id === id)
+  retourLines.push({ product_id: id, name, qty, unit: prod?.unit || 'pcs' })
+  renderNouveauRetourView()
+}
+
+async function saveRetour() {
+  if (!retourLines.length) { showToast('Ajoutez au moins un article', 'error'); return }
+  const btn = document.getElementById('ret-btn')
+  btn.disabled = true
+  btn.textContent = 'Enregistrement...'
+
+  try {
+    await sb.insert('gp_retours', {
+      id:          'RET-' + Date.now(),
+      tenant_id:   TENANT_ID,
+      local_id:    LOCAL_ID || '',
+      client_name: document.getElementById('ret-client').value.trim() || null,
+      lines:       retourLines,
+      note:        `${document.getElementById('ret-motif').value} — ${document.getElementById('ret-note').value.trim()}`,
+      statut:      'en_attente',
+      date:        new Date().toISOString(),
+      created_by:  currentUser?.id || '',
+      created_at:  new Date().toISOString(),
+    })
+
+    showToast('✓ Retour enregistré avec succès')
+    retourLines = []
+    showScreen('retours')
+
+  } catch(e) {
+    showToast('Erreur: ' + e.message, 'error')
+    btn.disabled = false
+    btn.textContent = '↩ Enregistrer le retour'
+  }
+}
+
+// Enter key on login
+document.getElementById('login-pass').addEventListener('keypress', e => {
+  if (e.key === 'Enter') doLogin()
+})
+</script>
+</body>
+</html>
