@@ -643,9 +643,22 @@ async function startApp() {
     toast('⚠️ Erreur chargement — certaines données peuvent manquer', 'warn');
   }
 
-  // Cacher loader, afficher app
+  // Cacher loader, afficher app (sauf si magasinier)
   if (loader) loader.style.display = 'none';
-  if (appWrap) appWrap.style.cssText = 'display:flex;width:100%;height:100%;';
+  const _isMag = normalizeRole(GP_USER?.role) === 'magasinier';
+  if (!_isMag) {
+    if (appWrap) appWrap.style.cssText = 'display:flex;width:100%;height:100%;';
+  } else {
+    if (appWrap) appWrap.style.display = 'none';
+    const magEl = document.getElementById('magasinier-mobile');
+    if (magEl) {
+      magEl.style.display = 'flex';
+      const uLabel = document.getElementById('mag-user-label');
+      if (uLabel) uLabel.textContent = `${GP_USER.prenom||''} ${GP_USER.nom||''}`.trim() || GP_USER.email;
+      if (typeof magShowScreen === 'function') magShowScreen('stock');
+    }
+    return; // stop ici — pas besoin du reste pour le magasinier
+  }
 
   if (!GP_USER) { console.warn('[startApp] GP_USER null — abort'); return; }
   const firstPage = applyRBACUI();
@@ -672,7 +685,18 @@ async function startApp() {
   navigate(firstPage || 'dashboard');
 
   // Vue mobile magasinier — s'active automatiquement si rôle magasinier
-  if (typeof magInit === 'function') magInit();
+  const _role = normalizeRole(GP_USER?.role);
+  if (_role === 'magasinier') {
+    // Cacher tout le système normal
+    if (appWrap) appWrap.style.display = 'none';
+    const magEl = document.getElementById('magasinier-mobile');
+    if (magEl) {
+      magEl.style.display = 'flex';
+      const uLabel = document.getElementById('mag-user-label');
+      if (uLabel) uLabel.textContent = `${GP_USER.prenom||''} ${GP_USER.nom||''}`.trim() || GP_USER.email;
+      if (typeof magShowScreen === 'function') magShowScreen('stock');
+    }
+  }
 
   // Activer la synchronisation temps réel
   setupRealtime();
