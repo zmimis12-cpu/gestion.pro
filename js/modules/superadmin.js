@@ -33,7 +33,12 @@ async function saveSAUser() {
   const email   = document.getElementById('sau-email').value.trim().toLowerCase();
   const pwd     = document.getElementById('sau-pwd').value;
   const role    = document.getElementById('sau-role').value;
-  const localId = document.getElementById('sau-local').value;
+  const localId = document.getElementById('sau-local')?.value || '';
+  // Récupérer tous les locaux sélectionnés (multi-select)
+  const localCheckboxes = document.querySelectorAll('.sau-local-check:checked');
+  const localIds = localCheckboxes.length > 0
+    ? Array.from(localCheckboxes).map(cb => cb.value)
+    : (localId ? [localId] : []);
   const actif   = document.getElementById('sau-actif').value === '1';
 
   if (!nom || !email) { toast('Nom et email obligatoires', 'error'); return; }
@@ -41,8 +46,8 @@ async function saveSAUser() {
   if (pwd && pwd.length < 4) { toast('Mot de passe minimum 4 caractères', 'error'); return; }
 
   const roleObj = getRole(role);
-  if (roleObj?.localRequired !== false && !localId) {
-    toast('Ce rôle nécessite un local assigné', 'error'); return;
+  if (roleObj?.localRequired !== false && localIds.length === 0) {
+    toast('Ce rôle nécessite au moins un point de vente assigné', 'error'); return;
   }
 
   const existing = GP_USERS_ALL.find(u => u.email === email && u.id !== id);
@@ -61,7 +66,7 @@ async function saveSAUser() {
         body: JSON.stringify({
           email, password: pwd,
           tenantId: GP_TENANT.id,
-          nom, role, local_id: localId || null
+          nom, role, local_id: localIds[0] || null
         })
       });
       const efData = await efRes.json();
@@ -69,7 +74,7 @@ async function saveSAUser() {
 
       // Mettre à jour role et local dans gp_users
       await sb.from('gp_users')
-        .update({ role, local_id: localId || null, actif })
+        .update({ role, local_id: localIds[0] || null, local_ids: localIds, actif })
         .eq('auth_id', efData.auth_id);
 
       await loadSAData();
@@ -89,7 +94,8 @@ async function saveSAUser() {
     nom, email, role,
     prenom:    document.getElementById('sau-prenom').value.trim(),
     telephone: document.getElementById('sau-tel').value.trim(),
-    local_id:  localId || null,
+    local_id:  localIds[0] || null,
+    local_ids: localIds,
     actif
   };
 
@@ -512,7 +518,10 @@ function renderSAUsers() {
 
   let filtered = GP_USERS_ALL.filter(u => {
     if (q && !`${u.nom} ${u.prenom} ${u.email}`.toLowerCase().includes(q)) return false;
-    if (fLocal !== 'all' && u.local_id !== fLocal) return false;
+    if (fLocal !== 'all') {
+      const lids = u.local_ids?.length > 0 ? u.local_ids : (u.local_id ? [u.local_id] : []);
+      if (!lids.includes(fLocal)) return false;
+    }
     if (fRole  !== 'all' && normalizeRole(u.role) !== normalizeRole(fRole)) return false;
     return true;
   });
@@ -528,7 +537,14 @@ function renderSAUsers() {
         <td><strong>${escapeHTML(u.nom||'—')}</strong><div style="font-size:11px;color:var(--text2);">${escapeHTML(u.prenom||'')}</td>
         <td style="font-size:12px;">${u.email||'—'}</td>
         <td><span class="chip" style="background:rgba(${role?.color||'#888'},0.12);color:${role?.color||'var(--text2)'};">${role?.label||u.role||'—'}</span></td>
-        <td>${loc ? `<span style="color:${loc.couleur||'var(--accent)'};">● ${escapeHTML(loc.nom)}</span>` : '<span style="color:var(--text2);">—</span>'}</td>
+        <td>${(() => {
+          const lids = u.local_ids?.length > 0 ? u.local_ids : (u.local_id ? [u.local_id] : []);
+          if (lids.length === 0) return '<span style="color:var(--text2);">—</span>';
+          return lids.map(lid => {
+            const l = GP_LOCAUX_ALL.find(x => x.id === lid);
+            return l ? `<span style="color:${l.couleur||'var(--accent)'};margin-right:4px;">● ${escapeHTML(l.nom)}</span>` : '';
+          }).join('');
+        })()}</td>
         <td>${u.telephone||'—'}</td>
         <td><span class="chip ${u.actif?'chip-green':'chip-red'}">${u.actif?'Actif':'Inactif'}</span></td>
         <td>
@@ -554,11 +570,19 @@ function updateSAUserLocalVisibility() {
 function openSAUserModal(id) {
   const u = id ? GP_USERS_ALL.find(x => x.id === id) : null;
 
-  // Populate local select
-  const localSel = document.getElementById('sau-local');
-  if (localSel) {
-    localSel.innerHTML = '<option value="">— Aucun local —</option>' +
-      GP_LOCAUX_ALL.map(l => `<option value="${l.id}" ${u?.local_id===l.id?'selected':''}>${escapeHTML(l.nom)}</option>`).join('');
+  // Populate local checkboxes (multi-select)
+  const localGroup = document.getElementById('sau-local-group');
+  const localChecks = document.getElementById('sau-local-checks');
+  if (localChecks) {
+    const userLocalIds = u?.local_ids || (u?.local_id ? [u.local_id] : []);
+    localChecks.innerHTML = GP_LOCAUX_ALL.length === 0
+      ? '<span style="color:var(--text2);font-size:12px;">Aucun local disponible</span>'
+      : GP_LOCAUX_ALL.map(l => `
+        <label style="display:flex;align-items:center;gap:8px;padding:6px 10px;border-radius:6px;cursor:pointer;border:1px solid var(--border);background:var(--surface2);margin-bottom:4px;">
+          <input type="checkbox" class="sau-local-check" value="${l.id}" ${userLocalIds.includes(l.id)?'checked':''}
+            style="width:15px;height:15px;accent-color:var(--accent);">
+          <span style="color:${l.couleur||'var(--accent)'}">● ${escapeHTML(l.nom)}</span>
+        </label>`).join('');
   }
   // Populate role select
   const roleSel = document.getElementById('sau-role');

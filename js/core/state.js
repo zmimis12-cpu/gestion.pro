@@ -23,6 +23,14 @@ function getLocalId() {
   return GP_USER?.local_id || null;
 }
 
+// Retourne tous les locaux de l'utilisateur (multi-local)
+function getLocalIds() {
+  if (isSuperAdmin()) return SA_ACTIVE_LOCAL ? [SA_ACTIVE_LOCAL] : null;
+  if (GP_USER?.local_ids?.length > 0) return GP_USER.local_ids;
+  if (GP_USER?.local_id) return [GP_USER.local_id];
+  return null;
+}
+
 // Retourne le local_id pour sauvegarder — bloque si SA en accès global
 function getRequiredLocalId() {
   // Retourne le local_id de l'user, ou null si SA en accès global (autorisé)

@@ -787,10 +787,13 @@ function applyRBACUI() {
     if (isSuperAdmin()) {
       localInfo.innerHTML = `<span style="font-size:10px;color:var(--gold);font-weight:700;">🌐 Accès global — tous les locaux</span>`;
       localInfo.style.display = 'block';
-    } else if (GP_USER.local_id) {
-      const loc = GP_LOCAUX_ALL.find(l => l.id === GP_USER.local_id);
-      if (loc) {
-        localInfo.innerHTML = `<span style="font-size:10px;color:${loc.couleur||'var(--accent)'};font-weight:700;">📍 ${escapeHTML(loc.nom)}</span>`;
+    } else {
+      const lids = GP_USER.local_ids?.length > 0 ? GP_USER.local_ids : (GP_USER.local_id ? [GP_USER.local_id] : []);
+      const locs = lids.map(lid => GP_LOCAUX_ALL.find(l => l.id === lid)).filter(Boolean);
+      if (locs.length > 0) {
+        localInfo.innerHTML = locs.map(loc =>
+          `<span style="font-size:10px;color:${loc.couleur||'var(--accent)'};font-weight:700;display:block;">📍 ${escapeHTML(loc.nom)}</span>`
+        ).join('');
         localInfo.style.display = 'block';
       } else {
         localInfo.style.display = 'none';
@@ -858,18 +861,21 @@ async function loadUserData() {
     return;
   }
 
-  // Filtre tenant_id (isolation données) + local_id si non SA
+  // Filtre tenant_id (isolation données) + local_ids si non SA
+  const lids = getLocalIds ? getLocalIds() : (lid ? [lid] : null);
+
   const filter = (q) => {
     q = q.eq('tenant_id', tid); // TOUJOURS filtrer par tenant
-    if (lid) q = q.eq('local_id', lid);
+    if (lids && lids.length === 1) q = q.eq('local_id', lids[0]);
+    else if (lids && lids.length > 1) q = q.in('local_id', lids);
     return q;
   };
 
   try {
-    // ── Produits — TOUS les locaux du tenant ───────────────────
-    const prodsQ = lid
-      ? sb.from('gp_products').select('*').eq('tenant_id', tid).eq('local_id', lid).order('name')
-      : sb.from('gp_products').select('*').eq('tenant_id', tid).order('name');
+    // ── Produits — locaux autorisés du tenant ──────────────────
+    let prodsQ = sb.from('gp_products').select('*').eq('tenant_id', tid).order('name');
+    if (lids && lids.length === 1) prodsQ = prodsQ.eq('local_id', lids[0]);
+    else if (lids && lids.length > 1) prodsQ = prodsQ.in('local_id', lids);
     const { data: prods } = await prodsQ;
     products = (prods || []).map(p => ({
       id: p.id, local_id: p.local_id,
