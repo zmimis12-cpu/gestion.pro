@@ -1408,24 +1408,12 @@ function filterRestockList() {
     const e = locals[0];
     const col = g._totalStock === 0 ? 'var(--red)' : g._totalStock < g.minStock ? 'var(--gold)' : 'var(--accent)';
     const localInfo = e?.nom && e.nom !== '?' ? e.nom : '';
-    return '<div class="restock-item"'
-      + ' data-prod-id="' + escapeHTML(e?.repId || '') + '"'
-      + ' data-stock="' + (e?.stock || 0) + '"'
-      + ' data-local-nom="' + escapeHTML(e?.nom || '') + '"'
-      + ' onclick="selectRestockProduct(this.dataset.prodId, +this.dataset.stock, this.dataset.localNom)"'
-      + ' style="display:flex;align-items:center;gap:12px;padding:10px 14px;cursor:pointer;border-bottom:1px solid var(--border);">'
-      + '<div style="flex:1;">'
-      + '<div style="font-weight:600;font-size:13px;">' + escapeHTML(g.name) + '</div>'
-      + '<div style="font-size:11px;color:var(--text2);">'
-      + (g.code ? escapeHTML(g.code) + ' · ' : '')
-      + (localInfo ? localInfo + ' · ' : '')
-      + escapeHTML(g.category||'')
-      + '</div>'
-      + '</div>'
-      + '<div style="text-align:right;">'
-      + '<div style="font-family:var(--font-mono),monospace;font-weight:800;font-size:15px;color:' + col + ';">' + g._totalStock + '</div>'
-      + '<div style="font-size:10px;color:var(--text2);">en stock</div>'
-      + '</div></div>';
+    const pImg = g.photo ? '<img src="' + g.photo + '" style="width:40px;height:40px;border-radius:8px;object-fit:cover;flex-shrink:0;" alt="">' : '<div style="width:40px;height:40px;border-radius:8px;background:var(--surface2);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;">📦</div>';
+    return '<div class="restock-item" data-prod-id="' + escapeHTML(e?.repId || '') + '" data-stock="' + (e?.stock || 0) + '" data-local-nom="' + escapeHTML(e?.nom || '') + '" onclick="selectRestockProduct(this.dataset.prodId, +this.dataset.stock, this.dataset.localNom)" style="display:flex;align-items:center;gap:12px;padding:10px 14px;cursor:pointer;border-bottom:1px solid var(--border);">'
+      + pImg
+      + '<div style="flex:1;"><div style="font-weight:600;font-size:13px;">' + escapeHTML(g.name) + '</div>'
+      + '<div style="font-size:11px;color:var(--text2);">' + (g.code ? escapeHTML(g.code) + ' · ' : '') + (localInfo ? localInfo + ' · ' : '') + escapeHTML(g.category||'') + '</div></div>'
+      + '<div style="text-align:right;"><div style="font-family:var(--font-mono),monospace;font-weight:800;font-size:15px;color:' + col + ';">' + g._totalStock + '</div><div style="font-size:10px;color:var(--text2);">en stock</div></div></div>';
   }).join('');
 }
 
@@ -1435,7 +1423,13 @@ function selectRestockProduct(id, aggregatedStock, localNomOverride) {
   if (!p) return;
   document.getElementById('reappro-prod-id').value = id;
   const localNom = localNomOverride || GP_LOCAUX_ALL.find(l => l.id === p.local_id)?.nom || p.zone || '';
-  document.getElementById('reappro-prod-name').textContent = '📦 ' + p.name + (p.code ? ' · ' + p.code : '') + (localNom ? ' · ' + localNom : '');
+  // Afficher photo si disponible
+  const reapproName = document.getElementById('reappro-prod-name');
+  if (p.photo) {
+    reapproName.innerHTML = '<img src="' + p.photo + '" style="width:36px;height:36px;border-radius:8px;object-fit:cover;vertical-align:middle;margin-right:8px;" alt=""> ' + p.name + (p.code ? ' · ' + p.code : '') + (localNom ? ' · ' + localNom : '');
+  } else {
+    reapproName.textContent = '📦 ' + p.name + (p.code ? ' · ' + p.code : '') + (localNom ? ' · ' + localNom : '');
+  }
   document.getElementById('reappro-selected').style.display = '';
   document.getElementById('reappro-btn-confirm').style.display = '';
   document.getElementById('reappro-list').innerHTML = '';
