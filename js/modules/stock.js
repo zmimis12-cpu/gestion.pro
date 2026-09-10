@@ -819,20 +819,22 @@ function importCSV(e) {
         minStock: parseInt(cols[5]) || 5,
         unit: cols[6] || 'Pièce',
         code: cols[7] || '',
-        photo: null,
-        zone: cols[9] ? cols[9].trim() : '',
+        photo: photoUrl || null,
         photoUrl: photoUrl || null,
+        zone: cols[9] ? cols[9].trim() : '',
         createdAt: new Date().toISOString()
       });
       added++;
     }
 
     // Load photos from URLs
+    // Photos — utiliser l'URL directement (pas de fetch pour éviter CORS)
     const withPhotos = newProducts.filter(p => p.photoUrl);
-    if (withPhotos.length > 0) {
-      toast(`${withPhotos.length} ${t('toast_loading_photos')}`, 'warn');
-      await Promise.all(withPhotos.map(p => loadPhotoFromUrl(p)));
-    }
+    withPhotos.forEach(p => {
+      if (p.photoUrl && p.photoUrl.startsWith('http')) {
+        p.photo = p.photoUrl; // Utiliser l'URL directement comme src
+      }
+    });
 
     products.push(...newProducts);
     save(); renderStockTable(); updateAlertCount();
@@ -858,20 +860,9 @@ function parseCSVLine(line) {
 }
 
 async function loadPhotoFromUrl(product) {
-  try {
-    const url = product.photoUrl;
-    if (!url || !url.startsWith('http')) return;
-    const response = await fetch(url);
-    if (!response.ok) return;
-    const blob = await response.blob();
-    const base64 = await new Promise(resolve => {
-      const r = new FileReader();
-      r.onload = () => resolve(r.result);
-      r.readAsDataURL(blob);
-    });
-    product.photo = base64;
-  } catch (err) {
-    // URL inaccessible, skip silently
+  // Utiliser l'URL directement comme src — pas de fetch (CORS)
+  if (product.photoUrl && product.photoUrl.startsWith('http')) {
+    product.photo = product.photoUrl;
   }
 }
 

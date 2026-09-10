@@ -905,12 +905,21 @@ async function loadUserData() {
   };
 
   try {
-    // ── Produits — locaux autorisés du tenant ──────────────────
-    let prodsQ = sb.from('gp_products').select('*').eq('tenant_id', tid).order('name');
-    if (lids && lids.length === 1) prodsQ = prodsQ.eq('local_id', lids[0]);
-    else if (lids && lids.length > 1) prodsQ = prodsQ.in('local_id', lids);
-    const { data: prods } = await prodsQ;
-    products = (prods || []).map(p => ({
+    // ── Produits — chargement paginé (contourne limite 1000 Supabase) ──
+    let allProds = [];
+    const BATCH = 1000;
+    let from = 0;
+    while (true) {
+      let q = sb.from('gp_products').select('*').eq('tenant_id', tid).order('name').range(from, from + BATCH - 1);
+      if (lids && lids.length === 1) q = q.eq('local_id', lids[0]);
+      else if (lids && lids.length > 1) q = q.in('local_id', lids);
+      const { data: batch } = await q;
+      if (!batch || batch.length === 0) break;
+      allProds = allProds.concat(batch);
+      if (batch.length < BATCH) break;
+      from += BATCH;
+    }
+    products = allProds.map(p => ({
       id: p.id, local_id: p.local_id,
       name: p.name, category: p.category || 'Général',
       code: p.code || '', type: p.type || 'unite',

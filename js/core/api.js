@@ -12,18 +12,23 @@ async function sbUpsert(table, data, conflictCol = 'id') {
 
 // Helper : synchronisation correcte multi-utilisateur
 // UPSERT uniquement — les suppressions se font via sbDelete() directement
-// sbSync ne supprime JAMAIS en masse pour ne pas écraser les données des autres users
+// sbSync — upsert par batch de 200 pour éviter les limites Supabase
 async function sbSync(table, data, localIdCol = 'local_id', lid) {
   if (!data || data.length === 0) return;
+  const BATCH = 200;
+  let totalDone = 0;
   try {
-    const { error } = await sb.from(table).upsert(data, { onConflict: 'id' });
-    if (error) {
-      console.error(`[SB] ❌ Sync ${table}:`, error.message, error.code, error.details);
-      // Afficher l'erreur visible pour debug
-      toast(`❌ Save ${table}: ${error.message}`, 'error');
-    } else {
-      console.log(`[SB] ✅ Sync ${table}: ${data.length} rows`);
+    for (let i = 0; i < data.length; i += BATCH) {
+      const batch = data.slice(i, i + BATCH);
+      const { error } = await sb.from(table).upsert(batch, { onConflict: 'id' });
+      if (error) {
+        console.error(`[SB] ❌ Sync ${table} batch ${i}:`, error.message);
+        toast(`❌ Save ${table}: ${error.message}`, 'error');
+        return;
+      }
+      totalDone += batch.length;
     }
+    console.log(`[SB] ✅ Sync ${table}: ${totalDone} rows`);
   } catch(e) {
     console.error(`[SB] ❌ Sync ${table} exception:`, e.message);
     toast(`❌ Save ${table}: ${e.message}`, 'error');
