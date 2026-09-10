@@ -905,16 +905,22 @@ async function loadUserData() {
   };
 
   try {
-    // ── Produits — chargement paginé (contourne limite 1000 Supabase) ──
+    // ── Produits — chargement paginé via fetch direct (bypass limite 1000 Supabase) ──
     let allProds = [];
     const BATCH = 1000;
     let from = 0;
     while (true) {
-      let q = sb.from('gp_products').select('*').eq('tenant_id', tid).order('name').range(from, from + BATCH - 1);
-      if (lids && lids.length === 1) q = q.eq('local_id', lids[0]);
-      else if (lids && lids.length > 1) q = q.in('local_id', lids);
-      const { data: batch } = await q;
-      if (!batch || batch.length === 0) break;
+      let params = `select=*&tenant_id=eq.${tid}&order=name&offset=${from}&limit=${BATCH}`;
+      if (lids && lids.length === 1) params += `&local_id=eq.${lids[0]}`;
+      else if (lids && lids.length > 1) params += `&local_id=in.(${lids.join(',')})`;
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/gp_products?${params}`, {
+        headers: {
+          'apikey': SUPABASE_ANON,
+          'Authorization': `Bearer ${SUPABASE_ANON}`
+        }
+      });
+      const batch = await res.json();
+      if (!Array.isArray(batch) || batch.length === 0) break;
       allProds = allProds.concat(batch);
       if (batch.length < BATCH) break;
       from += BATCH;
