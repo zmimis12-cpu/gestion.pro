@@ -466,6 +466,13 @@ const sb = {
 }
 
 // ── Auth ─────────────────────────────────────────────────────
+async function hashPassword(password) {
+  const msgBuffer = new TextEncoder().encode(password)
+  const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer)
+  const hashArray = Array.from(new Uint8Array(hashBuffer))
+  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('')
+}
+
 async function doLogin() {
   const email = document.getElementById('login-email').value.trim()
   const pass  = document.getElementById('login-pass').value
@@ -478,9 +485,9 @@ async function doLogin() {
   err.textContent = ''
 
   try {
-    // Login via gp_users table
+    const hashedPass = await hashPassword(pass)
     const users = await sb.query('gp_users',
-      `?email=eq.${encodeURIComponent(email)}&password=eq.${encodeURIComponent(pass)}&actif=eq.true&select=*&limit=1`
+      `?email=eq.${encodeURIComponent(email)}&password=eq.${hashedPass}&actif=eq.true&select=*&limit=1`
     )
 
     if (!users || users.length === 0) {
