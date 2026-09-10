@@ -910,9 +910,10 @@ async function loadUserData() {
     const BATCH = 1000;
     let from = 0;
     while (true) {
+      // Super admin ou pas de local assigné → charger TOUS les produits du tenant
       let params = `select=*&tenant_id=eq.${tid}&order=name&offset=${from}&limit=${BATCH}`;
-      if (lids && lids.length === 1) params += `&local_id=eq.${lids[0]}`;
-      else if (lids && lids.length > 1) params += `&local_id=in.(${lids.join(',')})`;
+      if (!isSuperAdmin() && lids && lids.length === 1) params += `&local_id=eq.${lids[0]}`;
+      else if (!isSuperAdmin() && lids && lids.length > 1) params += `&local_id=in.(${lids.join(',')})`;
       const res = await fetch(`${SUPABASE_URL}/rest/v1/gp_products?${params}`, {
         headers: {
           'apikey': SUPABASE_ANON,
