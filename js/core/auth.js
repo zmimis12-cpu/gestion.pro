@@ -671,6 +671,9 @@ async function startApp() {
   if(badge){ badge.textContent=pending; badge.style.display=pending>0?'':'none'; }
   navigate(firstPage || 'dashboard');
 
+  // Vue mobile magasinier — s'active automatiquement si rôle magasinier
+  if (typeof magInit === 'function') magInit();
+
   // Activer la synchronisation temps réel
   setupRealtime();
 }

@@ -2935,5 +2935,548 @@
 <!-- Uniquement visible à l'impression — masqué à l'écran       -->
 <div id="invoice-print-root"></div>
 
+<!-- ═══ MAGASINIER MOBILE VIEW ══════════════════════════════════ -->
+<div id="magasinier-mobile" style="display:none;position:fixed;inset:0;z-index:9999;background:#f3f4f6;flex-direction:column;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
+
+  <style>
+    #magasinier-mobile * { box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent; }
+    #magasinier-mobile { font-size:15px; color:#111827; }
+    #mag-topbar { background:#fff; border-bottom:1px solid #e5e7eb; padding:12px 16px; display:flex; align-items:center; gap:10px; flex-shrink:0; }
+    #mag-topbar .mag-title { font-size:17px; font-weight:700; flex:1; }
+    #mag-topbar .mag-user { font-size:12px; color:#6b7280; background:#f3f4f6; padding:4px 10px; border-radius:20px; border:1px solid #e5e7eb; }
+    #mag-content { flex:1; overflow-y:auto; -webkit-overflow-scrolling:touch; padding:16px; padding-bottom:80px; }
+    #mag-bottom-nav { position:fixed; bottom:0; left:0; right:0; height:60px; background:#fff; border-top:1px solid #e5e7eb; display:flex; z-index:10000; }
+    .mag-nav-btn { flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px; border:none; background:none; cursor:pointer; font-size:11px; color:#6b7280; font-weight:500; }
+    .mag-nav-btn .mag-icon { font-size:22px; line-height:1; }
+    .mag-nav-btn.mag-active { color:#1a56db; }
+    .mag-screen { display:none; }
+    .mag-screen.mag-active { display:block; }
+    .mag-search { position:relative; margin-bottom:14px; }
+    .mag-search input { width:100%; padding:11px 14px 11px 42px; border-radius:12px; border:1.5px solid #e5e7eb; font-size:15px; background:#fff; }
+    .mag-search input:focus { outline:none; border-color:#1a56db; }
+    .mag-search .mag-search-icon { position:absolute; left:13px; top:50%; transform:translateY(-50%); font-size:17px; color:#9ca3af; pointer-events:none; }
+    .mag-stats { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-bottom:14px; }
+    .mag-stat { background:#fff; border-radius:12px; border:1px solid #e5e7eb; padding:12px; text-align:center; }
+    .mag-stat .v { font-size:22px; font-weight:800; }
+    .mag-stat .l { font-size:11px; color:#6b7280; margin-top:2px; }
+    .mag-card { background:#fff; border-radius:14px; border:1.5px solid #e5e7eb; padding:14px; margin-bottom:10px; display:flex; align-items:center; gap:12px; cursor:pointer; }
+    .mag-card.mag-low  { border-color:#f59e0b; }
+    .mag-card.mag-empty { border-color:#ef4444; }
+    .mag-card:active { background:#f9fafb; }
+    .mag-prod-info { flex:1; min-width:0; }
+    .mag-prod-name { font-weight:600; font-size:15px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; margin-bottom:3px; }
+    .mag-prod-code { font-size:12px; color:#9ca3af; font-family:monospace; margin-bottom:5px; }
+    .mag-tags { display:flex; gap:6px; flex-wrap:wrap; }
+    .mag-tag { font-size:12px; padding:2px 8px; border-radius:20px; font-weight:500; }
+    .mag-tag-green  { background:#def7ec; color:#057a55; }
+    .mag-tag-orange { background:#fdf6b2; color:#c27803; }
+    .mag-tag-red    { background:#fde8e8; color:#c81e1e; }
+    .mag-tag-blue   { background:#e8f0fe; color:#1a56db; }
+    .mag-stock-num { font-size:22px; font-weight:800; text-align:right; flex-shrink:0; }
+    .mag-pills { display:flex; gap:8px; overflow-x:auto; padding-bottom:4px; margin-bottom:14px; scrollbar-width:none; }
+    .mag-pills::-webkit-scrollbar { display:none; }
+    .mag-pill { flex-shrink:0; padding:6px 14px; border-radius:20px; border:1.5px solid #e5e7eb; font-size:13px; font-weight:500; background:#fff; color:#6b7280; cursor:pointer; white-space:nowrap; }
+    .mag-pill.mag-active { background:#1a56db; border-color:#1a56db; color:#fff; }
+    .mag-section-head { font-size:13px; font-weight:600; color:#6b7280; text-transform:uppercase; letter-spacing:.05em; margin-bottom:10px; display:flex; justify-content:space-between; }
+    .mag-section-head .mag-count { background:#e8f0fe; color:#1a56db; font-size:12px; padding:2px 8px; border-radius:20px; }
+    .mag-form-box { background:#fff; border-radius:14px; border:1.5px solid #e5e7eb; padding:16px; margin-bottom:12px; }
+    .mag-form-box label { display:block; font-size:13px; font-weight:600; color:#6b7280; margin-bottom:6px; margin-top:12px; }
+    .mag-form-box label:first-child { margin-top:0; }
+    .mag-form-box input, .mag-form-box select, .mag-form-box textarea { width:100%; padding:12px 14px; border-radius:10px; border:1.5px solid #e5e7eb; font-size:15px; background:#f9fafb; color:#111827; }
+    .mag-form-box input:focus, .mag-form-box select:focus, .mag-form-box textarea:focus { outline:none; border-color:#1a56db; background:#fff; }
+    .mag-form-box textarea { resize:none; }
+    .mag-type-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+    .mag-type-btn { padding:11px; border-radius:10px; border:2px solid #e5e7eb; background:#f9fafb; font-size:14px; font-weight:600; cursor:pointer; text-align:center; color:#6b7280; }
+    .mag-type-btn.mag-sel { border-color:#1a56db; background:#e8f0fe; color:#1a56db; }
+    .mag-btn { display:flex; align-items:center; justify-content:center; gap:8px; width:100%; padding:14px; border-radius:12px; border:none; font-size:16px; font-weight:600; cursor:pointer; margin-top:12px; }
+    .mag-btn-primary { background:#1a56db; color:#fff; }
+    .mag-btn-success { background:#057a55; color:#fff; }
+    .mag-btn-danger  { background:#c81e1e; color:#fff; }
+    .mag-btn-outline { background:#fff; color:#1a56db; border:2px solid #1a56db; }
+    .mag-btn:disabled { opacity:.5; cursor:not-allowed; }
+    .mag-ret-card { background:#fff; border-radius:12px; border:1.5px solid #e5e7eb; padding:14px; margin-bottom:10px; }
+    .mag-ret-head { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:8px; }
+    .mag-ret-id { font-weight:700; font-size:14px; }
+    .mag-ret-date { font-size:12px; color:#6b7280; }
+    .mag-ret-body { font-size:13px; color:#6b7280; line-height:1.6; }
+    .mag-badge { display:inline-block; padding:3px 10px; border-radius:20px; font-size:12px; font-weight:600; }
+    .mag-badge-wait   { background:#fdf6b2; color:#c27803; }
+    .mag-badge-done   { background:#def7ec; color:#057a55; }
+    .mag-badge-reject { background:#fde8e8; color:#c81e1e; }
+    .mag-ret-actions { display:flex; gap:8px; margin-top:10px; }
+    .mag-ret-btn { flex:1; padding:9px; border-radius:8px; border:none; font-size:14px; font-weight:600; cursor:pointer; }
+    .mag-loading { text-align:center; padding:40px 20px; color:#6b7280; }
+    .mag-spinner { width:30px; height:30px; border:3px solid #e5e7eb; border-top-color:#1a56db; border-radius:50%; animation:magSpin .7s linear infinite; margin:0 auto 10px; }
+    @keyframes magSpin { to { transform:rotate(360deg); } }
+    .mag-empty { text-align:center; padding:48px 20px; color:#9ca3af; }
+    .mag-empty .mag-empty-icon { font-size:40px; margin-bottom:10px; }
+    .mag-toast { position:fixed; top:16px; left:16px; right:16px; padding:13px 16px; border-radius:12px; font-size:14px; font-weight:600; z-index:99999; text-align:center; transform:translateY(-120px); opacity:0; transition:all .3s ease; }
+    .mag-toast.mag-show { transform:translateY(0); opacity:1; }
+    .mag-toast.mag-ok  { background:#057a55; color:#fff; }
+    .mag-toast.mag-err { background:#c81e1e; color:#fff; }
+
+    /* Modal bottom sheet */
+    .mag-modal-ov { position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:19999; display:none; align-items:flex-end; }
+    .mag-modal-ov.mag-open { display:flex; }
+    .mag-modal-box { background:#fff; border-radius:20px 20px 0 0; width:100%; max-height:85vh; overflow-y:auto; padding:20px; animation:magSlide .25s ease; }
+    @keyframes magSlide { from{transform:translateY(100%)} to{transform:translateY(0)} }
+    .mag-modal-handle { width:40px; height:4px; border-radius:2px; background:#e5e7eb; margin:0 auto 14px; }
+  </style>
+
+  <!-- Top bar -->
+  <div id="mag-topbar">
+    <div class="mag-title" id="mag-page-title">📦 Stock</div>
+    <div class="mag-user" id="mag-user-label">—</div>
+  </div>
+
+  <!-- Content -->
+  <div id="mag-content">
+
+    <!-- STOCK SCREEN -->
+    <div class="mag-screen mag-active" id="mag-screen-stock">
+      <div class="mag-loading"><div class="mag-spinner"></div>Chargement...</div>
+    </div>
+
+    <!-- MOUVEMENT SCREEN -->
+    <div class="mag-screen" id="mag-screen-mouvement">
+      <div class="mag-loading"><div class="mag-spinner"></div>Chargement...</div>
+    </div>
+
+    <!-- RETOURS SCREEN -->
+    <div class="mag-screen" id="mag-screen-retours">
+      <div class="mag-loading"><div class="mag-spinner"></div>Chargement...</div>
+    </div>
+
+    <!-- NOUVEAU RETOUR SCREEN -->
+    <div class="mag-screen" id="mag-screen-nouveau-retour">
+      <div class="mag-loading"><div class="mag-spinner"></div>Chargement...</div>
+    </div>
+  </div>
+
+  <!-- Bottom nav -->
+  <nav id="mag-bottom-nav">
+    <button class="mag-nav-btn mag-active" id="mag-nav-stock" onclick="magShowScreen('stock')">
+      <span class="mag-icon">📦</span>Stock
+    </button>
+    <button class="mag-nav-btn" id="mag-nav-mouvement" onclick="magShowScreen('mouvement')">
+      <span class="mag-icon">🔄</span>Mouvement
+    </button>
+    <button class="mag-nav-btn" id="mag-nav-retours" onclick="magShowScreen('retours')">
+      <span class="mag-icon">↩️</span>Retours
+    </button>
+    <button class="mag-nav-btn" id="mag-nav-nouveau-retour" onclick="magShowScreen('nouveau-retour')">
+      <span class="mag-icon">➕</span>Nouveau
+    </button>
+  </nav>
+
+  <!-- Product modal -->
+  <div class="mag-modal-ov" id="mag-prod-modal" onclick="if(event.target===this)this.classList.remove('mag-open')">
+    <div class="mag-modal-box">
+      <div class="mag-modal-handle"></div>
+      <div id="mag-prod-modal-content"></div>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div class="mag-toast" id="mag-toast"></div>
+</div>
+
+<script>
+// ══ MAGASINIER MOBILE — logique complète ══════════════════════
+
+let _magProducts = []
+let _magStockFilter = 'all'
+let _magStockSearch = ''
+let _magMvtType = 'entree'
+let _magRetourLines = []
+let _magRetourFilter = 'all'
+
+function magInit() {
+  const isMobile = window.innerWidth < 768
+  const role = GP_USER?._normalizedRole || normalizeRole(GP_USER?.role)
+  const isMag = role === 'magasinier'
+  if (!isMobile && !isMag) return
+  if (!isMag) return
+
+  // Show mobile view, hide main app
+  const overlay = document.getElementById('magasinier-mobile')
+  if (overlay) {
+    overlay.style.display = 'flex'
+    document.getElementById('mag-user-label').textContent =
+      `${GP_USER.prenom||''} ${GP_USER.nom||''}`.trim() || GP_USER.email
+    magShowScreen('stock')
+  }
+}
+
+function magToast(msg, type='ok') {
+  const t = document.getElementById('mag-toast')
+  t.textContent = msg
+  t.className = `mag-toast mag-${type} mag-show`
+  setTimeout(() => t.className = 'mag-toast', 3000)
+}
+
+function magShowScreen(name) {
+  document.querySelectorAll('.mag-screen').forEach(s => s.classList.remove('mag-active'))
+  document.querySelectorAll('.mag-nav-btn').forEach(b => b.classList.remove('mag-active'))
+  document.getElementById('mag-screen-' + name)?.classList.add('mag-active')
+  document.getElementById('mag-nav-' + name)?.classList.add('mag-active')
+  const titles = { stock:'📦 Stock', mouvement:'🔄 Mouvement', retours:'↩️ Retours', 'nouveau-retour':'➕ Nouveau retour' }
+  document.getElementById('mag-page-title').textContent = titles[name] || name
+  const fns = { stock: magRenderStock, mouvement: magRenderMouvement, retours: magRenderRetours, 'nouveau-retour': magRenderNouveauRetour }
+  if (fns[name]) fns[name]()
+}
+
+// ── STOCK ─────────────────────────────────────────────────────
+async function magRenderStock() {
+  const el = document.getElementById('mag-screen-stock')
+  el.innerHTML = '<div class="mag-loading"><div class="mag-spinner"></div>Chargement...</div>'
+  try {
+    const tid = GP_TENANT?.id
+    const lid = GP_USER?.local_id
+    let q = sb.from('gp_products').select('*').eq('tenant_id', tid).order('name')
+    if (lid) q = q.eq('local_id', lid)
+    const { data } = await q
+    _magProducts = data || []
+    magRenderStockView()
+  } catch(e) {
+    el.innerHTML = `<div class="mag-empty"><div class="mag-empty-icon">⚠️</div><p>${e.message}</p></div>`
+  }
+}
+
+function magRenderStockView() {
+  const prods = _magProducts
+  const ok    = prods.filter(p => Number(p.stock) > (Number(p.min_stock)||5))
+  const low   = prods.filter(p => Number(p.stock) > 0 && Number(p.stock) <= (Number(p.min_stock)||5))
+  const empty = prods.filter(p => Number(p.stock) <= 0)
+
+  let filtered = prods
+  if (_magStockFilter === 'ok')    filtered = ok
+  if (_magStockFilter === 'low')   filtered = low
+  if (_magStockFilter === 'empty') filtered = empty
+  if (_magStockSearch) {
+    const s = _magStockSearch.toLowerCase()
+    filtered = filtered.filter(p => p.name?.toLowerCase().includes(s) || p.code?.toLowerCase().includes(s))
+  }
+
+  document.getElementById('mag-screen-stock').innerHTML = `
+    <div class="mag-stats">
+      <div class="mag-stat"><div class="v" style="color:#057a55">${ok.length}</div><div class="l">En stock</div></div>
+      <div class="mag-stat"><div class="v" style="color:#c27803">${low.length}</div><div class="l">Stock bas</div></div>
+      <div class="mag-stat"><div class="v" style="color:#c81e1e">${empty.length}</div><div class="l">Rupture</div></div>
+    </div>
+    <div class="mag-search">
+      <span class="mag-search-icon">🔍</span>
+      <input type="search" placeholder="Rechercher produit..." value="${_magStockSearch}"
+        oninput="_magStockSearch=this.value;magRenderStockView()" />
+    </div>
+    <div class="mag-pills">
+      <div class="mag-pill ${_magStockFilter==='all'?'mag-active':''}" onclick="_magStockFilter='all';magRenderStockView()">Tous (${prods.length})</div>
+      <div class="mag-pill ${_magStockFilter==='ok'?'mag-active':''}" onclick="_magStockFilter='ok';magRenderStockView()">✓ OK (${ok.length})</div>
+      <div class="mag-pill ${_magStockFilter==='low'?'mag-active':''}" onclick="_magStockFilter='low';magRenderStockView()">⚠ Bas (${low.length})</div>
+      <div class="mag-pill ${_magStockFilter==='empty'?'mag-active':''}" onclick="_magStockFilter='empty';magRenderStockView()">✕ Rupture (${empty.length})</div>
+    </div>
+    <div class="mag-section-head">Produits <span class="mag-count">${filtered.length}</span></div>
+    ${filtered.length === 0
+      ? '<div class="mag-empty"><div class="mag-empty-icon">📭</div><p>Aucun produit</p></div>'
+      : filtered.map(p => magProductCard(p)).join('')}
+  `
+}
+
+function magProductCard(p) {
+  const stock = Number(p.stock) || 0
+  const min   = Number(p.min_stock) || 5
+  const cls   = stock <= 0 ? 'mag-empty' : stock <= min ? 'mag-low' : ''
+  const nc    = stock <= 0 ? '#c81e1e' : stock <= min ? '#c27803' : '#057a55'
+  const tag   = stock <= 0 ? 'mag-tag-red' : stock <= min ? 'mag-tag-orange' : 'mag-tag-green'
+  const lbl   = stock <= 0 ? '✕ Rupture' : stock <= min ? '⚠ Stock bas' : '✓ En stock'
+  const img   = p.photo_url
+    ? `<img src="${p.photo_url}" style="width:50px;height:50px;border-radius:10px;object-fit:cover;flex-shrink:0" />`
+    : `<div style="width:50px;height:50px;border-radius:10px;background:#f3f4f6;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0">📦</div>`
+
+  return `<div class="mag-card ${cls}" onclick='magOpenProduct(${JSON.stringify(p).replace(/"/g,"&quot;")})'>
+    ${img}
+    <div class="mag-prod-info">
+      <div class="mag-prod-name">${p.name}</div>
+      <div class="mag-prod-code">${p.code||p.id}</div>
+      <div class="mag-tags">
+        <span class="mag-tag ${tag}">${lbl}</span>
+        <span class="mag-tag mag-tag-blue">${p.price||0} MAD</span>
+        ${p.zone?`<span class="mag-tag" style="background:#f3e8ff;color:#7c3aed">📍${p.zone}</span>`:''}
+      </div>
+    </div>
+    <div class="mag-stock-num" style="color:${nc}">${stock}<br><span style="font-size:11px;font-weight:500;color:#9ca3af">${p.unit||'pcs'}</span></div>
+  </div>`
+}
+
+function magOpenProduct(p) {
+  const stock = Number(p.stock)||0
+  const min   = Number(p.min_stock)||5
+  const nc    = stock<=0?'#c81e1e':stock<=min?'#c27803':'#057a55'
+  const ps    = JSON.stringify(p).replace(/"/g,'&quot;')
+  document.getElementById('mag-prod-modal-content').innerHTML = `
+    <div style="font-size:18px;font-weight:700;margin-bottom:4px">${p.name}</div>
+    <div style="font-family:monospace;font-size:12px;color:#9ca3af;margin-bottom:16px">${p.code||p.id}</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px">
+      <div style="background:#f3f4f6;border-radius:10px;padding:12px;text-align:center">
+        <div style="font-size:11px;color:#6b7280;margin-bottom:4px">STOCK</div>
+        <div style="font-size:28px;font-weight:800;color:${nc}">${stock}</div>
+        <div style="font-size:11px;color:#6b7280">${p.unit||'pcs'}</div>
+      </div>
+      <div style="background:#f3f4f6;border-radius:10px;padding:12px;text-align:center">
+        <div style="font-size:11px;color:#6b7280;margin-bottom:4px">MIN</div>
+        <div style="font-size:28px;font-weight:800;color:#111827">${min}</div>
+        <div style="font-size:11px;color:#6b7280">${p.unit||'pcs'}</div>
+      </div>
+      <div style="background:#f3f4f6;border-radius:10px;padding:12px;text-align:center">
+        <div style="font-size:11px;color:#6b7280;margin-bottom:4px">PRIX</div>
+        <div style="font-size:22px;font-weight:800;color:#1a56db">${p.price||0}</div>
+        <div style="font-size:11px;color:#6b7280">MAD</div>
+      </div>
+      <div style="background:#f3f4f6;border-radius:10px;padding:12px;text-align:center">
+        <div style="font-size:11px;color:#6b7280;margin-bottom:4px">COÛT</div>
+        <div style="font-size:22px;font-weight:800;color:#111827">${p.cost||0}</div>
+        <div style="font-size:11px;color:#6b7280">MAD</div>
+      </div>
+    </div>
+    ${p.zone?`<div style="margin-bottom:8px;font-size:13px">📍 Zone: <strong>${p.zone}</strong></div>`:''}
+    ${p.category?`<div style="margin-bottom:14px;font-size:13px">🏷️ Catégorie: <strong>${p.category}</strong></div>`:''}
+    <div style="display:flex;flex-direction:column;gap:8px">
+      <button class="mag-btn mag-btn-primary" onclick="magQuickMvt('${p.id}','${p.name.replace(/'/g,'&#39;')}','entree');document.getElementById('mag-prod-modal').classList.remove('mag-open')">➕ Entrée stock</button>
+      <button class="mag-btn mag-btn-outline" onclick="magQuickMvt('${p.id}','${p.name.replace(/'/g,'&#39;')}','sortie');document.getElementById('mag-prod-modal').classList.remove('mag-open')">➖ Sortie stock</button>
+      <button class="mag-btn" style="background:#f3f4f6;color:#374151;border:1.5px solid #e5e7eb" onclick="document.getElementById('mag-prod-modal').classList.remove('mag-open')">Fermer</button>
+    </div>
+  `
+  document.getElementById('mag-prod-modal').classList.add('mag-open')
+}
+
+// ── MOUVEMENT ──────────────────────────────────────────────────
+let _magMvtProdId = null
+let _magMvtProdName = ''
+
+function magQuickMvt(id, name, type) {
+  _magMvtProdId = id; _magMvtProdName = name; _magMvtType = type
+  magShowScreen('mouvement')
+}
+
+async function magRenderMouvement() {
+  if (!_magProducts.length) await magRenderStock()
+  const opts = _magProducts.map(p =>
+    `<option value="${p.id}" ${p.id===_magMvtProdId?'selected':''}>${p.name} (${p.stock||0})</option>`
+  ).join('')
+
+  document.getElementById('mag-screen-mouvement').innerHTML = `
+    <div class="mag-form-box">
+      <label>Type</label>
+      <div class="mag-type-grid">
+        ${['entree','sortie','transfert','inventaire'].map((t,i) => {
+          const labels = ['➕ Entrée','➖ Sortie','🔄 Transfert','📋 Inventaire']
+          return `<div class="mag-type-btn ${_magMvtType===t?'mag-sel':''}"
+            onclick="_magMvtType='${t}';document.querySelectorAll('.mag-type-btn').forEach(b=>b.classList.remove('mag-sel'));this.classList.add('mag-sel')">${labels[i]}</div>`
+        }).join('')}
+      </div>
+      <label>Produit</label>
+      <select id="mag-mvt-prod">
+        <option value="">-- Choisir --</option>${opts}
+      </select>
+      <label>Quantité</label>
+      <input type="number" id="mag-mvt-qty" placeholder="Ex: 10" min="0.01" step="any" inputmode="decimal" />
+      <label>Note (optionnel)</label>
+      <textarea id="mag-mvt-note" rows="2" placeholder="Raison..."></textarea>
+      <button class="mag-btn mag-btn-primary" onclick="magSaveMvt()" id="mag-mvt-btn">✓ Enregistrer</button>
+    </div>
+    <div class="mag-section-head" style="margin-top:16px">Derniers mouvements</div>
+    <div id="mag-mvt-hist"><div class="mag-loading"><div class="mag-spinner"></div></div></div>
+  `
+  magLoadMvtHist()
+}
+
+async function magLoadMvtHist() {
+  try {
+    const tid = GP_TENANT?.id; const lid = GP_USER?.local_id
+    let q = sb.from('gp_stock_movements').select('*').eq('tenant_id',tid).order('created_at',{ascending:false}).limit(15)
+    if (lid) q = q.eq('from_local',lid)
+    const { data } = await q
+    const el = document.getElementById('mag-mvt-hist')
+    if (!el) return
+    el.innerHTML = !data?.length
+      ? '<div class="mag-empty"><p>Aucun mouvement récent</p></div>'
+      : (data||[]).map(m => `
+        <div style="background:#fff;border-radius:10px;border:1px solid #e5e7eb;padding:12px;margin-bottom:8px">
+          <div style="display:flex;justify-content:space-between;margin-bottom:3px">
+            <div style="font-weight:600;font-size:14px">${m.product_name}</div>
+            <div style="font-size:16px;font-weight:800;color:${m.qty>0?'#057a55':'#c81e1e'}">${m.qty>0?'+':''}${m.qty}</div>
+          </div>
+          <div style="font-size:12px;color:#6b7280">${m.note||'—'} · ${new Date(m.created_at).toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})}</div>
+        </div>`).join('')
+  } catch(e) { console.error(e) }
+}
+
+async function magSaveMvt() {
+  const pid  = document.getElementById('mag-mvt-prod').value
+  const qty  = parseFloat(document.getElementById('mag-mvt-qty').value)
+  const note = document.getElementById('mag-mvt-note').value.trim()
+  const btn  = document.getElementById('mag-mvt-btn')
+  if (!pid) { magToast('Choisissez un produit','err'); return }
+  if (!qty || qty <= 0) { magToast('Quantité invalide','err'); return }
+  const realQty = _magMvtType === 'sortie' ? -Math.abs(qty) : Math.abs(qty)
+  const prod = _magProducts.find(p => p.id === pid)
+  btn.disabled = true; btn.textContent = 'Enregistrement...'
+  try {
+    await sb.from('gp_stock_movements').insert({
+      product_id: pid, product_name: prod?.name||'',
+      from_local: GP_USER?.local_id||'', to_local: GP_USER?.local_id||'',
+      qty: realQty, note: note||_magMvtType,
+      user_id: GP_USER?.id||'', tenant_id: GP_TENANT?.id,
+    })
+    const newStock = (Number(prod?.stock)||0) + realQty
+    await sb.from('gp_products').update({ stock: newStock, updated_at: new Date().toISOString() }).eq('id',pid)
+    if (prod) prod.stock = newStock
+    magToast(`✓ ${realQty>0?'+':''}${realQty} ${prod?.unit||'pcs'} enregistré`)
+    document.getElementById('mag-mvt-qty').value = ''
+    document.getElementById('mag-mvt-note').value = ''
+    magLoadMvtHist()
+  } catch(e) { magToast('Erreur: '+e.message,'err') }
+  finally { btn.disabled=false; btn.textContent='✓ Enregistrer' }
+}
+
+// ── RETOURS ───────────────────────────────────────────────────
+async function magRenderRetours() {
+  const el = document.getElementById('mag-screen-retours')
+  el.innerHTML = '<div class="mag-loading"><div class="mag-spinner"></div>Chargement...</div>'
+  try {
+    const tid = GP_TENANT?.id; const lid = GP_USER?.local_id
+    let q = sb.from('gp_retours').select('*').eq('tenant_id',tid).order('created_at',{ascending:false}).limit(50)
+    if (lid) q = q.eq('local_id',lid)
+    if (_magRetourFilter !== 'all') q = q.eq('statut',_magRetourFilter)
+    const { data } = await q
+    const retours = data||[]
+    const counts = {
+      all: retours.length,
+      en_attente: retours.filter(r=>r.statut==='en_attente').length,
+      traite: retours.filter(r=>r.statut==='traite').length,
+      rejete: retours.filter(r=>r.statut==='rejete').length,
+    }
+    el.innerHTML = `
+      <div class="mag-pills">
+        <div class="mag-pill ${_magRetourFilter==='all'?'mag-active':''}" onclick="_magRetourFilter='all';magRenderRetours()">Tous (${counts.all})</div>
+        <div class="mag-pill ${_magRetourFilter==='en_attente'?'mag-active':''}" onclick="_magRetourFilter='en_attente';magRenderRetours()">⏳ Attente (${counts.en_attente})</div>
+        <div class="mag-pill ${_magRetourFilter==='traite'?'mag-active':''}" onclick="_magRetourFilter='traite';magRenderRetours()">✓ Traités (${counts.traite})</div>
+        <div class="mag-pill ${_magRetourFilter==='rejete'?'mag-active':''}" onclick="_magRetourFilter='rejete';magRenderRetours()">✕ Rejetés (${counts.rejete})</div>
+      </div>
+      <div class="mag-section-head">Retours <span class="mag-count">${retours.length}</span></div>
+      ${retours.length===0
+        ? '<div class="mag-empty"><div class="mag-empty-icon">↩️</div><p>Aucun retour</p></div>'
+        : retours.map(r => {
+          const lines = Array.isArray(r.lines)?r.lines:[]
+          const items = lines.map(l=>`${l.name||l.product_name||'Produit'} ×${l.qty||l.quantity||1}`).join(', ')
+          const date = new Date(r.created_at).toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})
+          const badge = r.statut==='traite'?'mag-badge-done':r.statut==='rejete'?'mag-badge-reject':'mag-badge-wait'
+          const label = r.statut==='traite'?'✓ Traité':r.statut==='rejete'?'✕ Rejeté':'⏳ En attente'
+          return `<div class="mag-ret-card">
+            <div class="mag-ret-head">
+              <div><div class="mag-ret-id">↩ ${(r.id||'').slice(0,8).toUpperCase()}</div>${r.client_name?`<div style="font-size:13px;color:#6b7280;margin-top:2px">👤 ${r.client_name}</div>`:''}</div>
+              <div style="text-align:right"><span class="mag-badge ${badge}">${label}</span><div class="mag-ret-date" style="margin-top:4px">${date}</div></div>
+            </div>
+            <div class="mag-ret-body">${items?'📦 '+items+'<br>':''}${r.note?'💬 '+r.note:''}</div>
+            ${r.statut==='en_attente'?`<div class="mag-ret-actions">
+              <button class="mag-ret-btn" style="background:#def7ec;color:#057a55" onclick="magUpdateRetour('${r.id}','traite')">✓ Traiter</button>
+              <button class="mag-ret-btn" style="background:#fde8e8;color:#c81e1e" onclick="magUpdateRetour('${r.id}','rejete')">✕ Rejeter</button>
+            </div>`:''}
+          </div>`}).join('')}
+    `
+  } catch(e) {
+    document.getElementById('mag-screen-retours').innerHTML = `<div class="mag-empty"><div class="mag-empty-icon">⚠️</div><p>${e.message}</p></div>`
+  }
+}
+
+async function magUpdateRetour(id, statut) {
+  try {
+    await sb.from('gp_retours').update({ statut }).eq('id',id)
+    magToast(statut==='traite'?'✓ Retour traité':'✕ Retour rejeté')
+    magRenderRetours()
+  } catch(e) { magToast('Erreur: '+e.message,'err') }
+}
+
+// ── NOUVEAU RETOUR ────────────────────────────────────────────
+async function magRenderNouveauRetour() {
+  if (!_magProducts.length) await magRenderStock()
+  _magRetourLines = []
+  magRenderNouveauRetourView()
+}
+
+function magRenderNouveauRetourView() {
+  const opts = _magProducts.map(p=>`<option value="${p.id}" data-name="${p.name}">${p.name}</option>`).join('')
+  const linesHtml = _magRetourLines.map((l,i)=>`
+    <div style="display:flex;align-items:center;gap:10px;background:#fff;padding:12px;border-radius:10px;border:1px solid #e5e7eb;margin-bottom:8px">
+      <div style="flex:1"><div style="font-weight:600">${l.name}</div><div style="font-size:13px;color:#6b7280">×${l.qty}</div></div>
+      <button onclick="_magRetourLines.splice(${i},1);magRenderNouveauRetourView()"
+        style="background:#fde8e8;color:#c81e1e;border:none;border-radius:8px;padding:6px 10px;cursor:pointer">✕</button>
+    </div>`).join('')
+
+  document.getElementById('mag-screen-nouveau-retour').innerHTML = `
+    <div class="mag-form-box">
+      <label>Client (optionnel)</label>
+      <input type="text" id="mag-ret-client" placeholder="Nom du client..." />
+      <label>Ajouter un article</label>
+      <select id="mag-ret-prod"><option value="">-- Produit --</option>${opts}</select>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px">
+        <input type="number" id="mag-ret-qty" placeholder="Qté" min="1" value="1" inputmode="numeric" />
+        <button class="mag-btn mag-btn-outline" style="padding:12px;margin-top:0" onclick="magAddRetourLine()">➕ Ajouter</button>
+      </div>
+    </div>
+    ${_magRetourLines.length?`<div class="mag-section-head">Articles <span class="mag-count">${_magRetourLines.length}</span></div>${linesHtml}`:''}
+    <div class="mag-form-box">
+      <label>Motif</label>
+      <select id="mag-ret-motif">
+        <option value="defaut">Défaut / Endommagé</option>
+        <option value="mauvais_produit">Mauvais produit</option>
+        <option value="client_change_avis">Client changé d'avis</option>
+        <option value="quantite_incorrecte">Quantité incorrecte</option>
+        <option value="autre">Autre</option>
+      </select>
+      <label>Note</label>
+      <textarea id="mag-ret-note" rows="2" placeholder="Détails..."></textarea>
+      <button class="mag-btn mag-btn-success" onclick="magSaveRetour()" id="mag-ret-btn" ${!_magRetourLines.length?'disabled':''}>↩ Enregistrer le retour</button>
+    </div>
+  `
+}
+
+function magAddRetourLine() {
+  const sel = document.getElementById('mag-ret-prod')
+  const qty = parseInt(document.getElementById('mag-ret-qty').value)||1
+  const id  = sel.value
+  const name = sel.options[sel.selectedIndex]?.dataset?.name||''
+  if (!id) { magToast('Choisissez un produit','err'); return }
+  _magRetourLines.push({ product_id:id, name, qty })
+  magRenderNouveauRetourView()
+}
+
+async function magSaveRetour() {
+  if (!_magRetourLines.length) { magToast('Ajoutez un article','err'); return }
+  const btn = document.getElementById('mag-ret-btn')
+  btn.disabled=true; btn.textContent='Enregistrement...'
+  try {
+    await sb.from('gp_retours').insert({
+      id: 'RET-'+Date.now(),
+      tenant_id: GP_TENANT?.id,
+      local_id: GP_USER?.local_id||'',
+      client_name: document.getElementById('mag-ret-client').value.trim()||null,
+      lines: _magRetourLines,
+      note: document.getElementById('mag-ret-motif').value + ' — ' + (document.getElementById('mag-ret-note').value.trim()||''),
+      statut: 'en_attente',
+      date: new Date().toISOString(),
+      created_by: GP_USER?.id||'',
+      created_at: new Date().toISOString(),
+    })
+    magToast('✓ Retour enregistré')
+    _magRetourLines = []
+    magShowScreen('retours')
+  } catch(e) {
+    magToast('Erreur: '+e.message,'err')
+    btn.disabled=false; btn.textContent='↩ Enregistrer le retour'
+  }
+}
+</script>
+
 </body>
 </html>
