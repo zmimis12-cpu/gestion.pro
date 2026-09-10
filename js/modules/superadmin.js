@@ -566,14 +566,9 @@ function renderSAUsers() {
 }
 
 function updateSAUserLocalVisibility() {
-  const role = document.getElementById('sau-role')?.value || '';
+  // Local toujours visible — assignation libre, jamais obligatoire
   const localGroup = document.getElementById('sau-local-group');
-  if (!localGroup) return;
-  const allRoles = getAllRoles();
-  const roleObj = allRoles[role];
-  // Super admin n'a pas besoin de local, les autres oui
-  const needsLocal = roleObj?.localRequired !== false && role !== 'super_admin';
-  localGroup.style.display = needsLocal ? '' : 'none';
+  if (localGroup) localGroup.style.display = '';
 }
 
 function openSAUserModal(id) {
