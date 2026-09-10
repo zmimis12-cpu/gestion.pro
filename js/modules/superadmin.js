@@ -45,10 +45,7 @@ async function saveSAUser() {
   if (!id && !pwd) { toast('Mot de passe obligatoire pour un nouvel utilisateur', 'error'); return; }
   if (pwd && pwd.length < 4) { toast('Mot de passe minimum 4 caractères', 'error'); return; }
 
-  const roleObj = getRole(role);
-  if (roleObj?.localRequired !== false && localIds.length === 0) {
-    toast('Ce rôle nécessite au moins un point de vente assigné', 'error'); return;
-  }
+  // Pas d'obligation de local — un utilisateur peut n'avoir aucun local
 
   const existing = GP_USERS_ALL.find(u => u.email === email && u.id !== id);
   if (existing) { toast('Email déjà utilisé', 'error'); return; }
@@ -73,9 +70,15 @@ async function saveSAUser() {
       if (!efRes.ok || !efData.success) throw new Error(efData.error || 'Erreur création compte');
 
       // Mettre à jour role et local dans gp_users
-      await sb.from('gp_users')
+      const createdUser = await sb.from('gp_users')
         .update({ role, local_id: localIds[0] || null, local_ids: localIds, actif })
-        .eq('auth_id', efData.auth_id);
+        .eq('auth_id', efData.auth_id)
+        .select('id').single();
+      
+      if (createdUser?.data?.id && localIds.length > 0) {
+        const rows = localIds.map(lid => ({ user_id: createdUser.data.id, local_id: lid }));
+        await sb.from('gp_user_locals').insert(rows);
+      }
 
       await loadSAData();
       closeModal('modal-sa-user');
@@ -98,6 +101,12 @@ async function saveSAUser() {
     local_ids: localIds,
     actif
   };
+  // Mettre à jour gp_user_locals (many-to-many)
+  await sb.from('gp_user_locals').delete().eq('user_id', id);
+  if (localIds.length > 0) {
+    const rows = localIds.map(lid => ({ user_id: id, local_id: lid }));
+    await sb.from('gp_user_locals').insert(rows);
+  }
 
   // Mettre à jour mot de passe Auth si nouveau pwd fourni
   if (pwd) {
@@ -542,7 +551,7 @@ function renderSAUsers() {
           if (lids.length === 0) return '<span style="color:var(--text2);">—</span>';
           return lids.map(lid => {
             const l = GP_LOCAUX_ALL.find(x => x.id === lid);
-            return l ? `<span style="color:${l.couleur||'var(--accent)'};margin-right:4px;">● ${escapeHTML(l.nom)}</span>` : '';
+            return l ? `<span style="display:inline-block;padding:2px 8px;border-radius:12px;font-size:11px;margin:2px;background:${l.couleur||'var(--accent)'}22;color:${l.couleur||'var(--accent)'};">● ${escapeHTML(l.nom)}</span>` : '';
           }).join('');
         })()}</td>
         <td>${u.telephone||'—'}</td>

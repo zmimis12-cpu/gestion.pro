@@ -316,7 +316,7 @@ async function loadSAData() {
       '— noms:', GP_LOCAUX_ALL.map(l => l.nom).join(', ') || '(aucun)');
 
     // Ne PAS charger les passwords dans le client (sécurité)
-    const usrsQ = sb.from('gp_users').select('id,nom,prenom,email,role,local_id,telephone,actif,created_at').eq('tenant_id', tid).order('nom');
+    const usrsQ = sb.from('gp_users').select('id,nom,prenom,email,role,local_id,local_ids,telephone,actif,created_at').eq('tenant_id', tid).order('nom');
     const { data: usrs } = await usrsQ;
     GP_USERS_ALL = (usrs || []).map(u => ({
       id: u.id, nom: u.nom, prenom: u.prenom || '',
@@ -790,13 +790,21 @@ function applyRBACUI() {
     } else {
       const lids = GP_USER.local_ids?.length > 0 ? GP_USER.local_ids : (GP_USER.local_id ? [GP_USER.local_id] : []);
       const locs = lids.map(lid => GP_LOCAUX_ALL.find(l => l.id === lid)).filter(Boolean);
-      if (locs.length > 0) {
-        localInfo.innerHTML = locs.map(loc =>
-          `<span style="font-size:10px;color:${loc.couleur||'var(--accent)'};font-weight:700;display:block;">📍 ${escapeHTML(loc.nom)}</span>`
-        ).join('');
+      if (locs.length === 0) {
+        localInfo.style.display = 'none';
+      } else if (locs.length === 1) {
+        localInfo.innerHTML = `<span style="font-size:10px;color:${locs[0].couleur||'var(--accent)'};font-weight:700;">📍 ${escapeHTML(locs[0].nom)}</span>`;
         localInfo.style.display = 'block';
       } else {
-        localInfo.style.display = 'none';
+        // Multi-local : afficher switcher
+        localInfo.innerHTML = `
+          <select id="user-local-switcher" onchange="switchUserLocal(this.value)"
+            style="font-size:11px;border:1px solid var(--border);border-radius:6px;
+            padding:3px 6px;background:var(--surface2);color:var(--text);width:100%;cursor:pointer;">
+            <option value="">🌐 Tous mes locaux</option>
+            ${locs.map(l => `<option value="${l.id}" style="color:${l.couleur||'var(--accent)'}">📍 ${escapeHTML(l.nom)}</option>`).join('')}
+          </select>`;
+        localInfo.style.display = 'block';
       }
     } else {
       localInfo.style.display = 'none';
@@ -847,6 +855,20 @@ function applyRBACUI() {
   return firstAllowed;
 }
 
+// ─── SWITCHER LOCAL MULTI-USER ────────────────────────────────
+window.switchUserLocal = async function(localId) {
+  if (localId) {
+    GP_USER.local_id = localId;
+    GP_USER._activeLocal = localId;
+  } else {
+    GP_USER.local_id = null;
+    GP_USER._activeLocal = null;
+  }
+  toast('🏪 Local changé — rechargement...', 'info');
+  await loadUserData();
+  navigate(document.querySelector('.nav-item.active')?.getAttribute('onclick')?.match(/navigate\('([^']+)'\)/)?.[1] || 'dashboard');
+};
+
 // ─── DONNÉES SCOPÉES PAR LOCAL ─────────────────────────────────
 async function loadUserData() {
   const lid = getLocalId();
@@ -859,6 +881,17 @@ async function loadUserData() {
     products = []; sales = []; clients = []; employes = []; caisseOps = []; depenses = [];
     conteneurs = []; ordres = []; livraisons = []; conges = []; docsRHHistory = [];
     return;
+  }
+
+  // Charger les locaux de l'utilisateur depuis gp_user_locals (many-to-many)
+  if (!isSuperAdmin() && GP_USER) {
+    const { data: userLocals } = await sb.from('gp_user_locals')
+      .select('local_id')
+      .eq('user_id', GP_USER.id);
+    if (userLocals && userLocals.length > 0) {
+      GP_USER.local_ids = userLocals.map(r => r.local_id);
+      GP_USER.local_id  = GP_USER.local_ids[0];
+    }
   }
 
   // Filtre tenant_id (isolation données) + local_ids si non SA
