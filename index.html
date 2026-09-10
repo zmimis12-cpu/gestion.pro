@@ -3092,20 +3092,20 @@ let _magRetourLines = []
 let _magRetourFilter = 'all'
 
 function magInit() {
-  const isMobile = window.innerWidth < 768
   const role = GP_USER?._normalizedRole || normalizeRole(GP_USER?.role)
-  const isMag = role === 'magasinier'
-  if (!isMobile && !isMag) return
-  if (!isMag) return
+  if (role !== 'magasinier') return
 
-  // Show mobile view, hide main app
   const overlay = document.getElementById('magasinier-mobile')
-  if (overlay) {
-    overlay.style.display = 'flex'
-    document.getElementById('mag-user-label').textContent =
-      `${GP_USER.prenom||''} ${GP_USER.nom||''}`.trim() || GP_USER.email
-    magShowScreen('stock')
-  }
+  if (!overlay) return
+
+  // Cacher le système principal
+  const appWrapper = document.getElementById('app-wrapper')
+  if (appWrapper) appWrapper.style.display = 'none'
+
+  overlay.style.display = 'flex'
+  document.getElementById('mag-user-label').textContent =
+    `${GP_USER.prenom||''} ${GP_USER.nom||''}`.trim() || GP_USER.email
+  magShowScreen('stock')
 }
 
 function magToast(msg, type='ok') {
