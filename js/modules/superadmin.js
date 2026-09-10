@@ -35,9 +35,9 @@ async function saveSAUser() {
   const role    = document.getElementById('sau-role').value;
   const localId = document.getElementById('sau-local')?.value || '';
   // Récupérer tous les locaux sélectionnés (multi-select)
-  const localCheckboxes = document.querySelectorAll('.sau-local-check:checked');
-  const localIds = localCheckboxes.length > 0
-    ? Array.from(localCheckboxes).map(cb => cb.value)
+  const localItems = document.querySelectorAll('.sau-local-item[data-selected="1"]');
+  const localIds = localItems.length > 0
+    ? Array.from(localItems).map(el => el.dataset.id)
     : (localId ? [localId] : []);
   const actif   = document.getElementById('sau-actif').value === '1';
 
@@ -570,19 +570,27 @@ function updateSAUserLocalVisibility() {
 function openSAUserModal(id) {
   const u = id ? GP_USERS_ALL.find(x => x.id === id) : null;
 
-  // Populate local checkboxes (multi-select)
-  const localGroup = document.getElementById('sau-local-group');
+  // Populate local multi-select
   const localChecks = document.getElementById('sau-local-checks');
   if (localChecks) {
     const userLocalIds = u?.local_ids || (u?.local_id ? [u.local_id] : []);
     localChecks.innerHTML = GP_LOCAUX_ALL.length === 0
       ? '<span style="color:var(--text2);font-size:12px;">Aucun local disponible</span>'
-      : GP_LOCAUX_ALL.map(l => `
-        <label style="display:flex;align-items:center;gap:8px;padding:6px 10px;border-radius:6px;cursor:pointer;border:1px solid var(--border);background:var(--surface2);margin-bottom:4px;">
-          <input type="checkbox" class="sau-local-check" value="${l.id}" ${userLocalIds.includes(l.id)?'checked':''}
-            style="width:15px;height:15px;accent-color:var(--accent);">
-          <span style="color:${l.couleur||'var(--accent)'}">● ${escapeHTML(l.nom)}</span>
-        </label>`).join('');
+      : GP_LOCAUX_ALL.map(l => {
+          const selected = userLocalIds.includes(l.id);
+          return `<div class="sau-local-item" data-id="${l.id}" onclick="magToggleLocal(this)"
+            style="display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:8px;cursor:pointer;
+            border:2px solid ${selected ? 'var(--accent)' : 'var(--border)'};
+            background:${selected ? 'rgba(37,99,235,0.08)' : 'var(--surface2)'};
+            margin-bottom:6px;user-select:none;transition:all 0.15s;"
+            data-selected="${selected ? '1' : '0'}">
+            <div style="width:20px;height:20px;border-radius:50%;border:2px solid ${selected ? 'var(--accent)' : 'var(--border)'};
+              background:${selected ? 'var(--accent)' : 'transparent'};display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+              ${selected ? '<span style="color:#fff;font-size:12px;">✓</span>' : ''}
+            </div>
+            <span style="color:${l.couleur||'var(--accent)'};">● ${escapeHTML(l.nom)}</span>
+          </div>`;
+        }).join('');
   }
   // Populate role select
   const roleSel = document.getElementById('sau-role');

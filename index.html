@@ -1571,10 +1571,10 @@
         <select id="sau-role" onchange="updateSAUserLocalVisibility()" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--text);font-family:var(--font),sans-serif;width:100%;"></select>
       </div>
       <div class="form-group" id="sau-local-group"><label>Points de vente assignés *</label>
-        <div id="sau-local-checks" style="display:flex;flex-direction:column;gap:4px;max-height:160px;overflow-y:auto;padding:4px;border:1px solid var(--border);border-radius:8px;background:var(--surface2);">
+        <div id="sau-local-checks" style="display:flex;flex-direction:column;gap:4px;max-height:200px;overflow-y:auto;padding:4px;">
           <!-- rempli par JS -->
         </div>
-        <div style="font-size:11px;color:var(--text2);margin-top:4px;">Cochez un ou plusieurs points de vente</div>
+        <div style="font-size:11px;color:var(--text2);margin-top:4px;">Cliquez pour sélectionner un ou plusieurs points de vente</div>
       </div>
       <div class="form-group"><label>Téléphone</label><input type="tel" id="sau-tel" placeholder="06XXXXXXXX"></div>
       <div class="form-group"><label>Statut</label>
@@ -3540,5 +3540,27 @@ async function magSaveRetour() {
 }
 </script>
 
+<script>
+function magToggleLocal(el) {
+  const selected = el.dataset.selected === '1';
+  const newVal = !selected;
+  el.dataset.selected = newVal ? '1' : '0';
+  const circle = el.querySelector('div');
+  const accent = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || '#2563eb';
+  if (newVal) {
+    el.style.border = '2px solid var(--accent)';
+    el.style.background = 'rgba(37,99,235,0.08)';
+    circle.style.border = '2px solid var(--accent)';
+    circle.style.background = 'var(--accent)';
+    circle.innerHTML = '<span style="color:#fff;font-size:12px;">✓</span>';
+  } else {
+    el.style.border = '2px solid var(--border)';
+    el.style.background = 'var(--surface2)';
+    circle.style.border = '2px solid var(--border)';
+    circle.style.background = 'transparent';
+    circle.innerHTML = '';
+  }
+}
+</script>
 </body>
 </html>
