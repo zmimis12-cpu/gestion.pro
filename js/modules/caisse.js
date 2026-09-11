@@ -1115,12 +1115,12 @@ function buildReceiptHTML(sale) {
 
 // ── GOOGLE SHEETS SYNC ─────────────────────────────────────────
 async function sendToGoogleSheets(sale) {
-  const WEBHOOK = 'https://script.google.com/macros/s/AKfycbxqV58cCb8JAAzix1FRrPZ5IfaS9wwYSCwBERVh7iBCvXicNqX7mdsetI7y6NaAMNIx/exec';
+  const WEBHOOK = 'https://script.google.com/macros/s/AKfycbxQAYi14VZDEugnj-Q4H9Lb17pFdyuzaJd8NclGd4lcAk1nZt-fJXFh2BBI2XIhofmC/exec';
   try {
     for (const item of sale.items) {
       const prod = products.find(p => p.id === (item.productId || item.id));
-      const row = {
-        date:         sale.date,
+      const params = new URLSearchParams({
+        date:         new Date(sale.date).toLocaleDateString('fr-FR'),
         client_name:  sale.clientName || 'Client de passage',
         photo_url:    prod?.photo || '',
         product_name: item.name || prod?.name || '',
@@ -1129,36 +1129,15 @@ async function sendToGoogleSheets(sale) {
         quantity:     item.qty || 1,
         montant:      (item.price || 0) * (item.qty || 1),
         payment_mode: sale.payment || '',
-        payment_type: sale.isCreditSale ? 'Crédit' : 'Comptant',
-        transport:    '',
         statut:       'Vendu',
-        note:         '',
-        local_id:     sale.local_id || '',
-        sale_id:      sale.id,
-      };
-      // Utiliser un form POST via iframe pour contourner CORS avec Apps Script
-      const form = document.createElement('form');
-      form.method = 'POST';
-      form.action = WEBHOOK;
-      form.target = '_sheets_iframe';
-      form.style.display = 'none';
-      const input = document.createElement('input');
-      input.type = 'hidden';
-      input.name = 'payload';
-      input.value = JSON.stringify(row);
-      form.appendChild(input);
-      document.body.appendChild(form);
-      let iframe = document.getElementById('_sheets_iframe');
-      if (!iframe) {
-        iframe = document.createElement('iframe');
-        iframe.name = '_sheets_iframe';
-        iframe.id = '_sheets_iframe';
-        iframe.style.display = 'none';
-        document.body.appendChild(iframe);
-      }
-      form.submit();
-      document.body.removeChild(form);
-      await new Promise(r => setTimeout(r, 300));
+      });
+      // Utiliser une image invisible pour déclencher le GET sans CORS
+      const img = document.createElement('img');
+      img.src = WEBHOOK + '?' + params.toString();
+      img.style.display = 'none';
+      document.body.appendChild(img);
+      setTimeout(() => img.remove(), 5000);
+      await new Promise(r => setTimeout(r, 200));
     }
     console.log('[Sheets] ✅ Vente envoyée:', sale.id, sale.items.length, 'lignes');
   } catch(err) {
