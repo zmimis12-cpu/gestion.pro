@@ -3916,10 +3916,15 @@ select, textarea { font-size: 13.5px; padding: 8.5px 11px; }
     transition: left 0.25s ease !important;
     box-shadow: 4px 0 24px rgba(0,0,0,0.18) !important;
     flex-shrink: 0 !important;
-    /* Réafficher les labels dans le drawer */
+    flex-basis: 0 !important;
+    min-width: 0 !important;
+    overflow: hidden !important;
   }
   .sidebar.mob-open {
     left: 0 !important;
+    width: 260px !important;
+    min-width: 260px !important;
+    flex-basis: auto !important;
   }
   .sidebar.mob-open .logo-title,
   .sidebar.mob-open .logo-sub,
@@ -3939,6 +3944,7 @@ select, textarea { font-size: 13.5px; padding: 8.5px 11px; }
     width: 100% !important;
     max-width: 100% !important;
     min-width: 0 !important;
+    flex: 1 !important;
     overflow-x: hidden !important;
   }
 
