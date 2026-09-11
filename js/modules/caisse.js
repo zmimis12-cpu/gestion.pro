@@ -1115,7 +1115,7 @@ function buildReceiptHTML(sale) {
 
 // ── GOOGLE SHEETS SYNC ─────────────────────────────────────────
 async function sendToGoogleSheets(sale) {
-  const WEBHOOK = 'https://script.google.com/macros/s/AKfycbxQAYi14VZDEugnj-Q4H9Lb17pFdyuzaJd8NclGd4lcAk1nZt-fJXFh2BBI2XIhofmC/exec';
+  const WEBHOOK = 'https://script.google.com/macros/s/AKfycbxKq7d-mzeksy1DAx5bqgWek-NGsOqJLiYfEvLD7dROAn2JkwdXS0XdllcSuctmkvs/exec';
   try {
     for (const item of sale.items) {
       const prod = products.find(p => p.id === (item.productId || item.id));
@@ -1131,16 +1131,19 @@ async function sendToGoogleSheets(sale) {
         payment_mode: sale.payment || '',
         statut:       'Vendu',
       });
-      // Utiliser une image invisible pour déclencher le GET sans CORS
-      const img = document.createElement('img');
-      img.src = WEBHOOK + '?' + params.toString();
-      img.style.display = 'none';
-      document.body.appendChild(img);
-      setTimeout(() => img.remove(), 5000);
-      await new Promise(r => setTimeout(r, 200));
+      // Script tag — contourne CORS complètement
+      const script = document.createElement('script');
+      script.src = WEBHOOK + '?' + params.toString() + '&callback=_sheetsCallback';
+      script.id = '_sheets_' + Date.now();
+      document.head.appendChild(script);
+      setTimeout(() => { script.remove(); }, 5000);
+      await new Promise(r => setTimeout(r, 300));
     }
     console.log('[Sheets] ✅ Vente envoyée:', sale.id, sale.items.length, 'lignes');
   } catch(err) {
     console.warn('[Sheets] ❌ Erreur sync:', err.message);
   }
 }
+window._sheetsCallback = function(data) {
+  console.log('[Sheets] Response:', data);
+};
