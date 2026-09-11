@@ -3226,6 +3226,20 @@ function magRenderStockView() {
       <div class="mag-stat"><div class="v" style="color:#c27803">${low.length}</div><div class="l">Stock bas</div></div>
       <div class="mag-stat"><div class="v" style="color:#c81e1e">${empty.length}</div><div class="l">Rupture</div></div>
     </div>
+
+    <!-- 3 actions principales -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;">
+      <button onclick="openRestockModal()" style="display:flex;align-items:center;justify-content:center;gap:8px;padding:14px;border-radius:12px;border:none;background:#1a56db;color:#fff;font-size:15px;font-weight:700;cursor:pointer;">
+        📦 Réappro
+      </button>
+      <button onclick="openModal('modal-add-product')" style="display:flex;align-items:center;justify-content:center;gap:8px;padding:14px;border-radius:12px;border:none;background:#057a55;color:#fff;font-size:15px;font-weight:700;cursor:pointer;">
+        ➕ Nouveau
+      </button>
+      <button onclick="openTransfertModal()" style="grid-column:1/-1;display:flex;align-items:center;justify-content:center;gap:8px;padding:14px;border-radius:12px;border:none;background:#7c3aed;color:#fff;font-size:15px;font-weight:700;cursor:pointer;">
+        🔄 Transfert
+      </button>
+    </div>
+
     <div class="mag-search">
       <span class="mag-search-icon">🔍</span>
       <input type="search" placeholder="Rechercher produit..." value="${_magStockSearch}"
@@ -3303,8 +3317,8 @@ function magOpenProduct(p) {
     ${p.zone?`<div style="margin-bottom:8px;font-size:13px">📍 Zone: <strong>${p.zone}</strong></div>`:''}
     ${p.category?`<div style="margin-bottom:14px;font-size:13px">🏷️ Catégorie: <strong>${p.category}</strong></div>`:''}
     <div style="display:flex;flex-direction:column;gap:8px">
-      <button class="mag-btn mag-btn-primary" onclick="magQuickMvt('${p.id}','${p.name.replace(/'/g,'&#39;')}','entree');document.getElementById('mag-prod-modal').classList.remove('mag-open')">➕ Entrée stock</button>
-      <button class="mag-btn mag-btn-outline" onclick="magQuickMvt('${p.id}','${p.name.replace(/'/g,'&#39;')}','sortie');document.getElementById('mag-prod-modal').classList.remove('mag-open')">➖ Sortie stock</button>
+      <button class="mag-btn mag-btn-primary" onclick="openRestockModal();document.getElementById('mag-prod-modal').classList.remove('mag-open')">📦 Réappro</button>
+      <button class="mag-btn" style="background:#7c3aed;color:#fff" onclick="openTransfertModal();document.getElementById('mag-prod-modal').classList.remove('mag-open')">🔄 Transfert</button>
       <button class="mag-btn" style="background:#f3f4f6;color:#374151;border:1.5px solid #e5e7eb" onclick="document.getElementById('mag-prod-modal').classList.remove('mag-open')">Fermer</button>
     </div>
   `
@@ -3541,7 +3555,43 @@ async function magSaveRetour() {
 </script>
 
 <script>
-function magToggleLocal(el) {
+// ── GOOGLE SHEETS SYNC ─────────────────────────────────────────
+const _SHEETS_WEBHOOK = 'https://script.google.com/macros/s/AKfycbxKq7d-mzeksy1DAx5bqgWek-NGsOqJLiYfEvLD7dROAn2JkwdXS0XdllcSuctmkvs/exec';
+
+window._sheetsCallback = function(data) {
+  console.log('[Sheets] ✅ Response:', data);
+};
+
+window.sendToGoogleSheets = async function(sale) {
+  try {
+    for (const item of (sale.items || [])) {
+      const prod = (typeof products !== 'undefined') ? products.find(p => p.id === (item.productId || item.id)) : null;
+      const params = new URLSearchParams({
+        date:         new Date(sale.date).toLocaleDateString('fr-FR'),
+        client_name:  sale.clientName || 'Client de passage',
+        photo_url:    prod?.photo || '',
+        product_name: item.name || prod?.name || '',
+        product_code: item.code || prod?.code || '',
+        price:        item.price || item.sellPrice || 0,
+        quantity:     item.qty || 1,
+        montant:      (item.price || 0) * (item.qty || 1),
+        payment_mode: sale.payment || '',
+        statut:       'Vendu',
+        callback:     '_sheetsCallback',
+      });
+      const script = document.createElement('script');
+      script.src = _SHEETS_WEBHOOK + '?' + params.toString();
+      document.head.appendChild(script);
+      setTimeout(() => script.remove(), 5000);
+      await new Promise(r => setTimeout(r, 300));
+    }
+    console.log('[Sheets] ✅ Vente envoyée:', sale.id);
+  } catch(err) {
+    console.warn('[Sheets] ❌ Erreur:', err.message);
+  }
+};
+</script>
+</body>
   const selected = el.dataset.selected === '1';
   const newVal = !selected;
   el.dataset.selected = newVal ? '1' : '0';
