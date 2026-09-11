@@ -1,14 +1,13 @@
 // ── GOOGLE SHEETS SYNC ─────────────────────────────────────────
-const _SHEETS_WEBHOOK = 'https://script.google.com/macros/s/AKfycbxKq7d-mzeksy1DAx5bqgWek-NGsOqJLiYfEvLD7dROAn2JkwdXS0XdllcSuctmkvs/exec';
-
-window._sheetsCallback = function(data) {
-  console.log('[Sheets] ✅ Response:', data);
-};
+const _SHEETS_WEBHOOK = 'https://script.google.com/macros/s/AKfycbyQD_PDeRhG6DgmWqePBXw3WXnJCXaL52_aov4PcLN2Z22RsMktHnyDlrT7MAcdApCE/exec';
 
 window.sendToGoogleSheets = async function(sale) {
   try {
     for (const item of (sale.items || [])) {
-      const prod = (typeof products !== 'undefined') ? products.find(p => p.id === (item.productId || item.id)) : null;
+      const prod = (typeof products !== 'undefined') 
+        ? products.find(p => p.id === (item.productId || item.id)) 
+        : null;
+      
       const params = new URLSearchParams({
         date:         new Date(sale.date).toLocaleDateString('fr-FR'),
         client_name:  sale.clientName || 'Client de passage',
@@ -20,15 +19,16 @@ window.sendToGoogleSheets = async function(sale) {
         montant:      (item.price || 0) * (item.qty || 1),
         payment_mode: sale.payment || '',
         statut:       'Vendu',
-        callback:     '_sheetsCallback',
       });
-      const script = document.createElement('script');
-      script.src = _SHEETS_WEBHOOK + '?' + params.toString();
-      document.head.appendChild(script);
-      setTimeout(() => script.remove(), 5000);
-      await new Promise(r => setTimeout(r, 300));
+
+      await fetch(_SHEETS_WEBHOOK + '?' + params.toString(), {
+        method: 'GET',
+        mode: 'no-cors',
+      });
+
+      console.log('[Sheets] ✅ Ligne envoyée:', item.name || prod?.name);
+      await new Promise(r => setTimeout(r, 200));
     }
-    console.log('[Sheets] ✅ Vente envoyée:', sale.id);
   } catch(err) {
     console.warn('[Sheets] ❌ Erreur:', err.message);
   }
