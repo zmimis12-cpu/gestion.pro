@@ -1117,7 +1117,6 @@ function buildReceiptHTML(sale) {
 async function sendToGoogleSheets(sale) {
   const WEBHOOK = 'https://script.google.com/macros/s/AKfycbxqV58cCb8JAAzix1FRrPZ5IfaS9wwYSCwBERVh7iBCvXicNqX7mdsetI7y6NaAMNIx/exec';
   try {
-    // Envoyer une ligne par article
     for (const item of sale.items) {
       const prod = products.find(p => p.id === (item.productId || item.id));
       const row = {
@@ -1137,16 +1136,32 @@ async function sendToGoogleSheets(sale) {
         local_id:     sale.local_id || '',
         sale_id:      sale.id,
       };
-      await fetch(WEBHOOK, {
-        method: 'POST',
-        mode: 'no-cors',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(row),
-      });
+      // Utiliser un form POST via iframe pour contourner CORS avec Apps Script
+      const form = document.createElement('form');
+      form.method = 'POST';
+      form.action = WEBHOOK;
+      form.target = '_sheets_iframe';
+      form.style.display = 'none';
+      const input = document.createElement('input');
+      input.type = 'hidden';
+      input.name = 'payload';
+      input.value = JSON.stringify(row);
+      form.appendChild(input);
+      document.body.appendChild(form);
+      let iframe = document.getElementById('_sheets_iframe');
+      if (!iframe) {
+        iframe = document.createElement('iframe');
+        iframe.name = '_sheets_iframe';
+        iframe.id = '_sheets_iframe';
+        iframe.style.display = 'none';
+        document.body.appendChild(iframe);
+      }
+      form.submit();
+      document.body.removeChild(form);
+      await new Promise(r => setTimeout(r, 300));
     }
     console.log('[Sheets] ✅ Vente envoyée:', sale.id, sale.items.length, 'lignes');
   } catch(err) {
     console.warn('[Sheets] ❌ Erreur sync:', err.message);
-    // Ne pas bloquer la vente si Sheets échoue
   }
 }
