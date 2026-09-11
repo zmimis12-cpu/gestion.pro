@@ -707,6 +707,9 @@ function checkout(docType) {
   }
   save();
 
+  // ── Google Sheets sync ──────────────────────────────────────
+  sendToGoogleSheets(sale);
+
   // WhatsApp notification automatique si vente à crédit
   if (sale.isCreditSale) {
     const creditClient = clients.find(c => c.id === sale.clientId);
@@ -1109,3 +1112,41 @@ function buildReceiptHTML(sale) {
 }
 
 // Keep backward compat
+
+// ── GOOGLE SHEETS SYNC ─────────────────────────────────────────
+async function sendToGoogleSheets(sale) {
+  const WEBHOOK = 'https://script.google.com/macros/s/AKfycbxqV58cCb8JAAzix1FRrPZ5IfaS9wwYSCwBERVh7iBCvXicNqX7mdsetI7y6NaAMNIx/exec';
+  try {
+    // Envoyer une ligne par article
+    for (const item of sale.items) {
+      const prod = products.find(p => p.id === (item.productId || item.id));
+      const row = {
+        date:         sale.date,
+        client_name:  sale.clientName || 'Client de passage',
+        photo_url:    prod?.photo || '',
+        product_name: item.name || prod?.name || '',
+        product_code: item.code || prod?.code || '',
+        price:        item.price || item.sellPrice || 0,
+        quantity:     item.qty || 1,
+        montant:      (item.price || 0) * (item.qty || 1),
+        payment_mode: sale.payment || '',
+        payment_type: sale.isCreditSale ? 'Crédit' : 'Comptant',
+        transport:    '',
+        statut:       'Vendu',
+        note:         '',
+        local_id:     sale.local_id || '',
+        sale_id:      sale.id,
+      };
+      await fetch(WEBHOOK, {
+        method: 'POST',
+        mode: 'no-cors',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(row),
+      });
+    }
+    console.log('[Sheets] ✅ Vente envoyée:', sale.id, sale.items.length, 'lignes');
+  } catch(err) {
+    console.warn('[Sheets] ❌ Erreur sync:', err.message);
+    // Ne pas bloquer la vente si Sheets échoue
+  }
+}
