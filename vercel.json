@@ -3,14 +3,5 @@
   "rewrites": [
     { "source": "/magasinier", "destination": "/magasinier.html" },
     { "source": "/((?!js|css|images|favicon|magasinier).*)", "destination": "/index.html" }
-  ],
-  "headers": [
-    {
-      "source": "/(.*)",
-      "headers": [
-        { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate, max-age=0" },
-        { "key": "Content-Security-Policy", "value": "default-src 'self' 'unsafe-inline' 'unsafe-eval' https: data: blob:; img-src 'self' data: blob: https: http:; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://script.google.com https://script.googleusercontent.com https:;" }
-      ]
-    }
   ]
 }
