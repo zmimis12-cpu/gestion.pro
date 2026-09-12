@@ -1,8 +1,7 @@
 /* ================================================================
    GestionPro — modules/stock.js
    Gestion du stock : executeTransfert, saveProduct, editProduct,
-   updateProduct, deleteProduct, renderStockTable, importCSV,
-   openCaisseLocalModal, selectCaisseLocal
+   updateProduct, deleteProduct, renderStockTable, importCSV
 ================================================================ */
 
 function executeTransfert() {
@@ -868,67 +867,6 @@ async function loadPhotoFromUrl(product) {
 
 // ─── CAISSE ───
 const debouncedRenderGrid = debounce(() => { _pages['caisse'] = 1; renderProductGrid(); });
-
-// ── Sélection obligatoire du local pour la caisse ────────────────
-function openCaisseLocalModal() {
-  const container = document.getElementById('caisse-local-choices');
-  if (!container) return;
-
-  const locaux_actifs = GP_LOCAUX_ALL.filter(l => l.actif !== false);
-
-  if (!locaux_actifs.length) {
-    toast('Aucun local configuré. Créez un local d\'abord.', 'warn');
-    navigate('locaux');
-    return;
-  }
-
-  container.innerHTML = locaux_actifs.map(l => {
-    const prodsCount = products.filter(p => p.local_id === l.id).length;
-    const stockTotal = products.filter(p => p.local_id === l.id).reduce((s,p) => s + (p.stock||0), 0);
-    return `<button onclick="selectCaisseLocal('${l.id}')" style="
-      width:100%;padding:12px 18px;border-radius:8px;
-      border:1.5px solid #e5e7eb;background:#fff;
-      cursor:pointer;text-align:left;transition:all 0.12s;
-      display:flex;align-items:center;justify-content:space-between;gap:10px;
-      font-family:var(--font);
-    "
-    onmouseover="this.style.borderColor='#2563eb';this.style.background='#eff6ff'"
-    onmouseout="this.style.borderColor='#e5e7eb';this.style.background='#fff'">
-      <div>
-        <div style="font-size:14px;font-weight:650;color:#111827;">🏪 ${escapeHTML(l.nom)}</div>
-        ${l.desc ? `<div style="font-size:11.5px;color:#6b7280;margin-top:2px;">${escapeHTML(l.desc)}</div>` : ''}
-      </div>
-      <div style="text-align:right;flex-shrink:0;">
-        <div style="font-size:13px;font-weight:700;color:#2563eb;">${stockTotal.toLocaleString('fr-FR')}</div>
-        <div style="font-size:10.5px;color:#9ca3af;">${prodsCount} réf.</div>
-      </div>
-    </button>`;
-  }).join('');
-
-  document.getElementById('modal-caisse-local').classList.add('open');
-}
-
-function selectCaisseLocal(localId) {
-  // Fermer le modal
-  document.getElementById('modal-caisse-local').classList.remove('open');
-
-  // Appliquer le local sélectionné
-  SA_ACTIVE_LOCAL = localId;
-  const sel = document.getElementById('sa-active-local');
-  if (sel) sel.value = localId;
-
-  // Mettre à jour la topbar
-  const localName = GP_LOCAUX_ALL.find(l => l.id === localId)?.nom || localId;
-  const info = document.getElementById('sb-local-info');
-  if (info) { info.textContent = '📍 ' + localName; info.style.display = ''; }
-
-  // Recharger la grille produits avec le bon local
-  renderProductGrid();
-  if (typeof renderCategoryFilters === 'function') renderCategoryFilters();
-  updateAlertCount();
-  toast(`🏪 Local de vente : ${localName}`, 'success');
-}
-
 
 /* ════════════════════════════════════════
    DÉTAIL STOCK — Modal complet par produit

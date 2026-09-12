@@ -293,7 +293,6 @@ async function _handleRealtimeEvent(tbl, payload) {
         GP_LOCAUX_ALL = data.map(l => ({ ...l, desc: l.description }));
         locaux = GP_LOCAUX_ALL;
         if (typeof renderLocaux === 'function') renderLocaux();
-        updateSALocalSwitcher();
         _showSyncToast('Locaux mis à jour');
       }
     } catch(e) { console.debug('[Realtime] gp_locaux reload:', e); }

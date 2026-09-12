@@ -3,7 +3,7 @@
    Super Admin — Panneau Central :
    renderSuperAdmin, resetAllRolePerms, saveSAUser, deleteSAUser,
    renderSAVue, saTab, renderSADash, fixOrphanData,
-   saSelectLocal, saResetAllData, renderSALocaux,
+   saResetAllData, renderSALocaux,
    openSALocalModal, saveSALocal, deleteSALocal,
    renderSAUsers, openSAUserModal, renderSARoles,
    selectSARole, togglePermission, resetRolePerms,
@@ -33,19 +33,15 @@ async function saveSAUser() {
   const email   = document.getElementById('sau-email').value.trim().toLowerCase();
   const pwd     = document.getElementById('sau-pwd').value;
   const role    = document.getElementById('sau-role').value;
-  const localId = document.getElementById('sau-local')?.value || '';
-  // Récupérer tous les locaux sélectionnés (multi-select)
-  const localItems = document.querySelectorAll('.sau-local-item[data-selected="1"]');
-  const localIds = localItems.length > 0
-    ? Array.from(localItems).map(el => el.dataset.id)
-    : (localId ? [localId] : []);
+  const accessMode  = document.querySelector('input[name="sau-access-mode"]:checked')?.value || 'local';
+  const accesGlobal = accessMode === 'global';
+  const localId     = accesGlobal ? null : (document.getElementById('sau-local')?.value || null);
   const actif   = document.getElementById('sau-actif').value === '1';
 
   if (!nom || !email) { toast('Nom et email obligatoires', 'error'); return; }
   if (!id && !pwd) { toast('Mot de passe obligatoire pour un nouvel utilisateur', 'error'); return; }
   if (pwd && pwd.length < 4) { toast('Mot de passe minimum 4 caractères', 'error'); return; }
-
-  // Pas d'obligation de local — un utilisateur peut n'avoir aucun local
+  if (!accesGlobal && !localId) { toast('Choisissez un local, ou activez l\'accès global', 'error'); return; }
 
   const existing = GP_USERS_ALL.find(u => u.email === email && u.id !== id);
   if (existing) { toast('Email déjà utilisé', 'error'); return; }
@@ -63,22 +59,16 @@ async function saveSAUser() {
         body: JSON.stringify({
           email, password: pwd,
           tenantId: GP_TENANT.id,
-          nom, role, local_id: localIds[0] || null
+          nom, role, local_id: localId
         })
       });
       const efData = await efRes.json();
       if (!efRes.ok || !efData.success) throw new Error(efData.error || 'Erreur création compte');
 
-      // Mettre à jour role et local dans gp_users
-      const createdUser = await sb.from('gp_users')
-        .update({ role, local_id: localIds[0] || null, local_ids: localIds, actif })
-        .eq('auth_id', efData.auth_id)
-        .select('id').single();
-      
-      if (createdUser?.data?.id && localIds.length > 0) {
-        const rows = localIds.map(lid => ({ user_id: createdUser.data.id, local_id: lid }));
-        await sb.from('gp_user_locals').insert(rows);
-      }
+      // Mettre à jour role, local et accès global dans gp_users
+      await sb.from('gp_users')
+        .update({ role, local_id: localId, acces_global: accesGlobal, actif })
+        .eq('auth_id', efData.auth_id);
 
       await loadSAData();
       closeModal('modal-sa-user');
@@ -95,18 +85,12 @@ async function saveSAUser() {
   // ── Modification utilisateur existant ──
   const obj = {
     nom, email, role,
-    prenom:    document.getElementById('sau-prenom').value.trim(),
-    telephone: document.getElementById('sau-tel').value.trim(),
-    local_id:  localIds[0] || null,
-    local_ids: localIds,
+    prenom:       document.getElementById('sau-prenom').value.trim(),
+    telephone:    document.getElementById('sau-tel').value.trim(),
+    local_id:     localId,
+    acces_global: accesGlobal,
     actif
   };
-  // Mettre à jour gp_user_locals (many-to-many)
-  await sb.from('gp_user_locals').delete().eq('user_id', id);
-  if (localIds.length > 0) {
-    const rows = localIds.map(lid => ({ user_id: id, local_id: lid }));
-    await sb.from('gp_user_locals').insert(rows);
-  }
 
   // Mettre à jour mot de passe Auth si nouveau pwd fourni
   if (pwd) {
@@ -293,10 +277,7 @@ async function renderSADash() {
           <div><div style="font-size:22px;font-weight:800;color:var(--accent);">${lUsers.length}</div><div style="font-size:10px;color:var(--text2);">Utilisateurs</div></div>
           <div><div style="font-size:22px;font-weight:800;">${loc.responsable||'—'}</div><div style="font-size:10px;color:var(--text2);">Responsable</div></div>
         </div>
-        <div style="padding:0 16px 8px;font-size:11px;color:var(--text2);">📍 ${loc.adresse||'—'}</div>
-        <div style="padding:0 16px 12px;">
-          <button class="btn btn-secondary" style="font-size:11px;padding:4px 10px;" onclick="saSelectLocal('${loc.id}')">🏪 Travailler dans ce local</button>
-        </div>
+        <div style="padding:0 16px 12px;font-size:11px;color:var(--text2);">📍 ${loc.adresse||'—'}</div>
       </div>`;
   }).join('') || '<div style="color:var(--text2);padding:20px;">Aucun local créé.</div>';
 
@@ -344,13 +325,6 @@ async function fixOrphanData() {
   }
   toast('✅ '+fixed+' enregistrements assignés à "'+locName+'"', 'success');
   renderSADash();
-}
-
-function saSelectLocal(lid) {
-  SA_ACTIVE_LOCAL = lid;
-  const sel = document.getElementById('sa-active-local');
-  if (sel) { sel.value = lid; }
-  onSALocalSwitch();
 }
 
 async function saResetAllData() {
@@ -481,7 +455,6 @@ async function saveSALocal() {
   await loadSAData();
   renderSALocaux();
   renderSADash();
-  updateSALocalSwitcher();
   // Rafraîchir la page locaux si active
   if (document.getElementById('page-locaux')?.classList.contains('active')) renderLocaux();
 }
@@ -528,8 +501,8 @@ function renderSAUsers() {
   let filtered = GP_USERS_ALL.filter(u => {
     if (q && !`${u.nom} ${u.prenom} ${u.email}`.toLowerCase().includes(q)) return false;
     if (fLocal !== 'all') {
-      const lids = u.local_ids?.length > 0 ? u.local_ids : (u.local_id ? [u.local_id] : []);
-      if (!lids.includes(fLocal)) return false;
+      if (u.acces_global) return false; // accès global = pas rattaché à "ce" local précis
+      if (u.local_id !== fLocal) return false;
     }
     if (fRole  !== 'all' && normalizeRole(u.role) !== normalizeRole(fRole)) return false;
     return true;
@@ -546,14 +519,9 @@ function renderSAUsers() {
         <td><strong>${escapeHTML(u.nom||'—')}</strong><div style="font-size:11px;color:var(--text2);">${escapeHTML(u.prenom||'')}</td>
         <td style="font-size:12px;">${u.email||'—'}</td>
         <td><span class="chip" style="background:rgba(${role?.color||'#888'},0.12);color:${role?.color||'var(--text2)'};">${role?.label||u.role||'—'}</span></td>
-        <td>${(() => {
-          const lids = u.local_ids?.length > 0 ? u.local_ids : (u.local_id ? [u.local_id] : []);
-          if (lids.length === 0) return '<span style="color:var(--text2);">—</span>';
-          return lids.map(lid => {
-            const l = GP_LOCAUX_ALL.find(x => x.id === lid);
-            return l ? `<span style="display:inline-block;padding:2px 8px;border-radius:12px;font-size:11px;margin:2px;background:${l.couleur||'var(--accent)'}22;color:${l.couleur||'var(--accent)'};">● ${escapeHTML(l.nom)}</span>` : '';
-          }).join('');
-        })()}</td>
+        <td>${u.acces_global
+          ? `<span style="display:inline-block;padding:2px 8px;border-radius:12px;font-size:11px;background:var(--gold)22;color:var(--gold);">🌐 Tous les locaux</span>`
+          : (loc ? `<span style="display:inline-block;padding:2px 8px;border-radius:12px;font-size:11px;background:${loc.couleur||'var(--accent)'}22;color:${loc.couleur||'var(--accent)'};">● ${escapeHTML(loc.nom)}</span>` : '<span style="color:var(--text2);">—</span>')}</td>
         <td>${u.telephone||'—'}</td>
         <td><span class="chip ${u.actif?'chip-green':'chip-red'}">${u.actif?'Actif':'Inactif'}</span></td>
         <td>
@@ -565,37 +533,34 @@ function renderSAUsers() {
   buildPagination('sausers', filtered.length, 'renderSAUsers', 'sausers-pagination');
 }
 
-function updateSAUserLocalVisibility() {
-  // Local toujours visible — assignation libre, jamais obligatoire
+// Bascule l'affichage du select de local selon le mode choisi (un local / accès global)
+function updateSAUserAccessMode() {
+  const mode = document.querySelector('input[name="sau-access-mode"]:checked')?.value || 'local';
   const localGroup = document.getElementById('sau-local-group');
-  if (localGroup) localGroup.style.display = '';
+  if (localGroup) localGroup.style.display = (mode === 'global') ? 'none' : '';
 }
 
 function openSAUserModal(id) {
   const u = id ? GP_USERS_ALL.find(x => x.id === id) : null;
+  const accesGlobal = !!u?.acces_global;
 
-  // Populate local multi-select
-  const localChecks = document.getElementById('sau-local-checks');
-  if (localChecks) {
-    const userLocalIds = u?.local_ids || (u?.local_id ? [u.local_id] : []);
-    localChecks.innerHTML = GP_LOCAUX_ALL.length === 0
-      ? '<span style="color:var(--text2);font-size:12px;">Aucun local disponible</span>'
-      : GP_LOCAUX_ALL.map(l => {
-          const selected = userLocalIds.includes(l.id);
-          return `<div class="sau-local-item" data-id="${l.id}" onclick="magToggleLocal(this)"
-            style="display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:8px;cursor:pointer;
-            border:2px solid ${selected ? 'var(--accent)' : 'var(--border)'};
-            background:${selected ? 'rgba(37,99,235,0.08)' : 'var(--surface2)'};
-            margin-bottom:6px;user-select:none;transition:all 0.15s;"
-            data-selected="${selected ? '1' : '0'}">
-            <div style="width:20px;height:20px;border-radius:50%;border:2px solid ${selected ? 'var(--accent)' : 'var(--border)'};
-              background:${selected ? 'var(--accent)' : 'transparent'};display:flex;align-items:center;justify-content:center;flex-shrink:0;">
-              ${selected ? '<span style="color:#fff;font-size:12px;">✓</span>' : ''}
-            </div>
-            <span style="color:${l.couleur||'var(--accent)'};">● ${escapeHTML(l.nom)}</span>
-          </div>`;
-        }).join('');
+  // Radios accès (un local / accès global)
+  const radioLocal  = document.getElementById('sau-access-local');
+  const radioGlobal = document.getElementById('sau-access-global');
+  if (radioLocal && radioGlobal) {
+    radioLocal.checked  = !accesGlobal;
+    radioGlobal.checked = accesGlobal;
   }
+
+  // Populate select local unique
+  const localSel = document.getElementById('sau-local');
+  if (localSel) {
+    localSel.innerHTML = GP_LOCAUX_ALL.length === 0
+      ? '<option value="">Aucun local disponible</option>'
+      : '<option value="">— Choisir un local —</option>' +
+        GP_LOCAUX_ALL.map(l => `<option value="${l.id}" ${u?.local_id===l.id?'selected':''}>${escapeHTML(l.nom)}</option>`).join('');
+  }
+  updateSAUserAccessMode();
   // Populate role select
   const roleSel = document.getElementById('sau-role');
   if (roleSel) {
@@ -606,8 +571,6 @@ function openSAUserModal(id) {
       .map(([k,r]) => `<option value="${k}" ${normalizeRole(k)===userRole?'selected':''}>${r.label}</option>`).join('');
   }
 
-  // Mettre à jour visibilité local selon rôle
-  updateSAUserLocalVisibility();
   document.getElementById('sau-id').value     = id || '';
   document.getElementById('sau-nom').value    = u?.nom || '';
   document.getElementById('sau-prenom').value = u?.prenom || '';

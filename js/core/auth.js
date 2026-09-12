@@ -123,6 +123,11 @@ function isSuperAdmin() {
   return GP_USER && normalizeRole(GP_USER.role) === 'super_admin';
 }
 
+// Accès global = voit/opère sur tous les locaux (super admin OU utilisateur "tous locaux")
+function hasGlobalAccess() {
+  return isSuperAdmin() || !!GP_USER?.acces_global;
+}
+
 function applyNavPermissions() {
   if (isSuperAdmin()) {
     // SA voit les modules autorisés par son PLAN
@@ -316,13 +321,13 @@ async function loadSAData() {
       '— noms:', GP_LOCAUX_ALL.map(l => l.nom).join(', ') || '(aucun)');
 
     // Ne PAS charger les passwords dans le client (sécurité)
-    const usrsQ = sb.from('gp_users').select('id,nom,prenom,email,role,local_id,local_ids,telephone,actif,created_at').eq('tenant_id', tid).order('nom');
+    const usrsQ = sb.from('gp_users').select('id,nom,prenom,email,role,local_id,acces_global,telephone,actif,created_at').eq('tenant_id', tid).order('nom');
     const { data: usrs } = await usrsQ;
     GP_USERS_ALL = (usrs || []).map(u => ({
       id: u.id, nom: u.nom, prenom: u.prenom || '',
       email: u.email,
       // password NON chargé — jamais exposé au client
-      role: u.role, local_id: u.local_id,
+      role: u.role, local_id: u.local_id, acces_global: !!u.acces_global,
       telephone: u.telephone || '',
       actif: u.actif !== false, createdAt: u.created_at
     }));
@@ -429,7 +434,7 @@ async function doLogin() {
     // Charger user depuis gp_users
     const { data: userRow, error: userErr } = await sb
       .from('gp_users')
-      .select('id,nom,prenom,role,local_id,telephone,actif,tenant_id,created_at,auth_id')
+      .select('id,nom,prenom,role,local_id,acces_global,telephone,actif,tenant_id,created_at,auth_id')
       .eq('auth_id', authData.user.id)
       .eq('actif', true)
       .limit(1);
@@ -636,7 +641,6 @@ async function startApp() {
       await saveRoles();
     }
     await loadSAData();
-    updateSALocalSwitcher(); // populate dropdown with loaded locaux
     await loadUserData();
   } catch(e) {
     console.warn('[SB] startApp load error:', e);
@@ -667,7 +671,6 @@ async function startApp() {
   updateCartTvaUI();
   applyLang();
   updateEmployeSelects();
-  updateSALocalSwitcher();
   applyNavPermissions(); // cacher les sections selon le rôle
   // Vérification accès tenant en temps réel (toutes les 5 min)
   if (_tenantCheckInterval) clearInterval(_tenantCheckInterval);
@@ -784,27 +787,16 @@ function applyRBACUI() {
   // Afficher badge local dans sidebar
   const localInfo = document.getElementById('sb-local-info');
   if (localInfo) {
-    if (isSuperAdmin()) {
+    if (hasGlobalAccess()) {
       localInfo.innerHTML = `<span style="font-size:10px;color:var(--gold);font-weight:700;">🌐 Accès global — tous les locaux</span>`;
       localInfo.style.display = 'block';
-    } else {
-      const lids = GP_USER.local_ids?.length > 0 ? GP_USER.local_ids : (GP_USER.local_id ? [GP_USER.local_id] : []);
-      const locs = lids.map(lid => GP_LOCAUX_ALL.find(l => l.id === lid)).filter(Boolean);
-      if (locs.length === 0) {
-        localInfo.style.display = 'none';
-      } else if (locs.length === 1) {
-        localInfo.innerHTML = `<span style="font-size:10px;color:${locs[0].couleur||'var(--accent)'};font-weight:700;">📍 ${escapeHTML(locs[0].nom)}</span>`;
+    } else if (GP_USER?.local_id) {
+      const loc = GP_LOCAUX_ALL.find(l => l.id === GP_USER.local_id);
+      if (loc) {
+        localInfo.innerHTML = `<span style="font-size:10px;color:${loc.couleur||'var(--accent)'};font-weight:700;">📍 ${escapeHTML(loc.nom)}</span>`;
         localInfo.style.display = 'block';
       } else {
-        // Multi-local : afficher switcher
-        localInfo.innerHTML = `
-          <select id="user-local-switcher" onchange="switchUserLocal(this.value)"
-            style="font-size:11px;border:1px solid var(--border);border-radius:6px;
-            padding:3px 6px;background:var(--surface2);color:var(--text);width:100%;cursor:pointer;">
-            <option value="">🌐 Tous mes locaux</option>
-            ${locs.map(l => `<option value="${l.id}" style="color:${l.couleur||'var(--accent)'}">📍 ${escapeHTML(l.nom)}</option>`).join('')}
-          </select>`;
-        localInfo.style.display = 'block';
+        localInfo.style.display = 'none';
       }
     } else {
       localInfo.style.display = 'none';
@@ -855,20 +847,6 @@ function applyRBACUI() {
   return firstAllowed;
 }
 
-// ─── SWITCHER LOCAL MULTI-USER ────────────────────────────────
-window.switchUserLocal = async function(localId) {
-  if (localId) {
-    GP_USER.local_id = localId;
-    GP_USER._activeLocal = localId;
-  } else {
-    GP_USER.local_id = null;
-    GP_USER._activeLocal = null;
-  }
-  toast('🏪 Local changé — rechargement...', 'info');
-  await loadUserData();
-  navigate(document.querySelector('.nav-item.active')?.getAttribute('onclick')?.match(/navigate\('([^']+)'\)/)?.[1] || 'dashboard');
-};
-
 // ─── DONNÉES SCOPÉES PAR LOCAL ─────────────────────────────────
 async function loadUserData() {
   const lid = getLocalId();
@@ -883,18 +861,7 @@ async function loadUserData() {
     return;
   }
 
-  // Charger les locaux de l'utilisateur depuis gp_user_locals (many-to-many)
-  if (!isSuperAdmin() && GP_USER) {
-    const { data: userLocals } = await sb.from('gp_user_locals')
-      .select('local_id')
-      .eq('user_id', GP_USER.id);
-    if (userLocals && userLocals.length > 0) {
-      GP_USER.local_ids = userLocals.map(r => r.local_id);
-      GP_USER.local_id  = GP_USER.local_ids[0];
-    }
-  }
-
-  // Filtre tenant_id (isolation données) + local_ids si non SA
+  // Filtre tenant_id (isolation données) + local_id si pas d'accès global
   const lids = getLocalIds ? getLocalIds() : (lid ? [lid] : null);
 
   const filter = (q) => {
@@ -912,8 +879,8 @@ async function loadUserData() {
     while (true) {
       // Super admin ou pas de local assigné → charger TOUS les produits du tenant
       let params = `select=*&tenant_id=eq.${tid}&order=name&offset=${from}&limit=${BATCH}`;
-      if (!isSuperAdmin() && lids && lids.length === 1) params += `&local_id=eq.${lids[0]}`;
-      else if (!isSuperAdmin() && lids && lids.length > 1) params += `&local_id=in.(${lids.join(',')})`;
+      if (!hasGlobalAccess() && lids && lids.length === 1) params += `&local_id=eq.${lids[0]}`;
+      else if (!hasGlobalAccess() && lids && lids.length > 1) params += `&local_id=in.(${lids.join(',')})`;
       const res = await fetch(`${SUPABASE_URL}/rest/v1/gp_products?${params}`, {
         headers: {
           'apikey': SUPABASE_ANON,

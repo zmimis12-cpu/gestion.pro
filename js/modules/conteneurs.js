@@ -692,19 +692,6 @@ function printOrdre() {
   const htmlStr = `<html><head><title>Ordre Importation</title>
     <style>@page{size:A4;margin:0}body{margin:0;font-family:Arial,sans-serif}*{-webkit-print-color-adjust:exact;print-color-adjust:exact}</style>
   </head><body>${content}
-<!-- ═══ MODAL CHOIX LOCAL CAISSE (obligatoire) ═══ -->
-<div class="modal-overlay" id="modal-caisse-local" style="z-index:2000;">
-  <div class="modal" style="max-width:420px;text-align:center;">
-    <div style="font-size:40px;margin-bottom:12px;">🏪</div>
-    <div style="font-size:17px;font-weight:700;color:#111827;letter-spacing:-0.3px;margin-bottom:8px;">Choisir le local de vente</div>
-    <div style="font-size:13px;color:#6b7280;margin-bottom:20px;line-height:1.6;">
-      Sélectionnez le local depuis lequel vous effectuez cette vente.<br>
-      <strong>Le stock sera déduit uniquement de ce local.</strong>
-    </div>
-    <div id="caisse-local-choices" style="display:flex;flex-direction:column;gap:8px;margin-bottom:4px;"></div>
-  </div>
-</div>
-
 </body></html>`;
   const blob = new Blob([htmlStr], {type:'text/html;charset=utf-8'});
   const url  = URL.createObjectURL(blob);

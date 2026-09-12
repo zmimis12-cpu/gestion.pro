@@ -61,7 +61,7 @@ async function _restoreUserContext(authUser) {
     // Charger gp_users
     const { data: userRows, error: userErr } = await sb
       .from('gp_users')
-      .select('id,nom,prenom,email,role,local_id,telephone,actif,tenant_id,auth_id,created_at')
+      .select('id,nom,prenom,email,role,local_id,acces_global,telephone,actif,tenant_id,auth_id,created_at')
       .eq('auth_id', authUser.id)
       .eq('actif', true)
       .limit(1);
@@ -104,6 +104,7 @@ async function _restoreUserContext(authUser) {
         email: GP_USER.email,
         role: GP_USER.role,
         local_id: GP_USER.local_id,
+        acces_global: GP_USER.acces_global,
         actif: GP_USER.actif,
         tenant_id: GP_USER.tenant_id,
         auth_id: GP_USER.auth_id

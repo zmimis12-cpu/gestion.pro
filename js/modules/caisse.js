@@ -9,22 +9,22 @@ function renderProductGrid(resetPage) {
   if (resetPage !== false) _pages['caisse'] = 1;
   const q = (document.getElementById('product-search')?.value || '').toLowerCase();
   const grid = document.getElementById('products-grid');
-  // Grouper les produits identiques — 1 carte par produit unique
+  const multiLocal = hasGlobalAccess() && GP_LOCAUX_ALL.length > 1;
+  // Grouper les produits identiques — 1 carte par produit unique ET par local
+  // (on ne mélange JAMAIS le stock de deux locaux différents dans une même carte :
+  //  une vente ne doit débiter que le stock du local du produit vendu)
   const caisseGroups = new Map();
   products.filter(p => {
     const matchQ = !q || p.name.toLowerCase().includes(q) || (p.code||'').toLowerCase().includes(q) || p.category.toLowerCase().includes(q);
     const matchCat = selectedCategory === 'Tous' || p.category === selectedCategory;
     return matchQ && matchCat;
   }).forEach(p => {
-    const key = (p.code&&p.code.trim()) ? p.code.trim().toLowerCase() : `${p.name.trim().toLowerCase()}||${(p.category||'').toLowerCase()}`;
+    const baseKey = (p.code&&p.code.trim()) ? p.code.trim().toLowerCase() : `${p.name.trim().toLowerCase()}||${(p.category||'').toLowerCase()}`;
+    const key = `${baseKey}||${p.local_id||'sans_local'}`;
     if (!caisseGroups.has(key)) caisseGroups.set(key, { ...p, _totalStock: p.stock, _variants: [p] });
     else { const g=caisseGroups.get(key); g._totalStock+=p.stock; g._variants.push(p); }
   });
-  // Produit à utiliser pour la vente = variant avec le plus de stock
-  const filtered = [...caisseGroups.values()].map(g => {
-    const bestV = [...g._variants].sort((a,b)=>b.stock-a.stock)[0];
-    return { ...bestV, _totalStock: g._totalStock, _variants: g._variants };
-  });
+  const filtered = [...caisseGroups.values()];
   if (!filtered.length) {
     grid.innerHTML = `<div class="empty-state"><div class="emoji">📦</div><p>${products.length ? t('no_products') : t('cart_empty_stock')}</p></div>`;
     const pag = document.getElementById('caisse-pagination');
@@ -52,20 +52,12 @@ function renderProductGrid(resetPage) {
       : p.type === 'kg'
       ? (p._totalStock||p.stock) <= 0
       : (p._totalStock||p.stock) === 0;
+    const localName = GP_LOCAUX_ALL.find(l=>l.id===p.local_id)?.nom || p.zone || '';
     return `<div class="product-card ${isOutOfStock ? 'out-of-stock' : ''}" onclick="addToCart('${p.id}')">
       ${photo}
-      <div class="product-stock-badge" title="${p._variants&&p._variants.length>1 ? (() => {
-            const lm = new Map();
-            p._variants.forEach(v => {
-              const lid = v.local_id||v.zone||'?';
-              const lName = GP_LOCAUX_ALL.find(l=>l.id===v.local_id)?.nom||v.zone||'?';
-              lm.set(lid, (lm.get(lid)||0) + v.stock);
-              lm._names = lm._names||{}; lm._names[lid]=lName;
-            });
-            return Array.from(lm.entries()).filter(([k])=>k!=='_names').map(([k,s])=>`${lm._names[k]}: ${s}`).join(' | ');
-          })() : ''}">${p.type==='tailles' ? '👕' : p.type==='couleurs' ? '🎨' : p.type==='kg' ? `⚖️ ${p._totalStock||p.stock}kg` : (p._totalStock||p.stock)}</div>
+      <div class="product-stock-badge">${p.type==='tailles' ? '👕' : p.type==='couleurs' ? '🎨' : p.type==='kg' ? `⚖️ ${p._totalStock||p.stock}kg` : (p._totalStock||p.stock)}</div>
       <div class="product-name">${escapeHTML(p.name)}</div>
-      ${!SA_ACTIVE_LOCAL && p._variants && p._variants.length > 1 ? `<div style="font-size:9.5px;color:var(--text3);margin-top:1px;text-align:center;">📍 ${p._variants.length} locaux</div>` : ''}
+      ${multiLocal && localName ? `<div style="font-size:9.5px;color:var(--text3);margin-top:1px;text-align:center;">📍 ${escapeHTML(localName)}</div>` : ''}
       <div class="product-price">${p.price.toFixed(2)} MAD${p.type==='kg' ? '<span style="font-size:10px;color:var(--text2);"> /kg</span>' : ''}</div>
     </div>`;
   }).join('');
@@ -87,6 +79,21 @@ function renderProductGrid(resetPage) {
 }
 
 function filterProducts() { _pages['caisse'] = 1; renderProductGrid(false); }
+
+// Un panier ne peut contenir que des produits d'un seul et même local —
+// on ne veut jamais qu'une vente débite le stock de deux locaux différents.
+function _checkCartSameLocal(p) {
+  if (!cart.length) return true;
+  const firstId = cart[0].productId || cart[0].id;
+  const firstP = products.find(x => x.id === firstId);
+  if (!firstP) return true;
+  if ((firstP.local_id || null) !== (p.local_id || null)) {
+    const locName = GP_LOCAUX_ALL.find(l => l.id === p.local_id)?.nom || 'un autre local';
+    toast(`⚠️ Le panier contient déjà des produits d'un autre local. Terminez ou videz cette vente avant d'ajouter un article de "${locName}".`, 'warn');
+    return false;
+  }
+  return true;
+}
 
 
 
@@ -150,6 +157,7 @@ function addToCart(id) {
     if (existing.qty >= p.stock) { toast(t('toast_stock_insuf'), 'warn'); return; }
     existing.qty++;
   } else {
+    if (!_checkCartSameLocal(p)) return;
     cart.push({ id, name: p.name, price: p.price, qty: 1 });
   }
   renderCart();
@@ -165,6 +173,7 @@ function addToCartWithSize(id, size) {
     if (existing.qty >= availQty) { toast(t('toast_stock_insuf'), 'warn'); return; }
     existing.qty++;
   } else {
+    if (!_checkCartSameLocal(p)) return;
     cart.push({ id, name: `${p.name} (${size})`, price: p.price, qty: 1, size, productId: id });
   }
   renderCart();
@@ -180,6 +189,7 @@ function addToCartWithColor(id, color) {
     if (existing.qty >= availQty) { toast(t('toast_stock_insuf'), 'warn'); return; }
     existing.qty++;
   } else {
+    if (!_checkCartSameLocal(p)) return;
     cart.push({ id, name: `${p.name} (${color})`, price: p.price, qty: 1, color, productId: id });
   }
   renderCart();
@@ -220,6 +230,7 @@ function confirmKGAdd() {
     existing.qty = poids;
     existing.totalKg = poids * p.price;
   } else {
+    if (!_checkCartSameLocal(p)) return;
     cart.push({
       id: pid,
       cartKey,
@@ -644,7 +655,12 @@ function checkout(docType) {
   }
 
   // Record sale — structure financière complète
-  const lid = getLocalId();
+  // local_id de la vente = local du produit réellement vendu (pas getLocalId(),
+  // qui vaut null pour un utilisateur en accès global). Le panier est garanti
+  // mono-local par _checkCartSameLocal().
+  const firstItem = cart[0];
+  const firstProd = firstItem ? products.find(x => x.id === (firstItem.productId || firstItem.id)) : null;
+  const lid = firstProd?.local_id || getLocalId();
   const remiseVal  = parseFloat(document.getElementById('cart-remise-val')?.value) || 0;
   const remiseType = document.getElementById('cart-remise-type')?.value || 'pct';
   const sale = {
