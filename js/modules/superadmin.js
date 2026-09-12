@@ -34,6 +34,8 @@ async function saveSAUser() {
   const pwd     = document.getElementById('sau-pwd').value;
   const role    = document.getElementById('sau-role').value;
   const actif   = document.getElementById('sau-actif').value === '1';
+  // Locaux autorisés (multi-select) — [] = pas de restriction, accès à tous les locaux
+  const localIds = Array.from(document.querySelectorAll('.sau-local-item[data-selected="1"]')).map(el => el.dataset.id);
 
   if (!nom || !email) { toast('Nom et email obligatoires', 'error'); return; }
   if (!id && !pwd) { toast('Mot de passe obligatoire pour un nouvel utilisateur', 'error'); return; }
@@ -55,15 +57,15 @@ async function saveSAUser() {
         body: JSON.stringify({
           email, password: pwd,
           tenantId: GP_TENANT.id,
-          nom, role
+          nom, role, local_id: localIds[0] || null
         })
       });
       const efData = await efRes.json();
       if (!efRes.ok || !efData.success) throw new Error(efData.error || 'Erreur création compte');
 
-      // Mettre à jour role dans gp_users
+      // Mettre à jour role + locaux autorisés dans gp_users
       await sb.from('gp_users')
-        .update({ role, actif })
+        .update({ role, actif, local_id: localIds[0] || null, local_ids: localIds })
         .eq('auth_id', efData.auth_id);
 
       await loadSAData();
@@ -83,6 +85,8 @@ async function saveSAUser() {
     nom, email, role,
     prenom:       document.getElementById('sau-prenom').value.trim(),
     telephone:    document.getElementById('sau-tel').value.trim(),
+    local_id:     localIds[0] || null,
+    local_ids:    localIds,
     actif
   };
 
@@ -470,9 +474,18 @@ async function deleteSALocal(id) {
 // ── GESTION UTILISATEURS ────────────────────────────────────────
 function renderSAUsers() {
   const q      = (document.getElementById('sa-user-search')?.value || '').toLowerCase();
+  const fLocal = document.getElementById('sa-user-filter-local')?.value || 'all';
   const fRole  = document.getElementById('sa-user-filter-role')?.value  || 'all';
   const tbody  = document.getElementById('sa-users-table');
   if (!tbody) return;
+
+  // Populate local filter
+  const localSel = document.getElementById('sa-user-filter-local');
+  if (localSel) {
+    const cur = localSel.value;
+    localSel.innerHTML = '<option value="all">Tous les locaux</option>' +
+      GP_LOCAUX_ALL.map(l => `<option value="${l.id}" ${cur===l.id?'selected':''}>${escapeHTML(l.nom)}</option>`).join('');
+  }
 
   // Populate role filter — toujours repopuler pour inclure nouveaux rôles
   const roleSel = document.getElementById('sa-user-filter-role');
@@ -485,6 +498,10 @@ function renderSAUsers() {
 
   let filtered = GP_USERS_ALL.filter(u => {
     if (q && !`${u.nom} ${u.prenom} ${u.email}`.toLowerCase().includes(q)) return false;
+    if (fLocal !== 'all') {
+      const uLids = u.local_ids?.length > 0 ? u.local_ids : (u.local_id ? [u.local_id] : []);
+      if (!uLids.includes(fLocal)) return false;
+    }
     if (fRole  !== 'all' && normalizeRole(u.role) !== normalizeRole(fRole)) return false;
     return true;
   });
@@ -492,13 +509,21 @@ function renderSAUsers() {
   const sauPage = getPage('sausers');
   const sauPageData = filtered.slice((sauPage-1)*PAGE_SIZE, sauPage*PAGE_SIZE);
   tbody.innerHTML = filtered.length === 0
-    ? '<tr><td colspan="5" style="text-align:center;color:var(--text2);">Aucun utilisateur</td></tr>'
+    ? '<tr><td colspan="6" style="text-align:center;color:var(--text2);">Aucun utilisateur</td></tr>'
     : sauPageData.map(u => {
       const role = getRole(u.role);
+      const uLids = u.local_ids?.length > 0 ? u.local_ids : (u.local_id ? [u.local_id] : []);
+      const localsHtml = uLids.length === 0
+        ? `<span style="display:inline-block;padding:2px 8px;border-radius:12px;font-size:11px;background:var(--gold)22;color:var(--gold);">🌐 Tous les locaux</span>`
+        : uLids.map(lid => {
+            const l = GP_LOCAUX_ALL.find(x => x.id === lid);
+            return l ? `<span style="display:inline-block;padding:2px 8px;border-radius:12px;font-size:11px;margin:2px;background:${l.couleur||'var(--accent)'}22;color:${l.couleur||'var(--accent)'};">● ${escapeHTML(l.nom)}</span>` : '';
+          }).join('');
       return `<tr>
         <td><strong>${escapeHTML(u.nom||'—')}</strong><div style="font-size:11px;color:var(--text2);">${escapeHTML(u.prenom||'')}</td>
         <td style="font-size:12px;">${u.email||'—'}</td>
         <td><span class="chip" style="background:rgba(${role?.color||'#888'},0.12);color:${role?.color||'var(--text2)'};">${role?.label||u.role||'—'}</span></td>
+        <td>${localsHtml}</td>
         <td><span class="chip ${u.actif?'chip-green':'chip-red'}">${u.actif?'Actif':'Inactif'}</span></td>
         <td>
           <button class="btn btn-secondary btn-sm" onclick="openSAUserModal('${u.id}')">✏️</button>
@@ -522,6 +547,29 @@ function openSAUserModal(id) {
       .map(([k,r]) => `<option value="${k}" ${normalizeRole(k)===userRole?'selected':''}>${r.label}</option>`).join('');
   }
 
+  // Populate locaux autorisés (multi-select checkboxes)
+  const localChecks = document.getElementById('sau-local-checks');
+  if (localChecks) {
+    const userLocalIds = u?.local_ids?.length > 0 ? u.local_ids : (u?.local_id ? [u.local_id] : []);
+    localChecks.innerHTML = GP_LOCAUX_ALL.length === 0
+      ? '<span style="color:var(--text2);font-size:12px;">Aucun local disponible</span>'
+      : GP_LOCAUX_ALL.map(l => {
+          const selected = userLocalIds.includes(l.id);
+          return `<div class="sau-local-item" data-id="${l.id}" onclick="magToggleLocal(this)"
+            style="display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:8px;cursor:pointer;
+            border:2px solid ${selected ? 'var(--accent)' : 'var(--border)'};
+            background:${selected ? 'rgba(37,99,235,0.08)' : 'var(--surface2)'};
+            margin-bottom:6px;user-select:none;transition:all 0.15s;"
+            data-selected="${selected ? '1' : '0'}">
+            <div style="width:20px;height:20px;border-radius:50%;border:2px solid ${selected ? 'var(--accent)' : 'var(--border)'};
+              background:${selected ? 'var(--accent)' : 'transparent'};display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+              ${selected ? '<span style="color:#fff;font-size:12px;">✓</span>' : ''}
+            </div>
+            <span style="color:${l.couleur||'var(--accent)'};">● ${escapeHTML(l.nom)}</span>
+          </div>`;
+        }).join('');
+  }
+
   document.getElementById('sau-id').value     = id || '';
   document.getElementById('sau-nom').value    = u?.nom || '';
   document.getElementById('sau-prenom').value = u?.prenom || '';
@@ -532,6 +580,20 @@ function openSAUserModal(id) {
   document.getElementById('modal-sa-user-title').textContent = id ? '✏️ Modifier utilisateur' : '👤 Nouvel utilisateur';
   document.getElementById('sau-pwd').placeholder = id ? 'Laisser vide = inchangé' : 'Mot de passe *';
   openModal('modal-sa-user');
+}
+
+// Coche/décoche un local dans le multi-select du modal utilisateur
+function magToggleLocal(el) {
+  const sel = el.dataset.selected === '1';
+  el.dataset.selected = sel ? '0' : '1';
+  el.style.border = `2px solid ${sel ? 'var(--border)' : 'var(--accent)'}`;
+  el.style.background = sel ? 'var(--surface2)' : 'rgba(37,99,235,0.08)';
+  const dot = el.querySelector('div');
+  if (dot) {
+    dot.style.border = `2px solid ${sel ? 'var(--border)' : 'var(--accent)'}`;
+    dot.style.background = sel ? 'transparent' : 'var(--accent)';
+    dot.innerHTML = sel ? '' : '<span style="color:#fff;font-size:12px;">✓</span>';
+  }
 }
 
 // ── GESTION RÔLES & PERMISSIONS ─────────────────────────────────

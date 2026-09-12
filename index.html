@@ -410,9 +410,9 @@
           <!-- Products -->
           <div class="products-panel">
             <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
-              <span style="font-size:13px;font-weight:700;color:var(--text2);white-space:nowrap;">🏪 Local :</span>
+              <span style="font-size:13px;font-weight:700;color:var(--text2);white-space:nowrap;">🏪 Local de sortie *</span>
               <select id="caisse-local-select" onchange="setCaisseLocal(this.value)" style="flex:1;background:var(--surface2);border:1px solid var(--accent);border-radius:8px;padding:8px 12px;color:var(--text);font-family:var(--font),sans-serif;font-weight:600;">
-                <option value="">— Choisir le local de vente —</option>
+                <option value="">— Sélectionner —</option>
               </select>
             </div>
             <div class="search-bar">
@@ -1053,6 +1053,9 @@
         <div id="sa-panel-users" style="display:none;">
           <div style="display:flex;gap:10px;align-items:center;margin-bottom:18px;flex-wrap:wrap;">
             <input type="text" id="sa-user-search" placeholder="🔍 Rechercher utilisateur..." style="max-width:260px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--text);font-family:var(--font),sans-serif;" oninput="renderSAUsers()">
+            <select id="sa-user-filter-local" onchange="renderSAUsers()" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--text);font-family:var(--font),sans-serif;">
+              <option value="all">Tous les locaux</option>
+            </select>
             <select id="sa-user-filter-role" onchange="renderSAUsers()" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--text);font-family:var(--font),sans-serif;">
               <option value="">Tous les rôles</option>
             </select>
@@ -1062,7 +1065,7 @@
             <div class="card-header">👥 Comptes Utilisateurs</div>
             <table>
               <thead><tr>
-                <th>Nom</th><th>Email</th><th>Rôle</th>
+                <th>Nom</th><th>Email</th><th>Rôle</th><th>Locaux autorisés</th>
                 <th>Statut</th><th>Actions</th>
               </tr></thead>
               <tbody id="sa-users-table"></tbody>
@@ -1565,6 +1568,12 @@
       <div class="form-group" id="sau-pwd-group"><label>Mot de passe *</label><input type="password" id="sau-pwd" placeholder="Minimum 6 caractères"></div>
       <div class="form-group"><label>Rôle *</label>
         <select id="sau-role" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--text);font-family:var(--font),sans-serif;width:100%;"></select>
+      </div>
+      <div class="form-group full"><label>Locaux autorisés</label>
+        <div id="sau-local-checks" style="display:flex;flex-direction:column;gap:4px;max-height:200px;overflow-y:auto;padding:4px;">
+          <!-- rempli par JS -->
+        </div>
+        <div style="font-size:11px;color:var(--text2);margin-top:4px;">Aucun local coché = accès à tous les locaux. Cliquez pour cocher un ou plusieurs locaux.</div>
       </div>
       <div class="form-group"><label>Téléphone</label><input type="tel" id="sau-tel" placeholder="06XXXXXXXX"></div>
       <div class="form-group"><label>Statut</label>
@@ -3169,9 +3178,9 @@ async function magRenderStock() {
   el.innerHTML = '<div class="mag-loading"><div class="mag-spinner"></div>Chargement...</div>'
   try {
     const tid = GP_TENANT?.id
-    const lid = GP_USER?.local_id
+    const lids = getLocalIds()
     let q = sb.from('gp_products').select('*').eq('tenant_id', tid).order('name')
-    if (lid) q = q.eq('local_id', lid)
+    if (lids) q = q.in('local_id', lids)
     const { data } = await q
     _magProducts = data || []
     magRenderStockView()
@@ -3343,9 +3352,9 @@ async function magRenderMouvement() {
 
 async function magLoadMvtHist() {
   try {
-    const tid = GP_TENANT?.id; const lid = GP_USER?.local_id
+    const tid = GP_TENANT?.id; const lids = getLocalIds()
     let q = sb.from('gp_stock_movements').select('*').eq('tenant_id',tid).order('created_at',{ascending:false}).limit(15)
-    if (lid) q = q.eq('from_local',lid)
+    if (lids) q = q.in('from_local',lids)
     const { data } = await q
     const el = document.getElementById('mag-mvt-hist')
     if (!el) return
@@ -3375,7 +3384,7 @@ async function magSaveMvt() {
   try {
     await sb.from('gp_stock_movements').insert({
       product_id: pid, product_name: prod?.name||'',
-      from_local: GP_USER?.local_id||'', to_local: GP_USER?.local_id||'',
+      from_local: getLocalId()||'', to_local: getLocalId()||'',
       qty: realQty, note: note||_magMvtType,
       user_id: GP_USER?.id||'', tenant_id: GP_TENANT?.id,
     })
@@ -3395,9 +3404,9 @@ async function magRenderRetours() {
   const el = document.getElementById('mag-screen-retours')
   el.innerHTML = '<div class="mag-loading"><div class="mag-spinner"></div>Chargement...</div>'
   try {
-    const tid = GP_TENANT?.id; const lid = GP_USER?.local_id
+    const tid = GP_TENANT?.id; const lids = getLocalIds()
     let q = sb.from('gp_retours').select('*').eq('tenant_id',tid).order('created_at',{ascending:false}).limit(50)
-    if (lid) q = q.eq('local_id',lid)
+    if (lids) q = q.in('local_id',lids)
     if (_magRetourFilter !== 'all') q = q.eq('statut',_magRetourFilter)
     const { data } = await q
     const retours = data||[]
@@ -3510,7 +3519,7 @@ async function magSaveRetour() {
     await sb.from('gp_retours').insert({
       id: 'RET-'+Date.now(),
       tenant_id: GP_TENANT?.id,
-      local_id: GP_USER?.local_id||'',
+      local_id: getLocalId()||'',
       client_name: document.getElementById('mag-ret-client').value.trim()||null,
       lines: _magRetourLines,
       note: document.getElementById('mag-ret-motif').value + ' — ' + (document.getElementById('mag-ret-note').value.trim()||''),

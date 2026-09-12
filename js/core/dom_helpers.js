@@ -6,18 +6,17 @@
 ================================================================ */
 
 function getUserLocalName() {
-  if (isSuperAdmin() || !GP_USER) return '';
-  if (GP_USER.local_id) {
-    const loc = GP_LOCAUX_ALL.find(l => l.id === GP_USER.local_id);
-    return loc ? loc.nom : (GP_USER.local_nom || '');
-  }
-  return GP_USER.local_nom || GP_USER.local || '';
+  const lids = getLocalIds();
+  if (!lids || lids.length !== 1) return '';
+  const loc = GP_LOCAUX_ALL.find(l => l.id === lids[0]);
+  return loc ? loc.nom : '';
 }
 
 function populateLocalSelect(selId, addEmpty = true, curValue = '') {
   const sel = document.getElementById(selId);
   if (!sel) return;
-  const list = isSuperAdmin() ? GP_LOCAUX_ALL : GP_LOCAUX_ALL.filter(l => !GP_USER?.local_id || l.id === GP_USER.local_id);
+  const lids = getLocalIds(); // null = pas de restriction
+  const list = lids ? GP_LOCAUX_ALL.filter(l => lids.includes(l.id)) : GP_LOCAUX_ALL;
   sel.innerHTML = (addEmpty ? '<option value="">— Sélectionner un local —</option>' : '') +
     list.map(l => `<option value="${l.nom}"${l.nom === curValue ? ' selected' : ''}>${escapeHTML(l.nom)}</option>`).join('');
 }
@@ -95,8 +94,12 @@ function openTransfertModal() {
   }
 
   const trFrom = document.getElementById('tr-from');
-  if (trFrom) trFrom.innerHTML = '<option value="">— Local source —</option>' +
-    GP_LOCAUX_ALL.filter(l=>l.actif!==false).map(l => `<option value="${l.id}">${escapeHTML(l.nom)}</option>`).join('');
+  if (trFrom) {
+    const lids = getLocalIds();
+    const fromList = (lids ? GP_LOCAUX_ALL.filter(l => lids.includes(l.id)) : GP_LOCAUX_ALL).filter(l=>l.actif!==false);
+    trFrom.innerHTML = '<option value="">— Local source —</option>' +
+      fromList.map(l => `<option value="${l.id}">${escapeHTML(l.nom)}</option>`).join('');
+  }
 
   const trTo = document.getElementById('tr-to');
   if (trTo) trTo.innerHTML = '<option value="">— Local destination —</option>' +

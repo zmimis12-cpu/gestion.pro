@@ -5,22 +5,35 @@
    printInvoice, buildReceiptHTML, printReceipt
 ================================================================ */
 
-// ─── LOCAL DE VENTE (sélectionné manuellement, pas lié au compte utilisateur) ───
+// ─── "LOCAL DE SORTIE" — champ obligatoire pour chaque vente ───
+// Ce n'est PAS un switch de compte : ça ne restreint que CETTE vente
+// (nécessaire pour savoir de quel stock physique le produit sort).
+// Les options proposées sont limitées aux locaux AUTORISÉS pour l'utilisateur
+// (GP_USER.local_ids, affecté par l'admin) — pas de notion de "local actif".
 let CAISSE_LOCAL_ID = null;
 
 function _caisseLocalStorageKey() {
-  return `gp_caisse_local_${GP_TENANT?.id || 'x'}`;
+  return `gp_caisse_local_${GP_TENANT?.id || 'x'}_${GP_USER?.id || 'x'}`;
+}
+
+function _caisseAllowedLocaux() {
+  const lids = getLocalIds(); // null = pas de restriction (voit/vend depuis tous les locaux)
+  const actifs = GP_LOCAUX_ALL.filter(l => l.actif !== false);
+  return lids ? actifs.filter(l => lids.includes(l.id)) : actifs;
 }
 
 function populateCaisseLocalSelect() {
   const sel = document.getElementById('caisse-local-select');
   if (!sel) return;
-  const locauxActifs = GP_LOCAUX_ALL.filter(l => l.actif !== false);
+  const allowed = _caisseAllowedLocaux();
   const saved = localStorage.getItem(_caisseLocalStorageKey()) || '';
-  const cur = CAISSE_LOCAL_ID || saved || '';
-  sel.innerHTML = '<option value="">— Choisir le local de vente —</option>' +
-    locauxActifs.map(l => `<option value="${l.id}" ${cur===l.id?'selected':''}>${escapeHTML(l.nom)}</option>`).join('');
-  CAISSE_LOCAL_ID = locauxActifs.some(l => l.id === cur) ? cur : null;
+  CAISSE_LOCAL_ID = allowed.some(l => l.id === saved) ? saved : null;
+
+  // Un seul local autorisé → présélection automatique (mais champ toujours visible)
+  if (!CAISSE_LOCAL_ID && allowed.length === 1) CAISSE_LOCAL_ID = allowed[0].id;
+
+  sel.innerHTML = '<option value="">— Sélectionner —</option>' +
+    allowed.map(l => `<option value="${l.id}" ${CAISSE_LOCAL_ID===l.id?'selected':''}>${escapeHTML(l.nom)}</option>`).join('');
   sel.value = CAISSE_LOCAL_ID || '';
 }
 
@@ -28,9 +41,16 @@ function setCaisseLocal(localId) {
   CAISSE_LOCAL_ID = localId || null;
   if (CAISSE_LOCAL_ID) localStorage.setItem(_caisseLocalStorageKey(), CAISSE_LOCAL_ID);
   else localStorage.removeItem(_caisseLocalStorageKey());
-  clearCart();
   renderProductGrid();
   if (typeof renderCategoryFilters === 'function') renderCategoryFilters();
+}
+
+// Clé d'identité produit (indépendante du local) — sert à regrouper l'affichage
+// et à retrouver la bonne ligne de stock local au moment de la vente.
+function _productGroupKey(p) {
+  return (p.code && p.code.trim())
+    ? p.code.trim().toLowerCase()
+    : `${p.name.trim().toLowerCase()}||${(p.category||'').toLowerCase()}`;
 }
 
 function renderProductGrid(resetPage) {
@@ -38,22 +58,18 @@ function renderProductGrid(resetPage) {
   const q = (document.getElementById('product-search')?.value || '').toLowerCase();
   const grid = document.getElementById('products-grid');
 
-  if (!CAISSE_LOCAL_ID) {
-    grid.innerHTML = `<div class="empty-state"><div class="emoji">🏪</div><p>Choisissez un local ci-dessus pour afficher les produits en vente</p></div>`;
-    const pag = document.getElementById('caisse-pagination');
-    if (pag) pag.innerHTML = '';
-    return;
-  }
-
-  // Grouper les produits identiques — 1 carte par produit unique, UNIQUEMENT dans le local sélectionné
+  // La grille affiche TOUS les produits des locaux autorisés à l'utilisateur —
+  // le "Local de sortie" ne sert qu'à déterminer de quel stock la vente sort,
+  // ce n'est pas un filtre d'affichage (pas de switch).
+  const allowedIds = _caisseAllowedLocaux().map(l => l.id);
   const caisseGroups = new Map();
   products.filter(p => {
-    if (p.local_id !== CAISSE_LOCAL_ID) return false;
+    if (!allowedIds.includes(p.local_id)) return false;
     const matchQ = !q || p.name.toLowerCase().includes(q) || (p.code||'').toLowerCase().includes(q) || p.category.toLowerCase().includes(q);
     const matchCat = selectedCategory === 'Tous' || p.category === selectedCategory;
     return matchQ && matchCat;
   }).forEach(p => {
-    const key = (p.code&&p.code.trim()) ? p.code.trim().toLowerCase() : `${p.name.trim().toLowerCase()}||${(p.category||'').toLowerCase()}`;
+    const key = _productGroupKey(p);
     if (!caisseGroups.has(key)) caisseGroups.set(key, { ...p, _totalStock: p.stock, _variants: [p] });
     else { const g=caisseGroups.get(key); g._totalStock+=p.stock; g._variants.push(p); }
   });
@@ -110,22 +126,6 @@ function renderProductGrid(resetPage) {
 }
 
 function filterProducts() { _pages['caisse'] = 1; renderProductGrid(false); }
-
-// Un panier ne peut contenir que des produits d'un seul et même local —
-// on ne veut jamais qu'une vente débite le stock de deux locaux différents.
-function _checkCartSameLocal(p) {
-  if (!cart.length) return true;
-  const firstId = cart[0].productId || cart[0].id;
-  const firstP = products.find(x => x.id === firstId);
-  if (!firstP) return true;
-  if ((firstP.local_id || null) !== (p.local_id || null)) {
-    const locName = GP_LOCAUX_ALL.find(l => l.id === p.local_id)?.nom || 'un autre local';
-    toast(`⚠️ Le panier contient déjà des produits d'un autre local. Terminez ou videz cette vente avant d'ajouter un article de "${locName}".`, 'warn');
-    return false;
-  }
-  return true;
-}
-
 
 
 function addToCart(id) {
@@ -188,8 +188,7 @@ function addToCart(id) {
     if (existing.qty >= p.stock) { toast(t('toast_stock_insuf'), 'warn'); return; }
     existing.qty++;
   } else {
-    if (!_checkCartSameLocal(p)) return;
-    cart.push({ id, name: p.name, price: p.price, qty: 1 });
+    cart.push({ id, name: p.name, price: p.price, qty: 1, groupKey: _productGroupKey(p) });
   }
   renderCart();
 }
@@ -204,8 +203,7 @@ function addToCartWithSize(id, size) {
     if (existing.qty >= availQty) { toast(t('toast_stock_insuf'), 'warn'); return; }
     existing.qty++;
   } else {
-    if (!_checkCartSameLocal(p)) return;
-    cart.push({ id, name: `${p.name} (${size})`, price: p.price, qty: 1, size, productId: id });
+    cart.push({ id, name: `${p.name} (${size})`, price: p.price, qty: 1, size, productId: id, groupKey: _productGroupKey(p) });
   }
   renderCart();
 }
@@ -220,8 +218,7 @@ function addToCartWithColor(id, color) {
     if (existing.qty >= availQty) { toast(t('toast_stock_insuf'), 'warn'); return; }
     existing.qty++;
   } else {
-    if (!_checkCartSameLocal(p)) return;
-    cart.push({ id, name: `${p.name} (${color})`, price: p.price, qty: 1, color, productId: id });
+    cart.push({ id, name: `${p.name} (${color})`, price: p.price, qty: 1, color, productId: id, groupKey: _productGroupKey(p) });
   }
   renderCart();
 }
@@ -261,7 +258,6 @@ function confirmKGAdd() {
     existing.qty = poids;
     existing.totalKg = poids * p.price;
   } else {
-    if (!_checkCartSameLocal(p)) return;
     cart.push({
       id: pid,
       cartKey,
@@ -270,7 +266,8 @@ function confirmKGAdd() {
       qty: poids,            // poids en Kg
       unit: p.unit || 'Kg',
       isKg: true,
-      displayQty: `${poids} ${p.unit || 'Kg'}`
+      displayQty: `${poids} ${p.unit || 'Kg'}`,
+      groupKey: _productGroupKey(p)
     });
   }
   closeModal('modal-kg-select');
@@ -637,9 +634,26 @@ function checkout(docType) {
   if (!isSuperAdmin() && !hasPermission('caisse', 'create')) {
     toast('⛔ Permission refusée', 'error'); return;
   }
-  if (!CAISSE_LOCAL_ID) { toast('🏪 Choisissez un local de vente en haut de la caisse', 'warn'); return; }
+  if (!CAISSE_LOCAL_ID) { toast('🏪 Choisissez le local de sortie en haut de la caisse', 'warn'); return; }
+  const _cLids = getLocalIds();
+  if (_cLids && !_cLids.includes(CAISSE_LOCAL_ID)) { toast('⛔ Vous n\'avez pas accès à ce local', 'error'); return; }
   if (!cart.length) { toast(t('toast_cart_empty'), 'warn'); return; }
   const fin = calcCartFinancials();
+
+  // Résoudre, pour chaque article du panier, la ligne de stock RÉELLE du
+  // local de sortie choisi (le panier peut contenir des produits vus dans
+  // d'autres locaux — c'est le local de sortie qui détermine d'où ça sort).
+  const _resolveCaisseRow = (item) => products.find(x => x.local_id === CAISSE_LOCAL_ID && _productGroupKey(x) === item.groupKey);
+
+  for (const item of cart) {
+    const row = _resolveCaisseRow(item);
+    if (!row) { toast(`❌ "${item.name}" n'est pas disponible dans le local sélectionné`, 'error'); return; }
+    let avail;
+    if (item.size && row.sizes) avail = row.sizes[item.size] || 0;
+    else if (item.color && row.colors) avail = row.colors[item.color] || 0;
+    else avail = row.stock;
+    if (item.qty > avail) { toast(`❌ Stock insuffisant pour "${item.name}" dans ce local (dispo: ${avail})`, 'error'); return; }
+  }
 
   // Credit check — on vérifie sur le total TTC
   if (selectedPayment === 'Crédit') {
@@ -653,10 +667,9 @@ function checkout(docType) {
     }
   }
 
-  // Deduct stock
+  // Deduct stock — sur la ligne réelle du local de sortie choisi
   cart.forEach(item => {
-    const pid = item.productId || item.id;
-    const p = products.find(x => x.id === pid);
+    const p = _resolveCaisseRow(item);
     if (!p) return;
     if (item.size && p.sizes) {
       // Déduire du stock par taille
@@ -685,7 +698,8 @@ function checkout(docType) {
     }
   }
 
-  // Record sale — structure financière complète
+  // Record sale — le local de sortie choisi est la source d'autorité
+  // (la grille ne montre que ce local, donc le panier ne peut pas mélanger)
   const lid = CAISSE_LOCAL_ID;
   const remiseVal  = parseFloat(document.getElementById('cart-remise-val')?.value) || 0;
   const remiseType = document.getElementById('cart-remise-type')?.value || 'pct';

@@ -15,19 +15,23 @@ function save(immediate) {
 
 // ─── SAUVEGARDE SUPABASE ─────────────────────────────────────
 
-// Il n'y a plus de local "attaché" à un utilisateur — tout le monde voit
-// toutes les données du tenant. Le local est choisi au moment de chaque
-// opération (vente, ajout/transfert de stock), pas au niveau du compte.
-function getLocalId() {
-  return null; // plus de filtre par utilisateur
-}
-
-// Retourne tous les locaux de l'utilisateur (pour compat requêtes .in())
+// Chaque utilisateur a une liste de locaux AUTORISÉS (GP_USER.local_ids),
+// affectée par l'admin — pas de "local actif" ni de switch en session.
+// Liste vide/absente = pas de restriction (voit tout, comme le super admin).
 function getLocalIds() {
-  return null; // plus de filtre par utilisateur
+  if (isSuperAdmin()) return null;
+  if (Array.isArray(GP_USER?.local_ids) && GP_USER.local_ids.length > 0) return GP_USER.local_ids;
+  return null;
 }
 
-// Retourne le local_id pour sauvegarder — null si accès global
+// Local unique — utile seulement pour pré-remplir un formulaire quand
+// l'utilisateur n'a accès qu'à un seul local. Ne filtre rien à lui seul.
+function getLocalId() {
+  const lids = getLocalIds();
+  return (lids && lids.length === 1) ? lids[0] : null;
+}
+
+// Retourne le local_id pour sauvegarder — null si accès non restreint
 function getRequiredLocalId() {
   return getLocalId();
 }

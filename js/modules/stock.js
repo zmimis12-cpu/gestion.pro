@@ -18,6 +18,8 @@ function executeTransfert() {
   if (!qty || qty <= 0 || !isFinite(qty)) { toast('Quantité invalide', 'error'); return; }
   if (!fromLid || !toLid) { toast('Sélectionnez les locaux source et destination', 'error'); return; }
   if (fromLid === toLid) { toast('Source et destination identiques', 'error'); return; }
+  const _trLids = getLocalIds();
+  if (_trLids && !_trLids.includes(fromLid)) { toast('⛔ Vous n\'avez pas accès à ce local source', 'error'); return; }
 
   const fromNom = GP_LOCAUX_ALL.find(l => l.id === fromLid)?.nom || fromLid;
   const toNom   = GP_LOCAUX_ALL.find(l => l.id === toLid)?.nom   || toLid;
@@ -344,6 +346,8 @@ function saveProduct() {
   const prodZone = document.getElementById('prod-zone').value.trim() || '';
   const prodLocalMatch = GP_LOCAUX_ALL.find(l => l.nom.trim() === prodZone.trim());
   if (!prodLocalMatch) { toast('🏪 Choisissez le local de stockage du produit', 'error'); return; }
+  const _lids = getLocalIds();
+  if (_lids && !_lids.includes(prodLocalMatch.id)) { toast('⛔ Vous n\'avez pas accès à ce local', 'error'); return; }
   const prodLocalId = prodLocalMatch.id;
   const product = {
     id: uid(),
@@ -477,6 +481,8 @@ function updateProduct() {
   const matchedLocal = GP_LOCAUX_ALL.find(l => l.nom.trim() === newZone.trim());
   const newLocalId = matchedLocal ? matchedLocal.id : (products[idx].local_id || null);
   if (!newLocalId) { toast('🏪 Choisissez le local de stockage du produit', 'error'); return; }
+  const _lids2 = getLocalIds();
+  if (_lids2 && !_lids2.includes(newLocalId)) { toast('⛔ Vous n\'avez pas accès à ce local', 'error'); return; }
   products[idx] = { ...products[idx], name,
     category: document.getElementById('edit-prod-cat').value.trim() || 'Général',
     price, cost: parseFloat(document.getElementById('edit-prod-cost').value) || 0,

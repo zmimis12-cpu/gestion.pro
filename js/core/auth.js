@@ -123,10 +123,10 @@ function isSuperAdmin() {
   return GP_USER && normalizeRole(GP_USER.role) === 'super_admin';
 }
 
-// Il n'y a plus de restriction de local par utilisateur : tout le monde a accès
-// à toutes les données du tenant (le rôle/permissions gèrent le reste).
+// hasGlobalAccess = l'utilisateur n'est restreint à aucun local en particulier
+// (super admin, ou aucun local_ids affecté par l'admin)
 function hasGlobalAccess() {
-  return true;
+  return getLocalIds() === null;
 }
 
 function applyNavPermissions() {
@@ -322,13 +322,13 @@ async function loadSAData() {
       '— noms:', GP_LOCAUX_ALL.map(l => l.nom).join(', ') || '(aucun)');
 
     // Ne PAS charger les passwords dans le client (sécurité)
-    const usrsQ = sb.from('gp_users').select('id,nom,prenom,email,role,local_id,telephone,actif,created_at').eq('tenant_id', tid).order('nom');
+    const usrsQ = sb.from('gp_users').select('id,nom,prenom,email,role,local_id,local_ids,telephone,actif,created_at').eq('tenant_id', tid).order('nom');
     const { data: usrs } = await usrsQ;
     GP_USERS_ALL = (usrs || []).map(u => ({
       id: u.id, nom: u.nom, prenom: u.prenom || '',
       email: u.email,
       // password NON chargé — jamais exposé au client
-      role: u.role, local_id: u.local_id,
+      role: u.role, local_id: u.local_id, local_ids: Array.isArray(u.local_ids) ? u.local_ids : [],
       telephone: u.telephone || '',
       actif: u.actif !== false, createdAt: u.created_at
     }));
@@ -435,7 +435,7 @@ async function doLogin() {
     // Charger user depuis gp_users
     const { data: userRow, error: userErr } = await sb
       .from('gp_users')
-      .select('id,nom,prenom,role,local_id,telephone,actif,tenant_id,created_at,auth_id')
+      .select('id,nom,prenom,role,local_id,local_ids,telephone,actif,tenant_id,created_at,auth_id')
       .eq('auth_id', authData.user.id)
       .eq('actif', true)
       .limit(1);
@@ -465,6 +465,7 @@ async function doLogin() {
         email: GP_USER.email,
         role: GP_USER.role,
         local_id: GP_USER.local_id,
+        local_ids: GP_USER.local_ids,
         actif: GP_USER.actif,
         tenant_id: GP_USER.tenant_id,
         auth_id: GP_USER.auth_id
@@ -785,9 +786,23 @@ function applyRBACUI() {
   document.getElementById('sb-role').textContent  = roleLabel;
   document.getElementById('sb-role').style.color  = roleColor;
 
-  // Badge local dans sidebar — plus de local attaché au compte, on masque
+  // Badge local dans sidebar — liste des locaux autorisés (si restreint)
   const localInfo = document.getElementById('sb-local-info');
-  if (localInfo) localInfo.style.display = 'none';
+  if (localInfo) {
+    const lids = getLocalIds();
+    if (!lids) {
+      localInfo.innerHTML = `<span style="font-size:10px;color:var(--gold);font-weight:700;">🌐 Tous les locaux</span>`;
+      localInfo.style.display = 'block';
+    } else {
+      const noms = lids.map(id => GP_LOCAUX_ALL.find(l => l.id === id)?.nom).filter(Boolean);
+      if (noms.length) {
+        localInfo.innerHTML = `<span style="font-size:10px;color:var(--accent);font-weight:700;">📍 ${escapeHTML(noms.join(', '))}</span>`;
+        localInfo.style.display = 'block';
+      } else {
+        localInfo.style.display = 'none';
+      }
+    }
+  }
 
   // Afficher/masquer nav Super Admin
   const navSA = document.getElementById('nav-superadmin');
