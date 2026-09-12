@@ -2014,6 +2014,28 @@
   </div>
 </div>
 
+<!-- ═══ MODAL — ASSIGNATION EN MASSE DES PRODUITS SANS LOCAL ═══ -->
+<div class="modal-overlay" id="modal-bulk-assign">
+  <div class="modal" style="max-width:460px;">
+    <div class="modal-title">📦 Assigner les produits sans local</div>
+    <p style="font-size:13px;color:var(--text2);margin:0 0 14px;">
+      <strong id="bulk-assign-count">0</strong> produit(s) n'ont aucun local. Choisissez le local auquel les assigner — cette action est appliquée à tous ces produits en une fois.
+    </p>
+    <div class="form-grid">
+      <div class="form-group full">
+        <label>Local de destination *</label>
+        <select id="bulk-assign-local" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--text);font-family:var(--font),sans-serif;width:100%;">
+          <option value="">— Choisir un local —</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeModal('modal-bulk-assign')">Annuler</button>
+      <button class="btn btn-primary" onclick="confirmBulkAssign()">✅ Assigner</button>
+    </div>
+  </div>
+</div>
+
 <!-- ═══ MODAL DÉTAIL LOCAL ═══ -->
 <div class="modal-overlay" id="modal-local-detail">
   <div class="modal" style="max-width:820px;max-height:90vh;overflow-y:auto;">

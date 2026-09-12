@@ -118,6 +118,50 @@ function saveLocal() {
   });
 }
 
+// ── Assignation en masse des produits sans local ─────────────────
+function openBulkAssignModal() {
+  const orphans = products.filter(p => !p.local_id);
+  if (!orphans.length) { toast('Aucun produit sans local à assigner', 'info'); return; }
+  const sel = document.getElementById('bulk-assign-local');
+  if (sel) {
+    sel.innerHTML = '<option value="">— Choisir un local —</option>' +
+      GP_LOCAUX_ALL.filter(l => l.actif !== false).map(l => `<option value="${l.id}">${escapeHTML(l.nom)}</option>`).join('');
+  }
+  const countEl = document.getElementById('bulk-assign-count');
+  if (countEl) countEl.textContent = orphans.length;
+  openModal('modal-bulk-assign');
+}
+
+async function confirmBulkAssign() {
+  const localId = document.getElementById('bulk-assign-local')?.value;
+  if (!localId) { toast('Choisissez un local', 'error'); return; }
+  const loc = GP_LOCAUX_ALL.find(l => l.id === localId);
+  if (!loc) return;
+  const orphans = products.filter(p => !p.local_id);
+  if (!orphans.length) { closeModal('modal-bulk-assign'); return; }
+
+  const btn = document.querySelector('#modal-bulk-assign .btn-primary');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Assignation en cours...'; }
+
+  orphans.forEach(p => { p.local_id = localId; p.zone = loc.nom; });
+
+  await sbSync('gp_products', orphans.map(p => ({
+    id: p.id, tenant_id: GP_TENANT?.id, local_id: localId,
+    name: p.name, category: p.category, code: p.code || null,
+    type: p.type || 'unite', price: p.price, cost: p.cost || 0,
+    stock: p.stock, min_stock: p.minStock || 5,
+    unit: p.unit || 'Pièce', zone: loc.nom,
+    sizes: p.sizes || {}, photo_url: p.photo || null,
+    updated_at: new Date().toISOString()
+  })), 'local_id', null);
+
+  if (btn) { btn.disabled = false; btn.textContent = '✅ Assigner'; }
+  closeModal('modal-bulk-assign');
+  toast(`✅ ${orphans.length} produit(s) assigné(s) à "${loc.nom}"`);
+  renderLocaux();
+  if (typeof renderStockTable === 'function') renderStockTable();
+}
+
 function deleteLocal(id) {
   if (!isSuperAdmin() && !hasPermission('locaux', 'delete')) { toast('⛔ Permission refusée', 'error'); return; }
   const l = GP_LOCAUX_ALL.find(x => x.id === id);
@@ -125,10 +169,10 @@ function deleteLocal(id) {
   const prods = getLocalProducts(l.nom);
   if (prods.length > 0) {
     if (!confirm(`Ce local contient ${prods.length} produit(s). Supprimer quand même ? (les produits restent mais sans zone assignée)`)) return;
-    prods.forEach(p => { p.zone = ''; });
+    prods.forEach(p => { p.zone = ''; p.local_id = null; });
     // Mettre à jour les produits sans zone dans Supabase
     sbUpsert('gp_products', prods.map(p => ({
-      id: p.id, local_id: getLocalId() || p.local_id,
+      id: p.id, local_id: null,
       name: p.name, category: p.category, code: p.code || null,
       type: p.type || 'unite', price: p.price, cost: p.cost || 0,
       stock: p.stock, min_stock: p.minStock || 5,
@@ -141,8 +185,9 @@ function deleteLocal(id) {
   }
   GP_LOCAUX_ALL = GP_LOCAUX_ALL.filter(x => x.id !== id);
   locaux = GP_LOCAUX_ALL;
+  renderLocaux();
 
-  // Supprimer en Supabase avec tenant guard
+  // Supprimer en Supabase avec tenant guard — si ça échoue, on restaure l'état local
   sb.from('gp_locaux')
     .delete()
     .eq('id', id)
@@ -150,14 +195,18 @@ function deleteLocal(id) {
     .then(({ error }) => {
       if (error) {
         console.error('[deleteLocal] Erreur Supabase:', error.message);
-        toast('⚠️ Erreur suppression Supabase', 'error');
+        toast('⚠️ Échec de la suppression en base — restauré: ' + error.message, 'error');
+        // Restaurer le local dans la liste locale car la suppression réelle a échoué
+        if (!GP_LOCAUX_ALL.some(x => x.id === id)) {
+          GP_LOCAUX_ALL.push(l);
+          locaux = GP_LOCAUX_ALL;
+          renderLocaux();
+        }
       } else {
         console.log('[deleteLocal] Local supprimé OK:', id);
+        toast(t('toast_local_deleted'), 'warn');
       }
     });
-
-  renderLocaux();
-  toast(t('toast_local_deleted'), 'warn');
 }
 
 function viewLocal(id) {
@@ -286,7 +335,7 @@ function renderLocaux() {
         <div class="stat-icon">${sansZone>0?'⚠️':'✅'}</div>
         <div class="stat-value">${sansZone.toLocaleString('fr-FR')}</div>
         <div class="stat-label">Sans zone assignée</div>
-        ${sansZone>0?`<div class="stat-sub" style="cursor:pointer;color:var(--accent);" onclick="document.getElementById('stock-filter-zone').value='';document.getElementById('stock-filter-statut').value='';navigate('stock')">→ Voir dans Stock</div>`:''}
+        ${sansZone>0?`<div class="stat-sub" style="cursor:pointer;color:var(--accent);" onclick="openBulkAssignModal()">→ Assigner en masse</div>`:''}
       </div>
       <div class="stat-card gold">
         <div class="stat-icon">💰</div>
@@ -394,7 +443,7 @@ function renderLocaux() {
         <span>📦 <strong>${ts.toLocaleString('fr-FR')}</strong> pièces</span>
       </div>
       <div style="padding:8px 14px;border-top:1px solid var(--border);">
-        <button class="btn btn-secondary btn-sm" onclick="document.getElementById('stock-filter-zone').value='';navigate('stock')" style="border-color:rgba(229,62,62,0.4);color:var(--red);">📦 Voir & assigner</button>
+        <button class="btn btn-secondary btn-sm" onclick="openBulkAssignModal()" style="border-color:rgba(229,62,62,0.4);color:var(--red);">📦 Assigner en masse</button>
       </div>
     </div>`;
   }

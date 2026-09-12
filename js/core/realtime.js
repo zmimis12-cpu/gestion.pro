@@ -284,11 +284,13 @@ async function _handleRealtimeEvent(tbl, payload) {
     _showSyncToast('Documents RH mis à jour');
 
   } else if (tbl === 'gp_locaux') {
-    // Reload locaux depuis Supabase pour avoir la liste à jour
+    // Reload locaux depuis Supabase pour avoir la liste à jour (scopé au tenant !)
     try {
-      const { data } = await sb.from('gp_locaux').select('*').order('nom');
+      const _tid = GP_TENANT?.id;
+      if (!_tid) return;
+      const { data } = await sb.from('gp_locaux').select('*').eq('tenant_id', _tid).order('nom');
       if (data) {
-        GP_LOCAUX_ALL = data.map(l => ({ ...l, desc: l.description }));
+        GP_LOCAUX_ALL = data.filter(l => l.tenant_id === _tid).map(l => ({ ...l, desc: l.description }));
         locaux = GP_LOCAUX_ALL;
         if (typeof renderLocaux === 'function') renderLocaux();
         _showSyncToast('Locaux mis à jour');
