@@ -1391,6 +1391,10 @@ function selectRestockProduct(id, aggregatedStock, localNomOverride) {
   if (!p) return;
   document.getElementById('reappro-prod-id').value = id;
   const localNom = localNomOverride || GP_LOCAUX_ALL.find(l => l.id === p.local_id)?.nom || p.zone || '';
+  // Peupler le sélecteur de zone — pré-sélectionné sur la zone actuelle de cette ligne
+  // (ou "Général" si elle n'a pas de local reconnu) ; modifiable avant confirmation
+  const zoneSelVal = (localNom && GP_LOCAUX_ALL.some(l => l.nom === localNom)) ? localNom : '__general__';
+  populateLocalSelect('reappro-zone', false, zoneSelVal, true);
   // Afficher photo si disponible
   const reapproName = document.getElementById('reappro-prod-name');
   if (p.photo) {
@@ -1467,7 +1471,33 @@ async function confirmRestock() {
   const p = products.find(x => x.id === id);
   if (!p) return;
 
-  if ((p.type === 'tailles' && p.sizes) || (p.type === 'couleurs' && p.colors)) {
+  // Résoudre la zone choisie — si différente de la ligne trouvée, on répercute
+  // le réappro sur la bonne ligne (existante ou nouvellement créée) dans CETTE zone
+  const zoneSel = document.getElementById('reappro-zone')?.value;
+  if (!zoneSel) { toast('🏪 Choisissez la zone de destination', 'error'); return; }
+  const targetLocalId = zoneSel === '__general__' ? null : (GP_LOCAUX_ALL.find(l => l.nom === zoneSel)?.id ?? null);
+  if (zoneSel !== '__general__' && targetLocalId === null) { toast('Zone invalide', 'error'); return; }
+  const _rLids = getLocalIds();
+  if (targetLocalId && _rLids && !_rLids.includes(targetLocalId)) { toast('⛔ Vous n\'avez pas accès à cette zone', 'error'); return; }
+
+  let tp = p;
+  if ((targetLocalId || null) !== (p.local_id || null)) {
+    // Chercher une ligne existante du même produit dans la zone cible
+    const found = products.find(x =>
+      x.id !== p.id &&
+      (targetLocalId ? x.local_id === targetLocalId : !x.local_id) &&
+      (x.code && p.code ? x.code.trim().toLowerCase() === p.code.trim().toLowerCase() : x.name.trim().toLowerCase() === p.name.trim().toLowerCase())
+    );
+    if (found) {
+      tp = found;
+    } else {
+      // Créer une nouvelle ligne pour ce produit dans la zone cible
+      tp = { ...JSON.parse(JSON.stringify(p)), id: uid(), local_id: targetLocalId, zone: zoneSel === '__general__' ? '' : zoneSel, stock: 0, sizes: p.sizes ? {} : undefined, colors: p.colors ? {} : undefined, createdAt: new Date().toISOString() };
+      products.push(tp);
+    }
+  }
+
+  if ((tp.type === 'tailles' && tp.sizes !== undefined) || (tp.type === 'couleurs' && tp.colors !== undefined)) {
     const sizesGrid = document.getElementById('reappro-sizes-grid');
     const inputs = sizesGrid.querySelectorAll('input[id^="reappro-sz-"]');
     let totalAdded = 0;
@@ -1475,40 +1505,37 @@ async function confirmRestock() {
       const key = inp.id.replace('reappro-sz-', '');
       const qty = parseInt(inp.value) || 0;
       if (qty > 0) {
-        if (p.type === 'tailles') { p.sizes[key] = (p.sizes[key] || 0) + qty; }
-        else { p.colors[key] = (p.colors[key] || 0) + qty; }
+        if (tp.type === 'tailles') { tp.sizes[key] = (tp.sizes[key] || 0) + qty; }
+        else { tp.colors[key] = (tp.colors[key] || 0) + qty; }
         totalAdded += qty;
       }
     });
     if (totalAdded === 0) { toast('Entrez au moins une quantité', 'error'); return; }
-    p.stock = p.type === 'tailles'
-      ? Object.values(p.sizes).reduce((a,b) => a+b, 0)
-      : Object.values(p.colors).reduce((a,b) => a+b, 0);
-    p.lastRestock = new Date().toISOString();
+    tp.stock = tp.type === 'tailles'
+      ? Object.values(tp.sizes).reduce((a,b) => a+b, 0)
+      : Object.values(tp.colors).reduce((a,b) => a+b, 0);
+    tp.lastRestock = new Date().toISOString();
     save();
     closeModal('modal-reappro');
     renderStockTable(); updateAlertCount();
-    toast(`✅ +${totalAdded} pièces (tailles) ajoutées à "${p.name}" → stock total: ${p.stock}`, 'success');
+    toast(`✅ +${totalAdded} pièces (tailles) ajoutées à "${tp.name}" → stock total: ${tp.stock}`, 'success');
   } else {
     const qty = parseFloat(document.getElementById('reappro-qty').value);
     if (!qty || qty <= 0) { toast('Quantité invalide', 'error'); return; }
 
-    // Mettre à jour seulement la ligne sélectionnée (la première/représentative)
-    // Les autres lignes du même produit/local restent inchangées
-    // Le stock agrégé augmente du qty sur cette ligne
-    p.stock += qty;
-    p.lastRestock = new Date().toISOString();
+    tp.stock += qty;
+    tp.lastRestock = new Date().toISOString();
 
     // Calculer le nouveau stock agrégé pour le toast
     const newAggr = products.filter(x =>
-      x.local_id === p.local_id &&
-      (x.code && p.code ? x.code === p.code : x.name === p.name)
+      x.local_id === tp.local_id &&
+      (x.code && tp.code ? x.code === tp.code : x.name === tp.name)
     ).reduce((s, x) => s + (x.stock || 0), 0);
 
     save();
     closeModal('modal-reappro');
     renderStockTable(); updateAlertCount();
-    toast('✅ +' + qty + ' ' + (p.unit||'unités') + ' ajouté à "' + p.name + '" → stock ' + (GP_LOCAUX_ALL.find(l=>l.id===p.local_id)?.nom||'') + ': ' + newAggr, 'success');
+    toast('✅ +' + qty + ' ' + (tp.unit||'unités') + ' ajouté à "' + tp.name + '" → stock ' + (GP_LOCAUX_ALL.find(l=>l.id===tp.local_id)?.nom||'Général') + ': ' + newAggr, 'success');
   }
 }
 
