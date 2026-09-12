@@ -409,6 +409,12 @@
         <div class="caisse-layout">
           <!-- Products -->
           <div class="products-panel">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+              <span style="font-size:13px;font-weight:700;color:var(--text2);white-space:nowrap;">🏪 Local :</span>
+              <select id="caisse-local-select" onchange="setCaisseLocal(this.value)" style="flex:1;background:var(--surface2);border:1px solid var(--accent);border-radius:8px;padding:8px 12px;color:var(--text);font-family:var(--font),sans-serif;font-weight:600;">
+                <option value="">— Choisir le local de vente —</option>
+              </select>
+            </div>
             <div class="search-bar">
               <span>🔍</span>
               <input type="text" id="product-search" placeholder="Rechercher un produit..." oninput="debouncedRenderGrid()">
@@ -1036,7 +1042,7 @@
             <table>
               <thead><tr>
                 <th>Nom</th><th>Adresse</th><th>Responsable</th><th>Téléphone</th>
-                <th>Utilisateurs</th><th>Statut</th><th>Actions</th>
+                <th>Produits</th><th>Statut</th><th>Actions</th>
               </tr></thead>
               <tbody id="sa-locaux-table"></tbody>
             </table>
@@ -1047,9 +1053,6 @@
         <div id="sa-panel-users" style="display:none;">
           <div style="display:flex;gap:10px;align-items:center;margin-bottom:18px;flex-wrap:wrap;">
             <input type="text" id="sa-user-search" placeholder="🔍 Rechercher utilisateur..." style="max-width:260px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--text);font-family:var(--font),sans-serif;" oninput="renderSAUsers()">
-            <select id="sa-user-filter-local" onchange="renderSAUsers()" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--text);font-family:var(--font),sans-serif;">
-              <option value="">Tous les locaux</option>
-            </select>
             <select id="sa-user-filter-role" onchange="renderSAUsers()" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--text);font-family:var(--font),sans-serif;">
               <option value="">Tous les rôles</option>
             </select>
@@ -1059,7 +1062,7 @@
             <div class="card-header">👥 Comptes Utilisateurs</div>
             <table>
               <thead><tr>
-                <th>Nom</th><th>Email</th><th>Rôle</th><th>Local</th>
+                <th>Nom</th><th>Email</th><th>Rôle</th>
                 <th>Statut</th><th>Actions</th>
               </tr></thead>
               <tbody id="sa-users-table"></tbody>
@@ -1562,23 +1565,6 @@
       <div class="form-group" id="sau-pwd-group"><label>Mot de passe *</label><input type="password" id="sau-pwd" placeholder="Minimum 6 caractères"></div>
       <div class="form-group"><label>Rôle *</label>
         <select id="sau-role" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--text);font-family:var(--font),sans-serif;width:100%;"></select>
-      </div>
-      <div class="form-group full"><label>Accès</label>
-        <div style="display:flex;gap:16px;padding:6px 0;">
-          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-weight:400;">
-            <input type="radio" name="sau-access-mode" id="sau-access-local" value="local" onchange="updateSAUserAccessMode()" checked>
-            📍 Assigné à un local
-          </label>
-          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-weight:400;">
-            <input type="radio" name="sau-access-mode" id="sau-access-global" value="global" onchange="updateSAUserAccessMode()">
-            🌐 Accès à tous les locaux
-          </label>
-        </div>
-      </div>
-      <div class="form-group full" id="sau-local-group"><label>Local assigné *</label>
-        <select id="sau-local" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--text);font-family:var(--font),sans-serif;width:100%;">
-          <!-- rempli par JS -->
-        </select>
       </div>
       <div class="form-group"><label>Téléphone</label><input type="tel" id="sau-tel" placeholder="06XXXXXXXX"></div>
       <div class="form-group"><label>Statut</label>

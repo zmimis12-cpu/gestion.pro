@@ -15,18 +15,16 @@ function save(immediate) {
 
 // ─── SAUVEGARDE SUPABASE ─────────────────────────────────────
 
-// Un utilisateur a soit UN local assigné, soit un accès global (acces_global=true ou super admin).
-// Plus de notion de "local actif" / switch — l'accès est fixe, pas de sélection en session.
+// Il n'y a plus de local "attaché" à un utilisateur — tout le monde voit
+// toutes les données du tenant. Le local est choisi au moment de chaque
+// opération (vente, ajout/transfert de stock), pas au niveau du compte.
 function getLocalId() {
-  if (hasGlobalAccess()) return null; // Accès global : pas de filtre local
-  return GP_USER?.local_id || null;
+  return null; // plus de filtre par utilisateur
 }
 
 // Retourne tous les locaux de l'utilisateur (pour compat requêtes .in())
 function getLocalIds() {
-  if (hasGlobalAccess()) return null; // Pas de filtre local
-  if (GP_USER?.local_id) return [GP_USER.local_id];
-  return null;
+  return null; // plus de filtre par utilisateur
 }
 
 // Retourne le local_id pour sauvegarder — null si accès global

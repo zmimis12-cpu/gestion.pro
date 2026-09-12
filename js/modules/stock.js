@@ -325,7 +325,6 @@ function saveProduct() {
   if (!isSuperAdmin() && !hasPermission('stock', 'create')) {
     toast('⛔ Permission refusée', 'error'); return;
   }
-  const lid = getLocalId(); // null si SA accès global — autorisé
   const name = document.getElementById('prod-name').value.trim();
   const price = parseFloat(document.getElementById('prod-price').value);
   const type = document.getElementById('prod-type').value;
@@ -343,9 +342,9 @@ function saveProduct() {
   }
 
   const prodZone = document.getElementById('prod-zone').value.trim() || '';
-  // Si zone renseignée, trouver le local_id correspondant
   const prodLocalMatch = GP_LOCAUX_ALL.find(l => l.nom.trim() === prodZone.trim());
-  const prodLocalId = prodLocalMatch ? prodLocalMatch.id : lid;
+  if (!prodLocalMatch) { toast('🏪 Choisissez le local de stockage du produit', 'error'); return; }
+  const prodLocalId = prodLocalMatch.id;
   const product = {
     id: uid(),
     local_id: prodLocalId,
@@ -477,6 +476,7 @@ function updateProduct() {
   // Sync local_id avec la zone choisie
   const matchedLocal = GP_LOCAUX_ALL.find(l => l.nom.trim() === newZone.trim());
   const newLocalId = matchedLocal ? matchedLocal.id : (products[idx].local_id || null);
+  if (!newLocalId) { toast('🏪 Choisissez le local de stockage du produit', 'error'); return; }
   products[idx] = { ...products[idx], name,
     category: document.getElementById('edit-prod-cat').value.trim() || 'Général',
     price, cost: parseFloat(document.getElementById('edit-prod-cost').value) || 0,

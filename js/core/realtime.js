@@ -11,7 +11,6 @@ function setupRealtime() {
   _rtChannels = [];
   if (_pollInterval) { clearInterval(_pollInterval); _pollInterval = null; }
 
-  const lid = getLocalId();
   showSyncIndicator(false);
 
   // ── Channel séparé pour gp_tenants (plan, blocage, expiration) ──
@@ -131,7 +130,6 @@ function setupRealtime() {
 
 async function _handleRealtimeEvent(tbl, payload) {
   const { eventType, new: newRow, old: oldRow } = payload;
-  const lid = getLocalId();
 
   if (tbl === 'gp_products') {
     if (eventType === 'DELETE') {
@@ -303,8 +301,6 @@ async function _handleRealtimeEvent(tbl, payload) {
 // Fallback polling (si Realtime non disponible)
 async function _pollSync() {
   if (Date.now() - _lastSaveTime < 8000) return;
-  const lid = getLocalId();
-  if (!lid) return;
   try {
     await _realtimeSyncTable('gp_products');
     await _realtimeSyncTable('gp_sales');

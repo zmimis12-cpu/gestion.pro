@@ -83,7 +83,7 @@ function navigate(page) {
     if (topbarBtn) topbarBtn.style.display = 'none';
   }
 
-  if (page === 'caisse') { renderProductGrid(); renderCategoryFilters(); updateCartTvaUI(); }
+  if (page === 'caisse') { populateCaisseLocalSelect(); renderProductGrid(); renderCategoryFilters(); updateCartTvaUI(); }
   if (page === 'stock') renderStockTable();
   if (page === 'locaux') { loadSAData().then(() => renderLocaux()); }
   if (page === 'clients') renderClients();
