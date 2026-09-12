@@ -96,17 +96,8 @@ function updateSALocalSwitcher() {
   const sel      = document.getElementById('sa-active-local');
   if (!switcher || !sel) return;
 
-  if (isSuperAdmin()) {
-    switcher.style.display = 'flex';
-    const cur = sel.value;
-    sel.innerHTML = '<option value="">— Accès global —</option>' +
-      GP_LOCAUX_ALL.filter(l => l.actif !== false).map(l =>
-        `<option value="${l.id}" ${l.id === cur ? 'selected' : ''}>${escapeHTML(l.nom)}</option>`
-      ).join('');
-    if (SA_ACTIVE_LOCAL) sel.value = SA_ACTIVE_LOCAL;
-  } else {
-    switcher.style.display = 'none';
-  }
+  // Switcher topbar désactivé — sélection du local au moment de la vente uniquement
+  switcher.style.display = 'none';
 }
 
 // Helper : upsert en masse avec gestion d'erreur silencieuse
