@@ -595,12 +595,7 @@ function checkout(docType) {
   if (!isSuperAdmin() && !hasPermission('caisse', 'create')) {
     toast('⛔ Permission refusée', 'error'); return;
   }
-  // Bloquer si accès global sans local sélectionné
-  if (isSuperAdmin() && !SA_ACTIVE_LOCAL) {
-    openCaisseLocalModal();
-    toast('⚠️ Choisissez un local avant de valider la vente', 'warn');
-    return;
-  }
+  // Pas de restriction de local
   if (!cart.length) { toast(t('toast_cart_empty'), 'warn'); return; }
   const fin = calcCartFinancials();
 

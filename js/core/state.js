@@ -85,9 +85,7 @@ function onSALocalSwitch() {
 
     // Si on revient en accès global pendant qu'on est sur la caisse → forcer re-choix
     const caissePage = document.getElementById('page-caisse');
-    if (!SA_ACTIVE_LOCAL && caissePage?.classList.contains('active') && isSuperAdmin()) {
-      setTimeout(() => openCaisseLocalModal(), 400);
-    }
+    // Local non requis
   });
 }
 
@@ -96,7 +94,6 @@ function updateSALocalSwitcher() {
   const sel      = document.getElementById('sa-active-local');
   if (!switcher || !sel) return;
 
-  // Switcher topbar désactivé — sélection du local au moment de la vente uniquement
   switcher.style.display = 'none';
 }
 
