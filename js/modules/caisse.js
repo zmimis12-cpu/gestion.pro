@@ -1113,37 +1113,30 @@ function buildReceiptHTML(sale) {
 
 // Keep backward compat
 
+
 // ── GOOGLE SHEETS SYNC ─────────────────────────────────────────
 async function sendToGoogleSheets(sale) {
-  const WEBHOOK = 'https://script.google.com/macros/s/AKfycbxKq7d-mzeksy1DAx5bqgWek-NGsOqJLiYfEvLD7dROAn2JkwdXS0XdllcSuctmkvs/exec';
+  const WEBHOOK = 'https://script.google.com/macros/s/AKfycbyQD_PDeRhG6DgmWqePBXw3WXnJCXaL52_aov4PcLN2Z22RsMktHnyDlrT7MAcdApCE/exec';
   try {
-    for (const item of sale.items) {
-      const prod = products.find(p => p.id === (item.productId || item.id));
+    for (const item of (sale.items || [])) {
+      const prod = products ? products.find(p => p.id === (item.productId || item.id)) : null;
       const params = new URLSearchParams({
         date:         new Date(sale.date).toLocaleDateString('fr-FR'),
         client_name:  sale.clientName || 'Client de passage',
-        photo_url:    prod?.photo || '',
-        product_name: item.name || prod?.name || '',
-        product_code: item.code || prod?.code || '',
+        photo_url:    prod ? (prod.photo || '') : '',
+        product_name: item.name || (prod ? prod.name : '') || '',
+        product_code: item.code || (prod ? prod.code : '') || '',
         price:        item.price || item.sellPrice || 0,
         quantity:     item.qty || 1,
         montant:      (item.price || 0) * (item.qty || 1),
         payment_mode: sale.payment || '',
         statut:       'Vendu',
       });
-      // Script tag — contourne CORS complètement
-      const script = document.createElement('script');
-      script.src = WEBHOOK + '?' + params.toString() + '&callback=_sheetsCallback';
-      script.id = '_sheets_' + Date.now();
-      document.head.appendChild(script);
-      setTimeout(() => { script.remove(); }, 5000);
-      await new Promise(r => setTimeout(r, 300));
+      await fetch(WEBHOOK + '?' + params.toString(), { method: 'GET', mode: 'no-cors' });
+      console.log('[Sheets] ligne envoyee:', item.name);
+      await new Promise(r => setTimeout(r, 200));
     }
-    console.log('[Sheets] ✅ Vente envoyée:', sale.id, sale.items.length, 'lignes');
   } catch(err) {
-    console.warn('[Sheets] ❌ Erreur sync:', err.message);
+    console.warn('[Sheets] erreur:', err.message);
   }
 }
-window._sheetsCallback = function(data) {
-  console.log('[Sheets] Response:', data);
-};
