@@ -19,13 +19,13 @@ function save(immediate) {
 let SA_ACTIVE_LOCAL = null;
 
 function getLocalId() {
-  if (isSuperAdmin()) return SA_ACTIVE_LOCAL; // null = global, ou l'ID du local sélectionné
+  if (isSuperAdmin()) return null; // Pas de filtre local pour super admin
   return GP_USER?.local_id || null;
 }
 
 // Retourne tous les locaux de l'utilisateur (multi-local)
 function getLocalIds() {
-  if (isSuperAdmin()) return SA_ACTIVE_LOCAL ? [SA_ACTIVE_LOCAL] : null;
+  if (isSuperAdmin()) return null; // Pas de filtre local
   if (GP_USER?.local_ids?.length > 0) return GP_USER.local_ids;
   if (GP_USER?.local_id) return [GP_USER.local_id];
   return null;
@@ -94,7 +94,7 @@ function updateSALocalSwitcher() {
   const sel      = document.getElementById('sa-active-local');
   if (!switcher || !sel) return;
 
-  switcher.style.display = 'none';
+  switcher.style.display = 'none'; // Switcher supprimé
 }
 
 // Helper : upsert en masse avec gestion d'erreur silencieuse

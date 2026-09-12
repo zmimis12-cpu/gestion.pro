@@ -42,8 +42,7 @@ function navigate(page) {
   }
 
   // ── Caisse : forcer choix du local si accès global ──
-  if (page === 'caisse' && isSuperAdmin() && !SA_ACTIVE_LOCAL) {
-  }
+  
 
   const titles = { depenses:'💸 Gestion des Dépenses', dashboard:'Tableau de bord', caisse:'Caisse & Ventes', conteneurs:'Gestion Conteneurs', commandes:'Ordres & Ventes', docscont:'Documents Conteneurs', retours:'↩️ Gestion des Retours', fonds:'Fonds de Caisse', stock:'Gestion du Stock', locaux:'Gestion des Locaux / Zones', clients:'Gestion Clients', alerts:'Alertes & Notifications', settings:'Paramètres', superadmin:'👑 Super Admin — Panneau Central', 'owner-admin':'🏢 Mes Clients GestionPro', employes:'👨‍💼 Gestion des Employés', conges:'🏖️ Gestion des Congés', livraisons:'🚚 Bons de Livraison', 'docs-rh':'📋 Documents RH', 'docs-admin':'🏢 Documents Administratifs', stores:'🏪 Gestion des Stores', ecom:'📦 Commandes E-commerce', 'scan-ecom':'📡 Scanner E-commerce', 'shop-returns':'↩️ Retours Shop', 'scan-ecom':'📡 Scanner', 'shop-returns':'↩️ Retours Shop' };
   document.getElementById('page-title').textContent = titles[page] || page;
