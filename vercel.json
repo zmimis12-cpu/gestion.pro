@@ -2,6 +2,6 @@
   "cleanUrls": true,
   "rewrites": [
     { "source": "/magasinier", "destination": "/magasinier.html" },
-    { "source": "/((?!js|css|images|favicon|magasinier).*)", "destination": "/index.html" }
+    { "source": "/((?!js/|css/|images/|favicon).*)", "destination": "/index.html" }
   ]
 }
