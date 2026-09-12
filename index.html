@@ -417,7 +417,7 @@
             </div>
             <div class="search-bar">
               <span>🔍</span>
-              <input type="text" id="product-search" placeholder="Rechercher un produit..." oninput="debouncedRenderGrid()">
+              <input type="text" id="product-search" autocomplete="off" placeholder="Rechercher un produit..." oninput="debouncedRenderGrid()">
             </div>
             <div id="category-filters" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;"></div>
             <div class="products-grid" id="products-grid">
@@ -1648,7 +1648,7 @@
     <div class="modal-title">➕📦 Réapprovisionnement</div>
     <div class="form-group" style="margin-bottom:12px;">
       <label>Rechercher le produit</label>
-      <input type="text" id="reappro-search" placeholder="Tapez le nom ou code..." oninput="filterRestockList()" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--text);font-family:var(--font),sans-serif;width:100%;">
+      <input type="text" id="reappro-search" autocomplete="off" placeholder="Tapez le nom ou code..." oninput="filterRestockList()" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--text);font-family:var(--font),sans-serif;width:100%;">
     </div>
     <div id="reappro-list" style="max-height:280px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;margin-bottom:14px;"></div>
     <div id="reappro-selected" style="display:none;background:rgba(37,99,235,0.07);border:1px solid rgba(37,99,235,0.3);border-radius:var(--radius);padding:14px;margin-bottom:14px;">
