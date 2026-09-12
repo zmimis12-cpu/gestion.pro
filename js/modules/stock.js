@@ -10,18 +10,20 @@ function executeTransfert() {
   }
   const prodId  = document.getElementById('tr-produit')?.value;
   const qty     = parseFloat(document.getElementById('tr-qty')?.value);
-  const fromLid = document.getElementById('tr-from')?.value;
+  const fromSel = document.getElementById('tr-from')?.value;
   const toLid   = document.getElementById('tr-to')?.value;
   const note    = document.getElementById('tr-note')?.value?.trim() || '';
 
   if (!prodId) { toast('Sélectionnez un produit', 'error'); return; }
   if (!qty || qty <= 0 || !isFinite(qty)) { toast('Quantité invalide', 'error'); return; }
-  if (!fromLid || !toLid) { toast('Sélectionnez les locaux source et destination', 'error'); return; }
-  if (fromLid === toLid) { toast('Source et destination identiques', 'error'); return; }
+  if (!fromSel || !toLid) { toast('Sélectionnez les locaux source et destination', 'error'); return; }
+  if (fromSel === toLid) { toast('Source et destination identiques', 'error'); return; }
+  // "__general__" = pool sans zone précise (local_id null) — accessible à tous
+  const fromLid = fromSel === '__general__' ? null : fromSel;
   const _trLids = getLocalIds();
-  if (_trLids && !_trLids.includes(fromLid)) { toast('⛔ Vous n\'avez pas accès à ce local source', 'error'); return; }
+  if (fromLid && _trLids && !_trLids.includes(fromLid)) { toast('⛔ Vous n\'avez pas accès à ce local source', 'error'); return; }
 
-  const fromNom = GP_LOCAUX_ALL.find(l => l.id === fromLid)?.nom || fromLid;
+  const fromNom = fromLid ? (GP_LOCAUX_ALL.find(l => l.id === fromLid)?.nom || fromLid) : 'Général (sans zone)';
   const toNom   = GP_LOCAUX_ALL.find(l => l.id === toLid)?.nom   || toLid;
 
   // Produit source
@@ -32,7 +34,7 @@ function executeTransfert() {
   // Tous les variants du produit dans le local source (agrégation multi-lignes)
   const srcVariants = products.filter(x => {
     const xk = (x.code&&x.code.trim()) ? x.code.trim().toLowerCase() : `${x.name.trim().toLowerCase()}||${(x.category||'').toLowerCase()}`;
-    return xk === prodKey && x.local_id === fromLid;
+    return xk === prodKey && (fromLid ? x.local_id === fromLid : !x.local_id);
   });
   const p = srcVariants[0] || refProd;
   if (!p) return;
@@ -344,11 +346,19 @@ function saveProduct() {
   }
 
   const prodZone = document.getElementById('prod-zone').value.trim() || '';
-  const prodLocalMatch = GP_LOCAUX_ALL.find(l => l.nom.trim() === prodZone.trim());
-  if (!prodLocalMatch) { toast('🏪 Choisissez le local de stockage du produit', 'error'); return; }
-  const _lids = getLocalIds();
-  if (_lids && !_lids.includes(prodLocalMatch.id)) { toast('⛔ Vous n\'avez pas accès à ce local', 'error'); return; }
-  const prodLocalId = prodLocalMatch.id;
+  if (!prodZone) { toast('🏪 Choisissez le local de stockage du produit (ou "Général")', 'error'); return; }
+  let prodLocalId, prodZoneLabel;
+  if (prodZone === '__general__') {
+    prodLocalId = null;
+    prodZoneLabel = '';
+  } else {
+    const prodLocalMatch = GP_LOCAUX_ALL.find(l => l.nom.trim() === prodZone.trim());
+    if (!prodLocalMatch) { toast('🏪 Choisissez le local de stockage du produit', 'error'); return; }
+    const _lids = getLocalIds();
+    if (_lids && !_lids.includes(prodLocalMatch.id)) { toast('⛔ Vous n\'avez pas accès à ce local', 'error'); return; }
+    prodLocalId = prodLocalMatch.id;
+    prodZoneLabel = prodZone;
+  }
   const product = {
     id: uid(),
     local_id: prodLocalId,
@@ -360,7 +370,7 @@ function saveProduct() {
     minStock: parseFloat(document.getElementById('prod-min').value) || 5,
     unit: document.getElementById('prod-unit').value.trim() || (type === 'kg' ? 'Kg' : 'Pièce'),
     code: document.getElementById('prod-code').value.trim(),
-    zone: prodZone,
+    zone: prodZoneLabel,
     photo: newProductPhoto || null,
     type: type,
     sizes: type === 'tailles' ? sizes : {},
@@ -477,19 +487,26 @@ function updateProduct() {
   }
 
   const newZone = document.getElementById('edit-prod-zone').value.trim() || '';
-  // Sync local_id avec la zone choisie
-  const matchedLocal = GP_LOCAUX_ALL.find(l => l.nom.trim() === newZone.trim());
-  const newLocalId = matchedLocal ? matchedLocal.id : (products[idx].local_id || null);
-  if (!newLocalId) { toast('🏪 Choisissez le local de stockage du produit', 'error'); return; }
-  const _lids2 = getLocalIds();
-  if (_lids2 && !_lids2.includes(newLocalId)) { toast('⛔ Vous n\'avez pas accès à ce local', 'error'); return; }
+  if (!newZone) { toast('🏪 Choisissez le local de stockage du produit (ou "Général")', 'error'); return; }
+  let newLocalId, newZoneLabel;
+  if (newZone === '__general__') {
+    newLocalId = null;
+    newZoneLabel = '';
+  } else {
+    const matchedLocal = GP_LOCAUX_ALL.find(l => l.nom.trim() === newZone.trim());
+    if (!matchedLocal) { toast('🏪 Choisissez le local de stockage du produit', 'error'); return; }
+    const _lids2 = getLocalIds();
+    if (_lids2 && !_lids2.includes(matchedLocal.id)) { toast('⛔ Vous n\'avez pas accès à ce local', 'error'); return; }
+    newLocalId = matchedLocal.id;
+    newZoneLabel = newZone;
+  }
   products[idx] = { ...products[idx], name,
     category: document.getElementById('edit-prod-cat').value.trim() || 'Général',
     price, cost: parseFloat(document.getElementById('edit-prod-cost').value) || 0,
     stock, minStock: parseFloat(document.getElementById('edit-prod-min').value) || 5,
     unit: document.getElementById('edit-prod-unit').value.trim() || (type === 'kg' ? 'Kg' : 'Pièce'),
     code: document.getElementById('edit-prod-code').value.trim(),
-    zone: newZone,
+    zone: newZoneLabel,
     local_id: newLocalId,
     photo: editProductPhoto !== undefined ? editProductPhoto : products[idx].photo,
     type, sizes, colors

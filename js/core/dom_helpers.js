@@ -12,17 +12,18 @@ function getUserLocalName() {
   return loc ? loc.nom : '';
 }
 
-function populateLocalSelect(selId, addEmpty = true, curValue = '') {
+function populateLocalSelect(selId, addEmpty = true, curValue = '', addGeneral = false) {
   const sel = document.getElementById(selId);
   if (!sel) return;
   const lids = getLocalIds(); // null = pas de restriction
   const list = lids ? GP_LOCAUX_ALL.filter(l => lids.includes(l.id)) : GP_LOCAUX_ALL;
   sel.innerHTML = (addEmpty ? '<option value="">— Sélectionner un local —</option>' : '') +
+    (addGeneral ? `<option value="__general__"${curValue==='__general__'?' selected':''}>🗂️ Général (sans zone précise)</option>` : '') +
     list.map(l => `<option value="${l.nom}"${l.nom === curValue ? ' selected' : ''}>${escapeHTML(l.nom)}</option>`).join('');
 }
 
 function populateProductLocalSelects(curValue = '') {
-  populateLocalSelect('prod-zone', true, curValue);
+  populateLocalSelect('prod-zone', true, curValue, true);
   if (!isSuperAdmin()) {
     const ul = getUserLocalName();
     if (ul) {
@@ -33,7 +34,7 @@ function populateProductLocalSelects(curValue = '') {
 }
 
 function populateEditProductLocalSelects(curValue = '') {
-  populateLocalSelect('edit-prod-zone', true, curValue);
+  populateLocalSelect('edit-prod-zone', true, curValue, true);
   if (!isSuperAdmin()) {
     const ul = getUserLocalName();
     if (ul && !curValue) {
@@ -61,7 +62,7 @@ function openTransfertFromProduct(productId, destLid) {
       // Sélectionner le variant avec le plus de stock
       const best = variants.sort((a,b) => b.stock - a.stock)[0];
       trProd.value = best.id;
-      document.getElementById('tr-from').value = best.local_id;
+      document.getElementById('tr-from').value = best.local_id || '__general__';
       if (trTo) trTo.value = destLid;
       updateTransfertQtyMax();
     }
@@ -97,7 +98,9 @@ function openTransfertModal() {
   if (trFrom) {
     const lids = getLocalIds();
     const fromList = (lids ? GP_LOCAUX_ALL.filter(l => lids.includes(l.id)) : GP_LOCAUX_ALL).filter(l=>l.actif!==false);
+    const hasGeneral = products.some(p => !p.local_id);
     trFrom.innerHTML = '<option value="">— Local source —</option>' +
+      (hasGeneral ? `<option value="__general__">🗂️ Général (sans zone précise)</option>` : '') +
       fromList.map(l => `<option value="${l.id}">${escapeHTML(l.nom)}</option>`).join('');
   }
 
@@ -116,7 +119,7 @@ function openTransfertModal() {
 
 function updateTransfertQtyMax() {
   const prodId  = document.getElementById('tr-produit')?.value;
-  const fromLid = document.getElementById('tr-from')?.value;
+  const fromSel = document.getElementById('tr-from')?.value;
   if (!prodId) { const i = document.getElementById('tr-qty-info'); if (i) i.textContent=''; return; }
   // Récupérer le produit de référence puis chercher le variant dans le local source
   const refProd = products.find(x => x.id === prodId);
@@ -128,16 +131,17 @@ function updateTransfertQtyMax() {
   });
   // Auto-select local source : celui avec le plus de stock
   const trFrom = document.getElementById('tr-from');
-  if (!fromLid && trFrom) {
+  if (!fromSel && trFrom) {
     const best = variants.sort((a,b)=>b.stock-a.stock)[0];
-    if (best) trFrom.value = best.local_id;
+    if (best) trFrom.value = best.local_id || '__general__';
   }
-  const activeLid = document.getElementById('tr-from')?.value || refProd.local_id;
+  const activeSel = document.getElementById('tr-from')?.value || (refProd.local_id || '__general__');
+  const activeLid = activeSel === '__general__' ? null : activeSel;
   // Agréger le stock de TOUTES les lignes du même local (évite le bug multi-lignes)
-  const srcVariants = variants.filter(v => v.local_id === activeLid);
+  const srcVariants = variants.filter(v => (activeLid ? v.local_id === activeLid : !v.local_id));
   const srcVariant  = srcVariants[0] || variants[0];
   const srcStock    = srcVariants.reduce((s, v) => s + (v.stock || 0), 0) || srcVariant?.stock || 0;
-  const localNom    = GP_LOCAUX_ALL.find(l => l.id === activeLid)?.nom || srcVariant?.zone || '—';
+  const localNom    = activeLid ? (GP_LOCAUX_ALL.find(l => l.id === activeLid)?.nom || srcVariant?.zone || '—') : 'Général (sans zone)';
   const info = document.getElementById('tr-qty-info');
   if (info) info.textContent = srcVariant
     ? 'Stock dans "' + localNom + '": ' + srcStock + ' ' + (srcVariant.unit||'unités')
