@@ -3539,25 +3539,4 @@ async function magSaveRetour() {
 </script>
 
 </body>
-  const selected = el.dataset.selected === '1';
-  const newVal = !selected;
-  el.dataset.selected = newVal ? '1' : '0';
-  const circle = el.querySelector('div');
-  const accent = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || '#2563eb';
-  if (newVal) {
-    el.style.border = '2px solid var(--accent)';
-    el.style.background = 'rgba(37,99,235,0.08)';
-    circle.style.border = '2px solid var(--accent)';
-    circle.style.background = 'var(--accent)';
-    circle.innerHTML = '<span style="color:#fff;font-size:12px;">✓</span>';
-  } else {
-    el.style.border = '2px solid var(--border)';
-    el.style.background = 'var(--surface2)';
-    circle.style.border = '2px solid var(--border)';
-    circle.style.background = 'transparent';
-    circle.innerHTML = '';
-  }
-}
-</script>
-</body>
 </html>
