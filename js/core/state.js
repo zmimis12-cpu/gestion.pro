@@ -3,14 +3,29 @@
    État global : save(), getLocalId(), getLocalIds(), _saveTimer
 ================================================================ */
 
-function save(immediate) {
+let _pendingDirty = {}; // { products: Set(ids), ... } — accumulé entre appels debouncés
+
+function save(immediate, dirty) {
   _lastSaveTime = Date.now();
-  // Mémoriser les IDs actuels pour ignorer nos propres events Realtime (3s)
-  _lastSaveIds = new Set([...products, ...sales, ...clients, ...employes, ...caisseOps].map(x=>x?.id).filter(Boolean));
+  // Accumuler les ids modifiés pour ce cycle de sauvegarde (permet un sync ciblé
+  // au lieu de renvoyer TOUTE la table — critical avec 2000+ produits)
+  if (dirty) {
+    for (const table in dirty) {
+      if (!_pendingDirty[table]) _pendingDirty[table] = new Set();
+      dirty[table].forEach(id => _pendingDirty[table].add(id));
+    }
+  }
+  // Mémoriser les IDs concernés pour ignorer nos propres events Realtime (3s).
+  // Si on sait précisément ce qui a changé, on ne marque que ça (rapide) ;
+  // sinon fallback complet (plus lent mais correct).
+  const dirtyProducts = _pendingDirty.products;
+  _lastSaveIds = (dirtyProducts && dirtyProducts.size > 0)
+    ? new Set([...dirtyProducts, ...sales.map(x=>x.id), ...clients.map(x=>x.id), ...employes.map(x=>x.id), ...caisseOps.map(x=>x.id)].filter(Boolean))
+    : new Set([...products, ...sales, ...clients, ...employes, ...caisseOps].map(x=>x?.id).filter(Boolean));
   setTimeout(() => { _lastSaveIds.clear(); }, 3000);
-  if (immediate) { _doSave(); return; }
+  if (immediate) { const d = _pendingDirty; _pendingDirty = {}; _doSave(d); return; }
   clearTimeout(_saveTimer);
-  _saveTimer = setTimeout(_doSave, 400);
+  _saveTimer = setTimeout(() => { const d = _pendingDirty; _pendingDirty = {}; _doSave(d); }, 400);
 }
 
 // ─── SAUVEGARDE SUPABASE ─────────────────────────────────────

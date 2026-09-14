@@ -1518,7 +1518,7 @@ async function confirmRestock() {
       ? Object.values(tp.sizes).reduce((a,b) => a+b, 0)
       : Object.values(tp.colors).reduce((a,b) => a+b, 0);
     tp.lastRestock = new Date().toISOString();
-    save();
+    save(false, { products: new Set([tp.id]) });
     closeModal('modal-reappro');
     renderStockTable(); updateAlertCount();
     toast(`✅ +${totalAdded} pièces (tailles) ajoutées à "${tp.name}" → stock total: ${tp.stock}`, 'success');
@@ -1535,7 +1535,7 @@ async function confirmRestock() {
       (x.code && tp.code ? x.code === tp.code : x.name === tp.name)
     ).reduce((s, x) => s + (x.stock || 0), 0);
 
-    save();
+    save(false, { products: new Set([tp.id]) });
     closeModal('modal-reappro');
     renderStockTable(); updateAlertCount();
     toast('✅ +' + qty + ' ' + (tp.unit||'unités') + ' ajouté à "' + tp.name + '" → stock ' + (GP_LOCAUX_ALL.find(l=>l.id===tp.local_id)?.nom||'Général') + ': ' + newAggr, 'success');

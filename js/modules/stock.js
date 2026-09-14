@@ -379,7 +379,7 @@ function saveProduct() {
   };
 
   products.push(product);
-  save();
+  save(false, { products: new Set([product.id]) });
   closeModal('modal-add-product');
   toast(`"${name}" ${t('toast_product_added_to')}`);
   newProductPhoto = null;
@@ -511,7 +511,7 @@ function updateProduct() {
     photo: editProductPhoto !== undefined ? editProductPhoto : products[idx].photo,
     type, sizes, colors
   };
-  save(); closeModal('modal-edit-product');
+  save(false, { products: new Set([products[idx].id]) }); closeModal('modal-edit-product');
   toast(`"${name}" ${t('toast_product_updated')}`);
   renderStockTable(); updateAlertCount();
 }
@@ -859,7 +859,7 @@ function importCSV(e) {
     });
 
     products.push(...newProducts);
-    save(); renderStockTable(); updateAlertCount();
+    save(false, { products: new Set(newProducts.map(p => p.id)) }); renderStockTable(); updateAlertCount();
     const photosLoaded = newProducts.filter(p => p.photo).length;
     toast(`✅ ${added} produit(s) importé(s)${photosLoaded > 0 ? ` avec ${photosLoaded} photo(s)` : ''}`);
     e.target.value = '';

@@ -261,12 +261,14 @@ async function confirmRetour() {
   console.log('[Retour] Envoi gp_retours:', retourDB);
 
   // ══ IMPACT 1 : Stock (conformes uniquement) ══
+  const _retourDirtyProducts = new Set();
   lines.forEach(line => {
     if (line.qteConforme<=0) return;
     const prod = products.find(p => p.id===line.productId);
     if (!prod) return;
     const before = prod.stock;
     prod.stock = (prod.stock||0) + line.qteConforme;
+    _retourDirtyProducts.add(prod.id);
     console.log(`[Retour] Stock ${prod.name}: ${before} → ${prod.stock}`);
   });
 
@@ -290,7 +292,7 @@ async function confirmRetour() {
 
   // Sauvegarder
   retours.unshift(retour);
-  save();
+  save(false, { products: _retourDirtyProducts });
   const sIdx = sales.findIndex(s=>s.id===saleId);
   if (sIdx>=0) { sales[sIdx].hasRetour=true; sales[sIdx].retourIds=[...(sales[sIdx].retourIds||[]),retourId]; }
 

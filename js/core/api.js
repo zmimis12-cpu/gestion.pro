@@ -44,12 +44,19 @@ async function sbDelete(table, id) {
   }
 }
 
-async function _doSave() {
+async function _doSave(dirty) {
   const lid = getLocalId();
   try {
     // ── Produits ──────────────────────────────────────────────
+    // Table la plus volumineuse (peut dépasser 2000+ lignes) — si on sait
+    // précisément quels produits ont changé, on ne synchronise QUE ceux-là
+    // au lieu de renvoyer tout le catalogue à chaque sauvegarde.
     const tid = GP_TENANT?.id || null;
-    await sbSync('gp_products', products.map(p => ({
+    const dirtyProductIds = dirty?.products;
+    const productsToSync = (dirtyProductIds && dirtyProductIds.size > 0)
+      ? products.filter(p => dirtyProductIds.has(p.id))
+      : products;
+    const pProducts = productsToSync.length ? sbSync('gp_products', productsToSync.map(p => ({
       id: p.id, tenant_id: tid, local_id: lid || p.local_id,
       name: p.name, category: p.category, code: p.code || null,
       type: p.type || 'unite', price: p.price, cost: p.cost || 0,
@@ -57,10 +64,10 @@ async function _doSave() {
       unit: p.unit || 'Pièce', zone: p.zone || null,
       sizes: p.sizes || {}, photo_url: p.photo || null,
       updated_at: new Date().toISOString()
-    })), 'local_id', lid);
+    })), 'local_id', lid) : Promise.resolve();
 
-    // ── Clients ───────────────────────────────────────────────
-    await sbSync('gp_clients', clients.map(c => ({
+    // ── Autres tables — en parallèle (indépendantes les unes des autres) ──
+    const pClients = sbSync('gp_clients', clients.map(c => ({
       id: c.id, tenant_id: tid, local_id: lid || c.local_id,
       name: c.name, phone: c.phone || null, email: c.email || null,
       city: c.city || null, address: c.address || null,
@@ -68,8 +75,7 @@ async function _doSave() {
       credit_limit: c.creditLimit || 0, credit_used: c.creditUsed || 0
     })), 'local_id', lid);
 
-    // ── Ventes ────────────────────────────────────────────────
-    await sbSync('gp_sales', sales.map(s => ({
+    const pSales = sbSync('gp_sales', sales.map(s => ({
       id: s.id, tenant_id: tid, local_id: lid || s.local_id,
       client_id: s.clientId || null, client_name: s.clientName || null,
       date: s.date, items: s.items || [],
@@ -78,8 +84,7 @@ async function _doSave() {
       payment: s.payment || 'especes'
     })), 'local_id', lid);
 
-    // ── Caisse ────────────────────────────────────────────────
-    await sbSync('gp_caisse_ops', caisseOps.map(o => ({
+    const pCaisseOps = sbSync('gp_caisse_ops', caisseOps.map(o => ({
       id: o.id, tenant_id: tid, local_id: lid || o.local_id,
       type: o.type, amount: o.amount,
       description: o.label || o.description || null,
@@ -87,8 +92,7 @@ async function _doSave() {
       date: o.date
     })), 'local_id', lid);
 
-    // ── Conteneurs ────────────────────────────────────────────
-    await sbSync('gp_conteneurs', conteneurs.map(c => ({
+    const pConteneurs = sbSync('gp_conteneurs', conteneurs.map(c => ({
       id: c.id, tenant_id: tid, local_id: lid || c.local_id,
       numero: c.numero, fournisseur: c.fournisseur || null,
       pays: c.pays || null, type: c.type || null,
@@ -105,8 +109,7 @@ async function _doSave() {
       refs: c.refs || []
     })), 'local_id', lid);
 
-    // ── Ordres ────────────────────────────────────────────────
-    await sbSync('gp_ordres', ordres.map(o => ({
+    const pOrdres = sbSync('gp_ordres', ordres.map(o => ({
       id: o.id, tenant_id: tid, local_id: lid || o.local_id,
       conteneur_id: o.conteneurId || null,
       numero: o.numero || null, date: o.date || null,
@@ -115,8 +118,7 @@ async function _doSave() {
       refs: o.refs || []
     })), 'local_id', lid);
 
-    // ── Employés ──────────────────────────────────────────────
-    await sbSync('gp_employes', employes.map(e => ({
+    const pEmployes = sbSync('gp_employes', employes.map(e => ({
       id: e.id, tenant_id: tid, local_id: lid || e.local_id,
       name: e.name, prenom: e.prenom || null,
       poste: e.poste || null, dept: e.dept || null,
@@ -128,16 +130,14 @@ async function _doSave() {
       notes: e.notes || null
     })), 'local_id', lid);
 
-    // ── Congés ────────────────────────────────────────────────
-    await sbSync('gp_conges', conges.map(c => ({
+    const pConges = sbSync('gp_conges', conges.map(c => ({
       id: c.id, tenant_id: tid, local_id: lid || c.local_id,
       emp_id: c.empId || null, type: c.type || 'conge_annuel',
       debut: c.debut, fin: c.fin, jours: c.jours || 1,
       motif: c.motif || null, statut: c.statut || 'pending'
     })), 'local_id', lid);
 
-    // ── Livraisons ────────────────────────────────────────────
-    await sbSync('gp_livraisons', livraisons.map(l => ({
+    const pLivraisons = sbSync('gp_livraisons', livraisons.map(l => ({
       id: l.id, local_id: lid || l.local_id,
       numero: l.numero || null, date: l.date || null,
       client: l.client || null, tel: l.tel || null,
@@ -147,12 +147,13 @@ async function _doSave() {
       valeur: l.valeur || 0
     })), 'local_id', lid);
 
-    // ── Docs RH ───────────────────────────────────────────────
-    await sbSync('gp_docs_rh', docsRHHistory.map(d => ({
+    const pDocsRH = sbSync('gp_docs_rh', docsRHHistory.map(d => ({
       id: d.id, tenant_id: tid, local_id: lid || d.local_id,
       emp_id: d.empId || null, emp_name: d.empName || null,
       type: d.type || null, contenu: d.contenu || {}
     })), 'local_id', lid);
+
+    await Promise.all([pProducts, pClients, pSales, pCaisseOps, pConteneurs, pOrdres, pEmployes, pConges, pLivraisons, pDocsRH]);
 
   } catch(e) {
     console.warn('[SB] Save error:', e);

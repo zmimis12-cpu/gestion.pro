@@ -678,9 +678,11 @@ function checkout(docType) {
   }
 
   // Deduct stock — sur la ligne réelle du local de sortie choisi
+  const _dirtyProductIds = new Set();
   cart.forEach(item => {
     const p = _resolveCaisseRow(item);
     if (!p) return;
+    _dirtyProductIds.add(p.id);
     if (item.size && p.sizes) {
       // Déduire du stock par taille
       p.sizes[item.size] = Math.max(0, (p.sizes[item.size] || 0) - item.qty);
@@ -766,7 +768,7 @@ function checkout(docType) {
       payment: 'Crédit'
     });
   }
-  save();
+  save(false, { products: _dirtyProductIds });
 
   // ── Google Sheets sync ──────────────────────────────────────
   sendToGoogleSheets(sale);
