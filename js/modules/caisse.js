@@ -101,15 +101,13 @@ function renderProductGrid(resetPage) {
       : p.type === 'kg'
       ? (p._totalStock||p.stock) <= 0
       : (p._totalStock||p.stock) === 0;
-    // Répartition par zone — utile dès que le produit existe dans plusieurs locaux
-    const parLocal = p._variants.length > 1
-      ? `<div style="font-size:9.5px;color:var(--text3);margin-top:2px;text-align:center;line-height:1.4;">${
-          p._variants.map(v => {
-            const nom = GP_LOCAUX_ALL.find(l=>l.id===v.local_id)?.nom || v.zone || 'Général';
-            return `${escapeHTML(nom)}: ${v.stock}`;
-          }).join(' · ')
-        }</div>`
-      : '';
+    // Répartition par zone — toujours affichée, même pour une seule zone
+    const parLocal = `<div style="font-size:9.5px;color:var(--text3);margin-top:2px;text-align:center;line-height:1.4;">${
+        p._variants.map(v => {
+          const nom = GP_LOCAUX_ALL.find(l=>l.id===v.local_id)?.nom || v.zone || 'Général';
+          return `${escapeHTML(nom)}: ${v.stock}`;
+        }).join(' · ')
+      }</div>`;
     return `<div class="product-card ${isOutOfStock ? 'out-of-stock' : ''}" onclick="addToCart('${p.id}')">
       ${photo}
       <div class="product-stock-badge">${p.type==='tailles' ? '👕' : p.type==='couleurs' ? '🎨' : p.type==='kg' ? `⚖️ ${p._totalStock||p.stock}kg` : (p._totalStock||p.stock)}</div>

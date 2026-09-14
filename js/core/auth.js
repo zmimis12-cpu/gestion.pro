@@ -1347,43 +1347,21 @@ function filterRestockList() {
     return;
   }
 
-  // Construire le HTML — utiliser data-attributes pour éviter les quotes dans onclick
+  // Construire le HTML — UNE seule ligne par produit, peu importe le nombre
+  // de zones (le choix de la zone se fait dans le sélecteur "Zone de
+  // destination" une fois le produit cliqué, pas en dupliquant la ligne).
   list.innerHTML = sorted.map(g => {
     const locals = [...g._byLocal.values()];
-
-    if (locals.length > 1) {
-      // Plusieurs locaux → une ligne par local
-      const pImgMulti = g.photo ? '<img src="' + g.photo + '" style="width:40px;height:40px;border-radius:8px;object-fit:cover;flex-shrink:0;" alt="">' : '<div style="width:40px;height:40px;border-radius:8px;background:var(--surface2);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;">📦</div>';
-      return locals.map(e => {
-        const col = e.stock === 0 ? 'var(--red)' : e.stock < g.minStock ? 'var(--gold)' : 'var(--accent)';
-        return '<div class="restock-item"'
-          + ' data-prod-id="' + escapeHTML(e.repId) + '"'
-          + ' data-stock="' + e.stock + '"'
-          + ' data-local-nom="' + escapeHTML(e.nom) + '"'
-          + ' onclick="selectRestockProduct(this.dataset.prodId, +this.dataset.stock, this.dataset.localNom)"'
-          + ' style="display:flex;align-items:center;gap:12px;padding:10px 14px;cursor:pointer;border-bottom:1px solid var(--border);">'
-          + pImgMulti
-          + '<div style="flex:1;">'
-          + '<div style="font-weight:600;font-size:13px;">' + escapeHTML(g.name)
-          + ' <span style="color:var(--text3);font-weight:400;font-size:11px;">· ' + escapeHTML(e.nom) + '</span></div>'
-          + '<div style="font-size:11px;color:var(--text2);">' + escapeHTML(g.code||'') + ' · ' + escapeHTML(g.category||'') + '</div>'
-          + '</div>'
-          + '<div style="text-align:right;">'
-          + '<div style="font-family:var(--font-mono),monospace;font-weight:800;font-size:15px;color:' + col + ';">' + e.stock + '</div>'
-          + '<div style="font-size:10px;color:var(--text2);">en stock</div>'
-          + '</div></div>';
-      }).join('');
-    }
-
-    // Un seul local
-    const e = locals[0];
+    const e = locals.sort((a,b)=>b.stock-a.stock)[0]; // zone avec le plus de stock, par défaut
     const col = g._totalStock === 0 ? 'var(--red)' : g._totalStock < g.minStock ? 'var(--gold)' : 'var(--accent)';
-    const localInfo = e?.nom && e.nom !== '?' ? e.nom : '';
+    const zonesInfo = locals.length > 1
+      ? locals.map(l => escapeHTML(l.nom) + ': ' + l.stock).join(' · ')
+      : (e?.nom && e.nom !== '?' ? e.nom : '');
     const pImg = g.photo ? '<img src="' + g.photo + '" style="width:40px;height:40px;border-radius:8px;object-fit:cover;flex-shrink:0;" alt="">' : '<div style="width:40px;height:40px;border-radius:8px;background:var(--surface2);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;">📦</div>';
     return '<div class="restock-item" data-prod-id="' + escapeHTML(e?.repId || '') + '" data-stock="' + (e?.stock || 0) + '" data-local-nom="' + escapeHTML(e?.nom || '') + '" onclick="selectRestockProduct(this.dataset.prodId, +this.dataset.stock, this.dataset.localNom)" style="display:flex;align-items:center;gap:12px;padding:10px 14px;cursor:pointer;border-bottom:1px solid var(--border);">'
       + pImg
       + '<div style="flex:1;"><div style="font-weight:600;font-size:13px;">' + escapeHTML(g.name) + '</div>'
-      + '<div style="font-size:11px;color:var(--text2);">' + (g.code ? escapeHTML(g.code) + ' · ' : '') + (localInfo ? localInfo + ' · ' : '') + escapeHTML(g.category||'') + '</div></div>'
+      + '<div style="font-size:11px;color:var(--text2);">' + (g.code ? escapeHTML(g.code) + ' · ' : '') + (zonesInfo ? zonesInfo + ' · ' : '') + escapeHTML(g.category||'') + '</div></div>'
       + '<div style="text-align:right;"><div style="font-family:var(--font-mono),monospace;font-weight:800;font-size:15px;color:' + col + ';">' + g._totalStock + '</div><div style="font-size:10px;color:var(--text2);">en stock</div></div></div>';
   }).join('');
 }
