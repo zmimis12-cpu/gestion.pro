@@ -1,6 +1,15 @@
 // ── GOOGLE SHEETS SYNC ─────────────────────────────────────────
 const _SHEETS_WEBHOOK = 'https://script.google.com/macros/s/AKfycbyQD_PDeRhG6DgmWqePBXw3WXnJCXaL52_aov4PcLN2Z22RsMktHnyDlrT7MAcdApCE/exec';
 
+// Le Sheet veut un lien cliquable "https://drive.google.com/open?id=XXX",
+// pas le format thumbnail utilisé dans l'app — on convertit ici.
+function _sheetsPhotoLink(url) {
+  if (!url) return '';
+  const m = url.match(/[?&]id=([^&]+)/);
+  if (m) return 'https://drive.google.com/open?id=' + m[1];
+  return url;
+}
+
 window.sendToGoogleSheets = async function(sale) {
   try {
     for (const item of (sale.items || [])) {
@@ -11,7 +20,7 @@ window.sendToGoogleSheets = async function(sale) {
       const params = new URLSearchParams({
         date:         new Date(sale.date).toLocaleDateString('fr-FR'),
         client_name:  sale.clientName || 'Client de passage',
-        photo_url:    prod?.photo || '',
+        photo_url:    _sheetsPhotoLink(prod?.photo),
         product_name: item.name || prod?.name || '',
         product_code: item.code || prod?.code || '',
         price:        item.price || item.sellPrice || 0,
