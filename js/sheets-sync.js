@@ -43,7 +43,6 @@ window.sendToGoogleSheets = async function(sale) {
         quantity:     item.qty || 1,
         montant:      (item.price || 0) * (item.qty || 1),
         payment_mode: sale.payment === 'Virement' ? (sale.bankAccount || 'Virement') : (sale.payment || ''),
-        statut:       'Vendu',
         zone:         zoneName,
       });
 
