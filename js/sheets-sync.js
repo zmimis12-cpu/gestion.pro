@@ -30,12 +30,6 @@ window.sendToGoogleSheets = async function(sale) {
         ? products.find(p => p.id === (item.productId || item.id))
         : null;
 
-      // Clé unique et stable par ligne — permet au serveur (Apps Script) de
-      // rejeter tout doublon, peu importe sa cause côté navigateur (onglet
-      // fantôme, bfcache, retry réseau...). C'est la seule protection
-      // vraiment fiable puisqu'elle est vérifiée là où la ligne est écrite.
-      const lineKey = (sale.id || 'x') + '_' + i + '_' + (item.productId || item.id || '');
-
       const params = new URLSearchParams({
         date:         new Date(sale.date).toLocaleDateString('fr-FR'),
         client_name:  sale.clientName || 'Client de passage',
@@ -47,7 +41,6 @@ window.sendToGoogleSheets = async function(sale) {
         montant:      (item.price || 0) * (item.qty || 1),
         payment_mode: sale.payment || '',
         statut:       'Vendu',
-        line_key:     lineKey,
       });
 
       // Réessaie jusqu'à 3 fois si l'envoi échoue (on a vu des 404
