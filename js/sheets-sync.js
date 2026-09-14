@@ -50,10 +50,22 @@ window.sendToGoogleSheets = async function(sale) {
         line_key:     lineKey,
       });
 
-      await fetch(_SHEETS_WEBHOOK + '?' + params.toString(), {
-        method: 'GET',
-        mode: 'no-cors',
-      });
+      // Réessaie jusqu'à 3 fois si l'envoi échoue (on a vu des 404
+      // ponctuels dans les logs) — pour ne jamais rater une vente.
+      let sent = false;
+      for (let attempt = 1; attempt <= 3 && !sent; attempt++) {
+        try {
+          await fetch(_SHEETS_WEBHOOK + '?' + params.toString(), {
+            method: 'GET',
+            mode: 'no-cors',
+          });
+          sent = true;
+        } catch(attemptErr) {
+          console.warn(`[Sheets] Tentative ${attempt}/3 échouée pour ligne ${i+1}:`, attemptErr.message);
+          if (attempt < 3) await new Promise(r => setTimeout(r, 400));
+        }
+      }
+      if (!sent) throw new Error('Échec après 3 tentatives');
 
       console.log(`[Sheets] ✅ Ligne ${i+1}/${items.length} envoyée:`, item.name || prod?.name);
     } catch(err) {
