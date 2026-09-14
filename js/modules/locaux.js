@@ -495,7 +495,7 @@ function renderFonds() {
   const todayCharges = todayOps.filter(o => o.type==='charge').reduce((s,o)=>s+o.amount,0);
   const todayRetraits = todayOps.filter(o => o.type==='retrait').reduce((s,o)=>s+o.amount,0);
   const todayDepots = todayOps.filter(o => o.type==='depot').reduce((s,o)=>s+o.amount,0);
-  const todayVentesCarte = todayOps.filter(o => o.type==='vente' && o.payment==='Carte').reduce((s,o)=>s+o.amount,0);
+  const todayVentesCarte = todayOps.filter(o => o.type==='vente' && o.payment==='Virement').reduce((s,o)=>s+o.amount,0);
   const todayVentesCredit = todayOps.filter(o => o.type==='vente' && o.payment==='Crédit').reduce((s,o)=>s+o.amount,0);
   const todayVentesTotal = todayOps.filter(o => o.type==='vente').reduce((s,o)=>s+o.amount,0);
 
@@ -519,7 +519,7 @@ function renderFonds() {
         <div class="stat-icon">💳</div>
         <div class="stat-value" style="font-size:20px;">${todayVentesCarte.toFixed(2)}</div>
         <div class="stat-label">Ventes Carte</div>
-        <div class="stat-sub">${todayOps.filter(o=>o.type==='vente'&&o.payment==='Carte').length} ventes</div>
+        <div class="stat-sub">${todayOps.filter(o=>o.type==='vente'&&o.payment==='Virement').length} ventes</div>
       </div>
       <div class="stat-card gold">
         <div class="stat-icon">📋</div>
@@ -600,7 +600,7 @@ function renderFonds() {
         entree = `<span style="color:var(--accent);font-family:var(--font-mono),monospace;font-weight:700;">+${op.amount.toFixed(2)}</span>`;
       } else {
         // Carte ou Crédit : montrer en gris informatif, pas dans le solde espèces
-        const col = op.payment === 'Carte' ? 'var(--purple)' : 'var(--gold)';
+        const col = op.payment === 'Virement' ? 'var(--purple)' : 'var(--gold)';
         entree = `<span style="color:${col};font-family:var(--font-mono),monospace;font-size:11px;opacity:0.7;">${op.amount.toFixed(2)} ℹ</span>`;
       }
     } else if (cfg.entree === true) {
@@ -614,7 +614,7 @@ function renderFonds() {
     const balColor = op.balance >= 0 ? 'var(--accent)' : 'var(--red)';
     // Chip paiement pour les ventes
     const payBadge = op.type === 'vente' && op.payment
-      ? ` <span class="chip ${op.payment==='Espèces'?'chip-green':op.payment==='Carte'?'chip-purple':'chip-gold'}" style="font-size:10px;padding:1px 6px;">${op.payment}</span>`
+      ? ` <span class="chip ${op.payment==='Espèces'?'chip-green':op.payment==='Virement'?'chip-purple':'chip-gold'}" style="font-size:10px;padding:1px 6px;">${op.payment}</span>`
       : '';
     return `<tr>
       <td style="font-size:12px;color:var(--text2);">${dateStr}</td>

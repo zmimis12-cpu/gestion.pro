@@ -37,7 +37,7 @@ function renderCommandes(resetPage) {
   if (statsEl) {
     const totalCA   = filtered.reduce((s,v) => s + v.total, 0);
     const totalEsp  = filtered.filter(v => v.payment === 'Espèces').reduce((s,v) => s + v.total, 0);
-    const totalCrt  = filtered.filter(v => v.payment === 'Carte').reduce((s,v) => s + v.total, 0);
+    const totalCrt  = filtered.filter(v => v.payment === 'Virement').reduce((s,v) => s + v.total, 0);
     const totalCred = filtered.filter(v => v.payment === 'Crédit').reduce((s,v) => s + v.total, 0);
     statsEl.innerHTML = `
       <div class="stat-card green">
@@ -56,7 +56,7 @@ function renderCommandes(resetPage) {
         <div class="stat-icon">💳</div>
         <div class="stat-value">${totalCrt.toFixed(0)}</div>
         <div class="stat-label">Carte (MAD)</div>
-        <div class="stat-sub">${filtered.filter(v=>v.payment==='Carte').length} ordres</div>
+        <div class="stat-sub">${filtered.filter(v=>v.payment==='Virement').length} ordres</div>
       </div>
       <div class="stat-card gold">
         <div class="stat-icon">📋</div>
@@ -92,7 +92,7 @@ function renderCommandes(resetPage) {
     const ht = (s.totalHT || s.total).toFixed(2);
     const tva = s.tvaAmount > 0 ? s.tvaAmount.toFixed(2) : '—';
     const ttc = s.total.toFixed(2);
-    const payChip = s.payment === 'Espèces' ? 'chip-green' : s.payment === 'Carte' ? 'chip-purple' : 'chip-gold';
+    const payChip = s.payment === 'Espèces' ? 'chip-green' : s.payment === 'Virement' ? 'chip-purple' : 'chip-gold';
     const num = 'ORD-' + String(sales.indexOf(s) + 1).padStart(4,'0');
     return `<tr>
       <td style="font-family:var(--font-mono),monospace;font-weight:700;font-size:12px;">${num}</td>
@@ -102,7 +102,7 @@ function renderCommandes(resetPage) {
       <td style="text-align:right;font-family:var(--font-mono),monospace;">${ht}</td>
       <td style="text-align:right;font-family:var(--font-mono),monospace;color:var(--text2);">${tva !== '—' ? s.tva+'% ('+tva+')' : '—'}</td>
       <td style="text-align:right;font-family:var(--font-mono),monospace;font-weight:800;color:var(--accent);">${ttc} MAD</td>
-      <td><span class="chip ${payChip}">${s.payment === 'Espèces' ? t('pay_cash').replace('💵 ','') : s.payment === 'Carte' ? t('pay_card').replace('💳 ','') : t('pay_credit').replace('📋 ','')}</span></td>
+      <td><span class="chip ${payChip}">${s.payment === 'Espèces' ? t('pay_cash').replace('💵 ','') : s.payment === 'Virement' ? t('pay_card').replace('💳 ','') : t('pay_credit').replace('📋 ','')}</span></td>
       <td style="white-space:nowrap;">
         <button class="btn btn-secondary btn-sm" title="Reçu caisse" onclick="showSaleDoc('${s.id}','recu')">🧾</button>
         <button class="btn btn-primary btn-sm" title="Facture A4" onclick="showSaleDoc('${s.id}','facture')">📄</button>
@@ -164,7 +164,7 @@ function cloturerCaisse() {
 
   // Calculate stats
   const ventesEsp   = todayOps.filter(o=>o.type==='vente'&&o.payment==='Espèces').reduce((s,o)=>s+o.amount,0);
-  const ventesCarte = todayOps.filter(o=>o.type==='vente'&&o.payment==='Carte').reduce((s,o)=>s+o.amount,0);
+  const ventesCarte = todayOps.filter(o=>o.type==='vente'&&o.payment==='Virement').reduce((s,o)=>s+o.amount,0);
   const ventesCredit= todayOps.filter(o=>o.type==='vente'&&o.payment==='Crédit').reduce((s,o)=>s+o.amount,0);
   const depots      = todayOps.filter(o=>o.type==='depot'&&!o.label.includes('Ouverture')).reduce((s,o)=>s+o.amount,0);
   const ouverture   = todayOps.filter(o=>o.type==='depot'&&o.label.includes('Ouverture')).reduce((s,o)=>s+o.amount,0);

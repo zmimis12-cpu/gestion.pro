@@ -445,9 +445,12 @@ function clearCart() {
   cart = [];
   currentClientId = null;
   selectedPayment = 'Espèces';
+  selectedBankAccount = '';
   document.getElementById('cart-client').value = '';
   document.querySelectorAll('.pay-method').forEach(b => b.classList.remove('selected'));
   document.querySelector('.pay-method').classList.add('selected');
+  const grp = document.getElementById('virement-account-group');
+  if (grp) grp.style.display = 'none';
   document.getElementById('client-credit-info').style.display = 'none';
   renderCart();
 }
@@ -609,6 +612,26 @@ function selectPayment(method) {
     const sel = document.getElementById('cart-client');
     if (!sel.value) toast(t('toast_select_client'), 'warn');
   }
+  // Afficher/masquer le sélecteur de compte bancaire pour "Virement"
+  const grp = document.getElementById('virement-account-group');
+  if (grp) {
+    if (method === 'Virement') {
+      const sel = document.getElementById('cart-bank-account');
+      const accounts = (typeof settings !== 'undefined' && settings.bankAccounts) ? settings.bankAccounts : [];
+      sel.innerHTML = '<option value="">— Sélectionner —</option>' +
+        accounts.map(a => `<option value="${escapeHTML(a)}">${escapeHTML(a)}</option>`).join('');
+      selectedBankAccount = accounts.length === 1 ? accounts[0] : '';
+      sel.value = selectedBankAccount;
+      grp.style.display = '';
+    } else {
+      grp.style.display = 'none';
+      selectedBankAccount = '';
+    }
+  }
+}
+
+function onBankAccountChange() {
+  selectedBankAccount = document.getElementById('cart-bank-account')?.value || '';
 }
 
 function onClientChange() {
@@ -678,6 +701,10 @@ async function _doCheckout(docType) {
     else if (item.color && row.colors) avail = row.colors[item.color] || 0;
     else avail = row.stock;
     if (item.qty > avail) { toast(`❌ Stock insuffisant pour "${item.name}" dans ce local (dispo: ${avail})`, 'error'); return; }
+  }
+
+  if (selectedPayment === 'Virement' && !selectedBankAccount) {
+    toast('🏦 Choisissez le compte bancaire ayant reçu le virement', 'error'); return;
   }
 
   // Credit check — on vérifie sur le total TTC
@@ -761,6 +788,7 @@ async function _doCheckout(docType) {
     clientId:     currentClientId,
     clientName:   currentClientId ? (clients.find(c => c.id === currentClientId)?.name || clients.find(c => c.id === currentClientId)?.nom || 'Client inconnu') : 'Client de passage',
     isCreditSale: selectedPayment === 'Crédit',
+    bankAccount: selectedPayment === 'Virement' ? selectedBankAccount : null,
   };
   sales.unshift(sale);
 
@@ -1145,7 +1173,7 @@ function buildReceiptHTML(sale) {
           <div class="receipt-meta-value">${sale.clientName || 'Client de passage'}</div>
         </div>
         <div class="receipt-meta-item">
-          <div class="receipt-meta-label">${sale.payment === 'Espèces' ? '💵' : sale.payment === 'Carte' ? '💳' : '📋'} Paiement</div>
+          <div class="receipt-meta-label">${sale.payment === 'Espèces' ? '💵' : sale.payment === 'Virement' ? '🏦' : '📋'} Paiement</div>
           <div class="receipt-meta-value">${sale.payment}</div>
         </div>
         <div class="receipt-meta-item" style="grid-column:1/-1;">

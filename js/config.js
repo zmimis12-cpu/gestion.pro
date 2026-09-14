@@ -69,7 +69,7 @@ var TRANSLATIONS = {
     tva_off:'TVA désactivée', tva_on:'TVA activée', tva_click:'Cliquer pour activer',
     subtotal:'Sous-total', tva_label:'TVA', total_label:'TOTAL',
     payment_mode:'Mode de paiement',
-    pay_cash:'💵 Espèces', pay_card:'💳 Carte', pay_credit:'📋 Crédit', toast_saved:'✅ Sauvegardé',
+    pay_cash:'💵 Espèces', pay_card:'🏦 Virement', pay_credit:'📋 Crédit', toast_saved:'✅ Sauvegardé',
     btn_validate_recu:'🧾 Valider + Reçu', btn_validate_facture:'📄 Valider + Facture',
     // Stock
     search_stock:'Nom, code, référence...',
@@ -395,7 +395,7 @@ var TRANSLATIONS = {
     tva_off:'الضريبة معطلة', tva_on:'الضريبة مفعّلة', tva_click:'انقر للتفعيل',
     subtotal:'المجموع الجزئي', tva_label:'الضريبة', total_label:'المجموع الكلي',
     payment_mode:'طريقة الدفع',
-    pay_cash:'💵 نقدًا', pay_card:'💳 بطاقة', pay_credit:'📋 دين', toast_saved:'✅ تم الحفظ',
+    pay_cash:'💵 نقدًا', pay_card:'🏦 تحويل بنكي', pay_credit:'📋 دين', toast_saved:'✅ تم الحفظ',
     btn_validate_recu:'🧾 تأكيد + وصل', btn_validate_facture:'📄 تأكيد + فاتورة',
     // Stock
     search_stock:'الاسم، الكود، المرجع...',

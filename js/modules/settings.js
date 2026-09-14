@@ -209,6 +209,7 @@ function loadSettingsForm() {
   document.getElementById('set-store-ice').value = settings.storeIce || '';
   document.getElementById('set-bank-name').value = settings.bankName || '';
   document.getElementById('set-bank-iban').value = settings.bankIban || '';
+  document.getElementById('set-bank-accounts').value = (settings.bankAccounts || []).join('\n');
   document.getElementById('set-invoice-notes').value = settings.invoiceNotes || '';
   // Show logo preview if exists
   if (settings.storeLogo) {
@@ -277,6 +278,7 @@ function saveAllSettings() {
   settings.storeIce = document.getElementById('set-store-ice').value.trim();
   settings.bankName = document.getElementById('set-bank-name').value.trim();
   settings.bankIban = document.getElementById('set-bank-iban').value.trim();
+  settings.bankAccounts = document.getElementById('set-bank-accounts').value.split('\n').map(s => s.trim()).filter(Boolean);
   settings.invoiceNotes = document.getElementById('set-invoice-notes').value.trim();
   saveSettings();
   toast(t('toast_settings_saved'));

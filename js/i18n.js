@@ -19,6 +19,7 @@ let clients   = [];
 let sales     = [];
 let cart = [];
 let selectedPayment = 'Espèces';
+let selectedBankAccount = '';
 let currentClientId = null;
 let editingProductId = null;
 let viewingClientId = null;

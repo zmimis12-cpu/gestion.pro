@@ -498,10 +498,16 @@
               <div style="margin-bottom:12px;">
                 <div style="font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;" id="pay-mode-label">Mode de paiement</div>
                 <div class="pay-methods">
-                  <button class="pay-method selected" id="pay-cash-btn" onclick="selectPayment('Espèces')" id="pay-cash-btn">💵 Espèces</button>
-                  <button class="pay-method" id="pay-card-btn" onclick="selectPayment('Carte')" id="pay-card-btn">💳 Carte</button>
-                  <button class="pay-method credit-btn" id="pay-credit-btn" onclick="selectPayment('Crédit')" id="pay-credit-btn">📋 Crédit</button>
+                  <button class="pay-method selected" id="pay-cash-btn" onclick="selectPayment('Espèces')">💵 Espèces</button>
+                  <button class="pay-method" id="pay-virement-btn" onclick="selectPayment('Virement')">🏦 Virement</button>
+                  <button class="pay-method credit-btn" id="pay-credit-btn" onclick="selectPayment('Crédit')">📋 Crédit</button>
                 </div>
+              </div>
+              <div id="virement-account-group" style="display:none;margin-bottom:12px;">
+                <label style="font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;">🏦 Compte ayant reçu le virement *</label>
+                <select id="cart-bank-account" onchange="onBankAccountChange()" style="width:100%;margin-top:6px;background:var(--surface2);border:1px solid var(--accent);border-radius:8px;padding:8px 12px;color:var(--text);font-family:var(--font),sans-serif;">
+                  <option value="">— Sélectionner —</option>
+                </select>
               </div>
               <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
                 <button class="btn btn-secondary" id="btn-validate-recu" style="justify-content:center;font-size:13px;padding:12px;border-color:rgba(37,99,235,0.4);color:var(--accent);" onclick="checkout('recu')">🧾 Valider + Reçu</button>
@@ -960,6 +966,11 @@
                 <div class="form-group">
                   <label>RIB / IBAN</label>
                   <input type="text" id="set-bank-iban" placeholder="MA64 XXXX XXXX XXXX XXXX" value="">
+                </div>
+                <div class="form-group full">
+                  <label>🏦 Comptes bancaires disponibles à la caisse (un par ligne)</label>
+                  <textarea id="set-bank-accounts" placeholder="Ex:&#10;CIH Bank - Compte principal&#10;Attijariwafa - Compte 2" style="min-height:70px;"></textarea>
+                  <div style="font-size:11px;color:var(--text2);margin-top:4px;">Ces comptes apparaissent dans la liste "Virement" à la caisse.</div>
                 </div>
                 <div class="form-group full">
                   <label>Notes sur la facture</label>
