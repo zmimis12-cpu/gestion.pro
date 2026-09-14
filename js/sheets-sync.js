@@ -1,5 +1,5 @@
 // ── GOOGLE SHEETS SYNC ─────────────────────────────────────────
-const _SHEETS_WEBHOOK = 'https://script.google.com/macros/s/AKfycbyQD_PDeRhG6DgmWqePBXw3WXnJCXaL52_aov4PcLN2Z22RsMktHnyDlrT7MAcdApCE/exec';
+const _SHEETS_WEBHOOK = 'https://script.google.com/macros/s/AKfycbwGXAQqMEoQGibN-bkERHDRmB20q0x-DgdKv33j5noEmSjSXjccWyc27n3xwH9_BGP5/exec';
 
 // Le Sheet veut un lien cliquable "https://drive.google.com/open?id=XXX",
 // pas le format thumbnail utilisé dans l'app — on convertit ici.
