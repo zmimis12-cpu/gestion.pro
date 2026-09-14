@@ -642,6 +642,12 @@ function populateClientSelect() {
 
 let _checkoutInProgress = false;
 
+// Signature du panier (contenu + local) — sert à détecter si EXACTEMENT le
+// même panier vient d'être validé (ex: 2 onglets ouverts sur le même compte)
+function _cartSignature() {
+  return cart.map(c => `${c.id}:${c.size||''}:${c.color||''}:${c.qty}`).sort().join('|') + '@' + CAISSE_LOCAL_ID;
+}
+
 async function checkout(docType) {
   if (!isSuperAdmin() && !hasPermission('caisse', 'create')) {
     toast('⛔ Permission refusée', 'error'); return;
@@ -649,6 +655,26 @@ async function checkout(docType) {
   // Empêche un double-clic (ou double-appui rapide) de créer 2 ventes
   // distinctes pour le même panier — double déduction de stock sinon.
   if (_checkoutInProgress) { return; }
+
+  // Verrou ENTRE ONGLETS : si exactement le même panier vient d'être validé
+  // il y a moins de 8s (dans CET onglet ou un autre onglet de la même
+  // session), on bloque — évite les doubles ventes quand plusieurs onglets
+  // de l'app sont ouverts en même temps sur le même compte.
+  if (cart.length) {
+    const sig = _cartSignature();
+    try {
+      const raw = localStorage.getItem('gp_last_checkout_sig');
+      if (raw) {
+        const last = JSON.parse(raw);
+        if (last.sig === sig && Date.now() - last.ts < 8000) {
+          toast('⚠️ Ce panier exact vient déjà d\'être validé à l\'instant (peut-être dans un autre onglet). Vérifiez avant de revalider.', 'error');
+          return;
+        }
+      }
+      localStorage.setItem('gp_last_checkout_sig', JSON.stringify({ sig, ts: Date.now() }));
+    } catch(e) {}
+  }
+
   _checkoutInProgress = true;
   try {
     await _doCheckout(docType);
