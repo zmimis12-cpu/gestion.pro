@@ -640,7 +640,7 @@ function populateClientSelect() {
     clients.map(c => `<option value="${c.id}">${escapeHTML(c.name)}${c.creditUsed > 0 ? ` (Dette: ${fmt(c.creditUsed)})` : ''}</option>`).join('');
 }
 
-function checkout(docType) {
+async function checkout(docType) {
   if (!isSuperAdmin() && !hasPermission('caisse', 'create')) {
     toast('⛔ Permission refusée', 'error'); return;
   }
@@ -770,8 +770,10 @@ function checkout(docType) {
   }
   save(false, { products: _dirtyProductIds });
 
-  // ── Google Sheets sync ──────────────────────────────────────
-  sendToGoogleSheets(sale);
+  // ── Google Sheets sync — on attend que TOUTES les lignes soient envoyées
+  // avant d'afficher le reçu/facture (window.print() peut geler l'onglet et
+  // couper les requêtes encore en attente si on ne les attend pas) ──
+  await sendToGoogleSheets(sale);
 
   // WhatsApp notification automatique si vente à crédit
   if (sale.isCreditSale) {

@@ -11,12 +11,15 @@ function _sheetsPhotoLink(url) {
 }
 
 window.sendToGoogleSheets = async function(sale) {
-  try {
-    for (const item of (sale.items || [])) {
-      const prod = (typeof products !== 'undefined') 
-        ? products.find(p => p.id === (item.productId || item.id)) 
+  const items = sale.items || [];
+  console.log(`[Sheets] Envoi de ${items.length} ligne(s) pour cette vente...`);
+  for (let i = 0; i < items.length; i++) {
+    const item = items[i];
+    try {
+      const prod = (typeof products !== 'undefined')
+        ? products.find(p => p.id === (item.productId || item.id))
         : null;
-      
+
       const params = new URLSearchParams({
         date:         new Date(sale.date).toLocaleDateString('fr-FR'),
         client_name:  sale.clientName || 'Client de passage',
@@ -35,10 +38,13 @@ window.sendToGoogleSheets = async function(sale) {
         mode: 'no-cors',
       });
 
-      console.log('[Sheets] ✅ Ligne envoyée:', item.name || prod?.name);
-      await new Promise(r => setTimeout(r, 200));
+      console.log(`[Sheets] ✅ Ligne ${i+1}/${items.length} envoyée:`, item.name || prod?.name);
+    } catch(err) {
+      // Une ligne en échec ne doit pas bloquer les suivantes
+      console.warn(`[Sheets] ❌ Erreur ligne ${i+1}/${items.length} (${item.name}):`, err.message);
     }
-  } catch(err) {
-    console.warn('[Sheets] ❌ Erreur:', err.message);
+    // Petite pause entre chaque requête pour ne pas saturer le webhook Apps Script
+    await new Promise(r => setTimeout(r, 250));
   }
+  console.log('[Sheets] Envoi terminé.');
 };
