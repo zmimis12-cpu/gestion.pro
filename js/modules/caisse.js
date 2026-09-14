@@ -640,10 +640,24 @@ function populateClientSelect() {
     clients.map(c => `<option value="${c.id}">${escapeHTML(c.name)}${c.creditUsed > 0 ? ` (Dette: ${fmt(c.creditUsed)})` : ''}</option>`).join('');
 }
 
+let _checkoutInProgress = false;
+
 async function checkout(docType) {
   if (!isSuperAdmin() && !hasPermission('caisse', 'create')) {
     toast('⛔ Permission refusée', 'error'); return;
   }
+  // Empêche un double-clic (ou double-appui rapide) de créer 2 ventes
+  // distinctes pour le même panier — double déduction de stock sinon.
+  if (_checkoutInProgress) { return; }
+  _checkoutInProgress = true;
+  try {
+    await _doCheckout(docType);
+  } finally {
+    _checkoutInProgress = false;
+  }
+}
+
+async function _doCheckout(docType) {
   if (!CAISSE_LOCAL_ID) { toast('🏪 Choisissez le local de sortie en haut de la caisse', 'warn'); return; }
   const _cLids = getLocalIds();
   if (_cLids && !_cLids.includes(CAISSE_LOCAL_ID)) { toast('⛔ Vous n\'avez pas accès à ce local', 'error'); return; }
@@ -770,10 +784,10 @@ async function checkout(docType) {
   }
   save(false, { products: _dirtyProductIds });
 
-  // ── Google Sheets sync — on attend que TOUTES les lignes soient envoyées
-  // avant d'afficher le reçu/facture (window.print() peut geler l'onglet et
-  // couper les requêtes encore en attente si on ne les attend pas) ──
-  await sendToGoogleSheets(sale);
+  // ── Google Sheets sync — en arrière-plan (fire-and-forget) pour ne pas
+  // bloquer/ralentir l'affichage du reçu/facture. Le verrou anti-doublon
+  // est dans sendToGoogleSheets lui-même (par sale.id) ──
+  sendToGoogleSheets(sale);
 
   // WhatsApp notification automatique si vente à crédit
   if (sale.isCreditSale) {

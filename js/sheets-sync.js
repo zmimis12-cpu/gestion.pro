@@ -11,6 +11,16 @@ function _sheetsPhotoLink(url) {
 }
 
 window.sendToGoogleSheets = async function(sale) {
+  // ── Verrou anti-doublon : une vente (par id) n'est envoyée qu'une seule
+  // fois, même si cette fonction est appelée plusieurs fois pour la même
+  // vente (double-clic, onglet dupliqué, re-render, etc.) ──
+  window._sheetsSentSaleIds = window._sheetsSentSaleIds || new Set();
+  if (sale.id && window._sheetsSentSaleIds.has(sale.id)) {
+    console.warn('[Sheets] ⛔ Vente déjà envoyée, ignorée:', sale.id);
+    return;
+  }
+  if (sale.id) window._sheetsSentSaleIds.add(sale.id);
+
   const items = sale.items || [];
   console.log(`[Sheets] Envoi de ${items.length} ligne(s) pour cette vente...`);
   for (let i = 0; i < items.length; i++) {
@@ -43,8 +53,9 @@ window.sendToGoogleSheets = async function(sale) {
       // Une ligne en échec ne doit pas bloquer les suivantes
       console.warn(`[Sheets] ❌ Erreur ligne ${i+1}/${items.length} (${item.name}):`, err.message);
     }
-    // Petite pause entre chaque requête pour ne pas saturer le webhook Apps Script
-    await new Promise(r => setTimeout(r, 250));
+    // Petite pause entre chaque requête — Apps Script traite une requête à
+    // la fois, envoyer trop vite peut créer un vrai risque de collision
+    await new Promise(r => setTimeout(r, 150));
   }
   console.log('[Sheets] Envoi terminé.');
 };
