@@ -22,6 +22,9 @@ window.sendToGoogleSheets = async function(sale) {
   if (sale.id) window._sheetsSentSaleIds.add(sale.id);
 
   const items = sale.items || [];
+  const zoneName = (typeof GP_LOCAUX_ALL !== 'undefined')
+    ? (GP_LOCAUX_ALL.find(l => l.id === sale.local_id)?.nom || '')
+    : '';
   console.log(`[Sheets] Envoi de ${items.length} ligne(s) pour cette vente...`);
   for (let i = 0; i < items.length; i++) {
     const item = items[i];
@@ -41,6 +44,7 @@ window.sendToGoogleSheets = async function(sale) {
         montant:      (item.price || 0) * (item.qty || 1),
         payment_mode: sale.payment || '',
         statut:       'Vendu',
+        zone:         zoneName,
       });
 
       // Réessaie jusqu'à 3 fois si l'envoi échoue (on a vu des 404
