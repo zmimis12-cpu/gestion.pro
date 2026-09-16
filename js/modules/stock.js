@@ -565,10 +565,9 @@ function populateStockFilters() {
   }
   const zoneSel = document.getElementById('stock-filter-zone');
   if (zoneSel) {
-    const zones = [...new Set(products.map(p => p.zone).filter(Boolean))].sort();
     const cur = zoneSel.value;
     zoneSel.innerHTML = '<option value="">Toutes les zones</option>' +
-      zones.map(z => `<option value="${z}"${z===cur?' selected':''}>${z}</option>`).join('');
+      GP_LOCAUX_ALL.filter(l => l.actif !== false).map(l => `<option value="${l.id}"${l.id===cur?' selected':''}>${escapeHTML(l.nom)}</option>`).join('');
   }
 }
 
@@ -616,7 +615,7 @@ function renderStockTable(resetPage) {
   const _missingMap = typeof _getMissingStockByProduct === 'function' ? _getMissingStockByProduct() : {};
 
   const groupMap = new Map();
-  products.forEach(p => {
+  products.filter(p => !zoneF || p.local_id === zoneF).forEach(p => {
     const key = (p.code && p.code.trim()) ? p.code.trim().toLowerCase() : `${p.name.trim().toLowerCase()}||${(p.category||'').toLowerCase()}`;
     if (!groupMap.has(key)) {
       const g = { ...p, _variants: [p], _totalStock: p.stock, _renderStockMap: {} };
