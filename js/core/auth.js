@@ -878,10 +878,11 @@ async function loadUserData() {
     const BATCH = 1000;
     let from = 0;
     while (true) {
-      // Super admin ou pas de local assigné → charger TOUS les produits du tenant
+      // Visibilité du stock = toujours globale (tenant entier), quelle que
+      // soit la zone autorisée de l'utilisateur : il doit voir le stock des
+      // autres zones pour savoir qu'il existe, même s'il ne peut pas le
+      // modifier (restriction appliquée à l'écriture, pas à la lecture).
       let params = `select=*&tenant_id=eq.${tid}&order=name&offset=${from}&limit=${BATCH}`;
-      if (!hasGlobalAccess() && lids && lids.length === 1) params += `&local_id=eq.${lids[0]}`;
-      else if (!hasGlobalAccess() && lids && lids.length > 1) params += `&local_id=in.(${lids.join(',')})`;
       const res = await fetch(`${SUPABASE_URL}/rest/v1/gp_products?${params}`, {
         headers: {
           'apikey': SUPABASE_ANON,

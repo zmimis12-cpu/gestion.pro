@@ -398,6 +398,14 @@ function saveProduct() {
 function editProduct(id) {
   const p = products.find(x => x.id === id);
   if (!p) return;
+  // Visible dans le stock/caisse, mais modification bloquée si le produit
+  // est dans une zone hors de celles autorisées à l'utilisateur.
+  const _elids = getLocalIds();
+  if (_elids && p.local_id && !_elids.includes(p.local_id)) {
+    const zn = GP_LOCAUX_ALL.find(l => l.id === p.local_id)?.nom || 'une autre zone';
+    toast(`👁️ "${p.name}" est dans "${zn}" — vous pouvez voir son stock mais pas le modifier. Utilisez un transfert si besoin.`, 'warn');
+    return;
+  }
   editingProductId = id;
   editProductPhoto = p.photo;
   document.getElementById('edit-prod-name').value = p.name;
@@ -519,6 +527,13 @@ function updateProduct() {
 function deleteProduct(id) {
   if (!isSuperAdmin() && !hasPermission('stock', 'delete')) {
     toast('⛔ Permission refusée', 'error'); return;
+  }
+  const p = products.find(x => x.id === id);
+  const _dlids = getLocalIds();
+  if (p && _dlids && p.local_id && !_dlids.includes(p.local_id)) {
+    const zn = GP_LOCAUX_ALL.find(l => l.id === p.local_id)?.nom || 'une autre zone';
+    toast(`⛔ "${p?.name}" est dans "${zn}" — vous ne pouvez pas le supprimer depuis là.`, 'error');
+    return;
   }
   if (!confirm('Supprimer ce produit ?')) return;
   products = products.filter(x => x.id !== id);
