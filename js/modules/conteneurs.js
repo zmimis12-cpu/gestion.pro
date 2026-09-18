@@ -395,6 +395,7 @@ function addToStockFromConteneur(id) {
   if (!confirm(msg)) return;
 
   let added = 0, updated = 0;
+  const _contDirtyProducts = new Set();
   c.refs.forEach(r => {
     const qtyTotale = r.qtyTotale || (r.nbCartons * r.pcsParCarton) || 0;
     const prixReel = r.prixAchatReel || r.prixAchatUnit || 0;
@@ -403,9 +404,10 @@ function addToStockFromConteneur(id) {
       existing.stock = (existing.stock || 0) + qtyTotale;
       existing.cost = prixReel;
       existing.name = existing.name || r.produitNom || r.refCode;
+      _contDirtyProducts.add(existing.id);
       updated++;
     } else {
-      products.push({
+      const newProd = {
         id: uid(),
         name: r.produitNom || r.refCode,
         code: r.refCode,
@@ -416,13 +418,15 @@ function addToStockFromConteneur(id) {
         minStock: Math.max(1, Math.ceil(qtyTotale * 0.1)),
         unit: 'Pièce',
         photo: null
-      });
+      };
+      products.push(newProd);
+      _contDirtyProducts.add(newProd.id);
       added++;
     }
   });
 
   c.statut = 'sorti';
-  save();
+  save(false, { products: _contDirtyProducts });
   closeModal('modal-cont-detail');
   toast(`✅ ${added} produit(s) créés, ${updated} mis à jour dans le stock`);
   renderConteneurs();

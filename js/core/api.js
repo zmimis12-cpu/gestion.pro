@@ -52,10 +52,15 @@ async function _doSave(dirty) {
     // précisément quels produits ont changé, on ne synchronise QUE ceux-là
     // au lieu de renvoyer tout le catalogue à chaque sauvegarde.
     const tid = GP_TENANT?.id || null;
+    // Produits synchronisés UNIQUEMENT quand explicitement marqués modifiés
+    // (dirty.products) — sinon ne rien renvoyer. Avant, un save() "générique"
+    // (venant de clients.js, employes.js, etc., qui ne touchent jamais aux
+    // produits) retombait sur un envoi de la table ENTIÈRE (2000+ lignes) à
+    // chaque fois, ce qui noyait Supabase Realtime et bloquait tout le reste.
     const dirtyProductIds = dirty?.products;
     const productsToSync = (dirtyProductIds && dirtyProductIds.size > 0)
       ? products.filter(p => dirtyProductIds.has(p.id))
-      : products;
+      : [];
     const pProducts = productsToSync.length ? sbSync('gp_products', productsToSync.map(p => ({
       id: p.id, tenant_id: tid, local_id: lid || p.local_id,
       name: p.name, category: p.category, code: p.code || null,
@@ -67,12 +72,20 @@ async function _doSave(dirty) {
     })), 'local_id', lid) : Promise.resolve();
 
     // ── Autres tables — en parallèle (indépendantes les unes des autres) ──
+    // clamp évite un "numeric field overflow" côté Supabase si une valeur
+    // dérape (bug d'affichage, saisie erronée...) — ça bloquait TOUT le lot
+    // de clients avant (un seul mauvais chiffre faisait échouer tous les autres)
+    const _clampNum = (v) => {
+      const n = parseFloat(v) || 0;
+      if (!isFinite(n)) return 0;
+      return Math.max(-99999999.99, Math.min(99999999.99, n));
+    };
     const pClients = sbSync('gp_clients', clients.map(c => ({
       id: c.id, tenant_id: tid, local_id: lid || c.local_id,
       name: c.name, phone: c.phone || null, email: c.email || null,
       city: c.city || null, address: c.address || null,
       notes: c.notes || null,
-      credit_limit: c.creditLimit || 0, credit_used: c.creditUsed || 0
+      credit_limit: _clampNum(c.creditLimit), credit_used: _clampNum(c.creditUsed)
     })), 'local_id', lid);
 
     const pSales = sbSync('gp_sales', sales.map(s => ({

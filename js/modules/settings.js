@@ -102,8 +102,9 @@ function importProductsJSON(e) {
         toast(`✅ ${added} ${t('toast_import_replaced')} ${avecPhotos} ${t('toast_photos_with')}`);
       }
 
-      // Sauvegarder et rafraîchir
-      save(true); // immediate save
+      // Sauvegarder et rafraîchir — sync complet explicite car potentiellement
+      // tout le catalogue a été remplacé/fusionné par cet import
+      save(true, { products: new Set(products.map(p => p.id)) });
       renderStockTable();
       updateAlertCount();
       e.target.value = '';
