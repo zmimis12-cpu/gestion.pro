@@ -838,12 +838,19 @@ function importCSV(e) {
   reader.onload = async ev => {
     const lines = ev.target.result.split('\n').filter(l => l.trim());
     let added = 0;
+    let skippedDup = 0;
+    const seenCodes = new Set();
     const newProducts = [];
 
     for (let i = 1; i < lines.length; i++) {
       // Smart CSV split: handles commas inside quotes
       const cols = parseCSVLine(lines[i]);
       if (!cols[0]) continue;
+      const code = (cols[7] || '').trim().replace(/\r$/, '');
+      // Un code en double ferait échouer TOUT le lot de 200 à l'import
+      // (contrainte unique côté base) — on le détecte et l'ignore ici.
+      if (code && seenCodes.has(code)) { skippedDup++; continue; }
+      if (code) seenCodes.add(code);
       const photoUrl = cols[8] ? cols[8].trim() : null;
       newProducts.push({
         id: uid(),
@@ -854,10 +861,10 @@ function importCSV(e) {
         stock: parseInt(cols[4]) || 0,
         minStock: parseInt(cols[5]) || 5,
         unit: cols[6] || 'Pièce',
-        code: cols[7] || '',
+        code: code,
         photo: photoUrl || null,
         photoUrl: photoUrl || null,
-        zone: cols[9] ? cols[9].trim() : '',
+        zone: cols[9] ? cols[9].trim().replace(/\r$/, '') : '',
         createdAt: new Date().toISOString()
       });
       added++;
@@ -873,9 +880,23 @@ function importCSV(e) {
     });
 
     products.push(...newProducts);
-    save(false, { products: new Set(newProducts.map(p => p.id)) }); renderStockTable(); updateAlertCount();
+    const tid = GP_TENANT?.id || null;
+    const lid = getLocalId();
+    const result = await sbSync('gp_products', newProducts.map(p => ({
+      id: p.id, tenant_id: tid, local_id: lid || p.local_id,
+      name: p.name, category: p.category, code: p.code || null,
+      type: p.type || 'unite', price: p.price, cost: p.cost || 0,
+      stock: p.stock, min_stock: p.minStock || 5,
+      unit: p.unit || 'Pièce', zone: p.zone || null,
+      sizes: p.sizes || {}, photo_url: p.photo || null,
+      updated_at: new Date().toISOString()
+    })));
+    renderStockTable(); updateAlertCount();
     const photosLoaded = newProducts.filter(p => p.photo).length;
-    toast(`✅ ${added} produit(s) importé(s)${photosLoaded > 0 ? ` avec ${photosLoaded} photo(s)` : ''}`);
+    let msg = `✅ ${result.saved} produit(s) importé(s)${photosLoaded > 0 ? ` avec ${photosLoaded} photo(s)` : ''}`;
+    if (skippedDup > 0) msg += ` — ⚠️ ${skippedDup} doublon(s) de code ignoré(s)`;
+    if (result.failed > 0) msg += ` — ❌ ${result.failed} échoué(s), voir le message ci-dessus`;
+    toast(msg, (result.failed > 0 || skippedDup > 0) ? 'warn' : 'success');
     e.target.value = '';
   };
   reader.readAsText(file);

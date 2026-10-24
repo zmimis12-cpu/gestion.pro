@@ -14,24 +14,32 @@ async function sbUpsert(table, data, conflictCol = 'id') {
 // UPSERT uniquement — les suppressions se font via sbDelete() directement
 // sbSync — upsert par batch de 200 pour éviter les limites Supabase
 async function sbSync(table, data, localIdCol = 'local_id', lid) {
-  if (!data || data.length === 0) return;
+  if (!data || data.length === 0) return { ok: true, saved: 0, failed: 0 };
   const BATCH = 200;
   let totalDone = 0;
+  let totalFailed = 0;
+  let lastError = null;
   try {
     for (let i = 0; i < data.length; i += BATCH) {
       const batch = data.slice(i, i + BATCH);
       const { error } = await sb.from(table).upsert(batch, { onConflict: 'id' });
       if (error) {
         console.error(`[SB] ❌ Sync ${table} batch ${i}:`, error.message);
-        toast(`❌ Save ${table}: ${error.message}`, 'error');
-        return;
+        lastError = error.message;
+        totalFailed += batch.length;
+        continue; // ne PAS abandonner les lots suivants à cause d'un seul lot en échec
       }
       totalDone += batch.length;
     }
-    console.log(`[SB] ✅ Sync ${table}: ${totalDone} rows`);
+    console.log(`[SB] ✅ Sync ${table}: ${totalDone} rows` + (totalFailed ? `, ❌ ${totalFailed} échoués` : ''));
+    if (totalFailed > 0) {
+      toast(`⚠️ ${table} : ${totalFailed} ligne(s) non sauvegardée(s) — ${lastError}`, 'error');
+    }
+    return { ok: totalFailed === 0, saved: totalDone, failed: totalFailed, error: lastError };
   } catch(e) {
     console.error(`[SB] ❌ Sync ${table} exception:`, e.message);
     toast(`❌ Save ${table}: ${e.message}`, 'error');
+    return { ok: false, saved: totalDone, failed: data.length - totalDone, error: e.message };
   }
 }
 
